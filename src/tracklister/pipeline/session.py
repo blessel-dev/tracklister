@@ -271,12 +271,10 @@ class SetSession:
                             if r.uid in todo and self._needs_file(r)]
                 if not rows:
                     continue
-                banned = self._run_pass(relaxed(p) if relaxed_mode else p, rows, runner, creds, on_event, cancel,
-                                        total)
-                if banned:
-                    on_event(SessionEvent("error", message_es=(
-                        "Soulseek corto la sesion (posible exceso de busquedas o la misma cuenta abierta en otro "
-                        "programa). Espera 30 minutos y pulsa Reintentar fallos.")))
+                stop = self._run_pass(relaxed(p) if relaxed_mode else p, rows, runner, creds, on_event, cancel,
+                                      total)
+                if stop:
+                    on_event(SessionEvent("error", message_es=stop))
                     break
         except EngineError as e:
             for u in todo:
@@ -292,7 +290,8 @@ class SetSession:
         on_event(SessionEvent("finished", message_es="Listo.", done=total, total=total))
 
     def _run_pass(self, fmt: FormatPass, rows: list[TrackRow], runner: EngineRunner, creds: Credentials,
-                  on_event: Callable[[SessionEvent], None], cancel: threading.Event, total: int) -> bool:
+                  on_event: Callable[[SessionEvent], None], cancel: threading.Event, total: int) -> str | None:
+        """Run one pass; returns a Spanish message when the remaining passes must not run."""
         index = len(self.doc.passes) + 1
         work = self.paths.work_dir / self.doc.set_id[:8] / f"p{index:02d}"
         if work.exists():
@@ -350,6 +349,9 @@ class SetSession:
             elif result.banned and (outcome is None or outcome.engine_state == "unknown"):
                 res.state = ResultState.FALLIDA
                 res.reasons = ["Soulseek corto la sesion antes de llegar a esta pista."]
+            elif result.fatal_es and (outcome is None or outcome.engine_state == "unknown"):
+                res.state, res.doubt, res.file = ResultState.FALLIDA, None, None
+                res.reasons = [result.fatal_es]
             elif outcome is not None and outcome.engine_state == "not_found":
                 res.state, res.doubt, res.file = ResultState.NO_ENCONTRADO, None, None
                 res.reasons = [REASON_ES.get(outcome.reason or "", "No se encontro en Soulseek.") +
@@ -364,7 +366,12 @@ class SetSession:
         self.journal.commit(bid)
         shutil.rmtree(win_long(work / "in"), ignore_errors=True)
         on_event(SessionEvent("pass_finished", message_es=f"{label}: terminada.", total=total))
-        return result.banned
+        if result.banned:
+            return ("Soulseek corto la sesion (posible exceso de busquedas o la misma cuenta abierta en otro "
+                    "programa). Espera 30 minutos y pulsa Reintentar fallos.")
+        if result.fatal_es and not any(o.engine_state != "unknown" for o in result.outcomes.values()):
+            return result.fatal_es
+        return None
 
     def _handle_file(self, row: TrackRow, res: RowResult, outcome, fmt: FormatPass, lossy_ok: bool, width: int,
                      bid: str, had_quarantined: bool) -> None:

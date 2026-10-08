@@ -23,7 +23,9 @@ from tracklister.diagnostics.redact import Redactor
 from tracklister.engine.cli import EngineJob, build_command, redact_argv
 from tracklister.engine.credentials import Credentials
 from tracklister.engine.csvwriter import ManifestItem
-from tracklister.engine.outputs import EngineEvent, ItemOutcome, collect_outputs, match_snum, parse_progress_line
+from tracklister.engine.outputs import (
+    EngineEvent, ItemOutcome, collect_outputs, fatal_reason_es, match_snum, parse_progress_line,
+)
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.spec import EngineSpec
 
@@ -47,6 +49,7 @@ class EngineRunResult:
     log_path: Path
     stdout_path: Path
     argv_redacted: list[str] = field(default_factory=list)
+    fatal_es: str | None = None      # login failed, port busy... (Spanish, for every unfinished row)
 
 
 def _kill_tree(proc: subprocess.Popen) -> None:
@@ -118,6 +121,7 @@ class EngineRunner:
         del argv  # the unredacted argv (with the password) is not kept around
 
         banned = threading.Event()
+        fatal: list[str] = []
 
         def reader() -> None:
             with open(job.stdout_path, "w", encoding="utf-8", newline="\n") as out:
@@ -129,6 +133,10 @@ class EngineRunner:
                     ev = parse_progress_line(self.spec.dialect, line)
                     if ev is None:
                         continue
+                    if ev.kind in ("log", "ban") and not fatal:
+                        why = fatal_reason_es(line)
+                        if why:
+                            fatal.append(why)
                     snum = match_snum(ev.subject, manifest) if ev.subject else None
                     if ev.kind == "ban":
                         banned.set()
@@ -150,4 +158,4 @@ class EngineRunner:
         _redact_file(job.log_path, redactor)
         outcomes = collect_outputs(job, manifest, self.spec.dialect)
         return EngineRunResult(None if cancelled else proc.returncode, cancelled, banned.is_set(), outcomes,
-                               job.log_path, job.stdout_path, argv_red)
+                               job.log_path, job.stdout_path, argv_red, fatal[0] if fatal else None)

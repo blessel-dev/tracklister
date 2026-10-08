@@ -77,6 +77,21 @@ def test_runner_ban(tmp_path):
     assert any(e.kind == "ban" for e in events)
 
 
+def test_runner_login_failure_gives_a_clear_reason(tmp_path):
+    for dialect in (EngineDialect.SOCKSEEK3, EngineDialect.SLDL2):
+        res, _, _, _ = _run(tmp_path / str(dialect), "login_falla", dialect)
+        assert res.fatal_es and "usuario y tu contrasena" in res.fatal_es
+        assert all(o.engine_state == "unknown" for o in res.outcomes.values())
+        assert "usuario-prueba" not in res.stdout_path.read_text(encoding="utf-8")
+
+
+def test_fatal_patterns_ignore_track_names():
+    from tracklister.engine.outputs import fatal_reason_es
+    assert fatal_reason_es("  Login Failed - Address Already In Use (30s)") is None
+    assert fatal_reason_es("[soulseek] Soulseek login failed: x") is not None
+    assert "puerto" in fatal_reason_es("Only one usage of each socket address is normally permitted")
+
+
 def test_runner_cancel_kills_the_process(tmp_path):
     def slow(net):
         net["peers"] = {"peerA": {"slow": True, "slow_s": 60}}

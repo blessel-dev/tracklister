@@ -90,6 +90,31 @@ def parse_progress_line(dialect: EngineDialect, line: str) -> EngineEvent | None
     return EngineEvent(kind, None, text, subject)
 
 
+_FATAL = (
+    (re.compile(r"login failed|failed to ensure soulseek connection|missing soulseek (username|password)|"
+                r"no soulseek username or password", re.IGNORECASE),
+     "No se pudo entrar en Soulseek: revisa tu usuario y tu contrasena en Ajustes (y que la cuenta no "
+     "este abierta en otro programa)."),
+    (re.compile(r"address already in use|only one usage of each socket address|failed to bind", re.IGNORECASE),
+     "El puerto de escucha esta ocupado por otro programa: cambia el puerto en Ajustes."),
+    (re.compile(r"^input error:|unknown argument", re.IGNORECASE),
+     "El motor no acepto las opciones de Tracklister: reinstala Tracklister o cambia de motor en Ajustes."),
+)
+
+
+def fatal_reason_es(line: str) -> str | None:
+    """Spanish explanation for an engine line that means the whole run cannot work.
+
+    Indented lines are skipped: they are the track preview ("  Artist - Title") or error details,
+    and a track may well be called "Login Failed"."""
+    if not line or line[:1].isspace():
+        return None
+    for pat, msg in _FATAL:
+        if pat.search(line):
+            return msg
+    return None
+
+
 def query_text(item: ManifestItem) -> str:
     return f"{item.artist} - {item.title}"
 

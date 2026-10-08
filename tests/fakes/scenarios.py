@@ -21,7 +21,7 @@ from tracklister.core.model import RowStatus, TrackRow
 SCENARIOS = (
     "correcto", "version_equivocada", "radio_edit", "flac_transcodificado", "truncado", "sin_tags",
     "sin_resultados", "peer_timeout", "duplicado_entre_sets", "rerun", "nombres_raros", "ban",
-    "mp3_vbr", "mp3_256", "cdj_flac_96k", "todos_los_estados",
+    "mp3_vbr", "mp3_256", "cdj_flac_96k", "todos_los_estados", "login_falla",
 )
 
 # Preset each scenario is meant to run with (default "lossless").
@@ -65,6 +65,11 @@ def _scenario(name: str, tmp: Path) -> tuple[list[TrackRow], dict]:
     if name in ("correcto", "rerun"):
         rows, files = _base_good()
         return rows, _net(files)
+    if name == "login_falla":
+        rows, files = _base_good()
+        net = _net(files)
+        net["login_fails"] = True
+        return rows, net
     if name == "version_equivocada":
         return ([row(1, "Fjaak", "Spirit", dur=30)],
                 _net([file("peerA", "@@x\\Fjaak\\Fjaak - Spirit (Kai Van Dongen Remix).flac", "Fjaak",

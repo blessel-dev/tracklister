@@ -257,6 +257,13 @@ def main(argv: list[str]) -> int:
         log.line(f"[soulseek] Logging in as {user}..")
     else:
         log.line(f"Login {user}")
+    if net.get("login_fails"):
+        # wrong password / account open elsewhere: the whole run fails before any search
+        if dialect == V3:
+            log.line("[cli] Soulseek login failed: LoginRejectedException: INVALIDPASS", level="error")
+        else:
+            log.line(f"Login failed definitively for {user} after 3 attempts.", level="error")
+        return 1
 
     if opts.get("--print") == "json-all":
         for it in items:

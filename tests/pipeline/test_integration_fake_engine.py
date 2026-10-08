@@ -211,6 +211,16 @@ def test_nombres_raros(tmp_path):
     assert all(_res(s, i).state == ResultState.VERIFICADO for i in (1, 2, 3, 4))
 
 
+def test_login_failure_marks_rows_and_stops(tmp_path):
+    h = Harness(tmp_path)
+    s, runner = h.session("login_falla")
+    events, asked = h.run(s, runner, approve=lambda rows: {r.uid for r in rows})
+    assert all(_res(s, i).state == ResultState.FALLIDA for i in (1, 2))
+    assert "usuario y tu contrasena" in _res(s, 1).reasons[0]
+    assert any(e.kind == "error" and "Ajustes" in e.message_es for e in events)
+    assert len(s.doc.passes) == 1 and asked == []
+
+
 def test_ban_stops_the_run(tmp_path):
     h = Harness(tmp_path)
     s, runner = h.session("ban")
