@@ -1,0 +1,2 @@
+# Assets are hashed in manifest.json: never convert line endings on checkout.
+* -text
