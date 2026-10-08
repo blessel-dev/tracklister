@@ -115,6 +115,19 @@ def _tags(mf) -> tuple[str | None, str | None, str | None]:
     return out[0], out[1], out[2]
 
 
+def read_tags(path: Path) -> tuple[str | None, str | None]:
+    """(artist, title) from the tags only: fast, no decoding (used to scan whole folders)."""
+    import mutagen
+    try:
+        mf = mutagen.File(str(path))
+    except Exception:  # noqa: BLE001
+        return None, None
+    if mf is None:
+        return None, None
+    a, t, _ = _tags(mf)
+    return a, t
+
+
 _SUBTYPE_BITS = {"PCM_S8": 8, "PCM_U8": 8, "PCM_16": 16, "PCM_24": 24, "PCM_32": 32, "FLOAT": 32, "DOUBLE": 64}
 
 
