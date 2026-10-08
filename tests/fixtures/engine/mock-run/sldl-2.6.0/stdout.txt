@@ -1,0 +1,39 @@
+Input (CSV): <TMP>\w\p01\input.csv
+Using columns: artist:"Artist", title:"Title", length:"Length".
+Couldn't parse track length "" with format "s" for "Nobody Known - Nonexistent Track"
+Couldn't parse track length "" with format "s" for "A1 - Same Name"
+Couldn't parse track length "" with format "s" for "A2 - Same Name"
+Couldn't parse track length "" with format "s" for "Comma, Artist - Say, Hi"
+Couldn't parse track length "" with format "s" for "Quote "Q" Artist - Not Here"
+Using Mock Soulseek Client.
+Login usuario-prueba
+Downloading 7 tracks:
+  Fjaak - Spirit (20s)
+  Chris Liebing - Higher Things (FJAAK Remix) (25s)
+  Nobody Known - Nonexistent Track
+  A1 - Same Name
+  A2 - Same Name
+  Comma, Artist - Say, Hi
+  Quote "Q" Artist - Not Here
+Searching: Fjaak - Spirit (20s)
+Searching: Chris Liebing - Higher Things (FJAAK Remix) (25s)
+Initialize: local\..\Chris Liebing - Higher Things (FJAAK Remix).flac [25s/44.1kHz1250kbps/3.7MB]
+Initialize: local\..\Fjaak - Spirit.flac [20s/44.1kHz1250kbps/3.0MB]
+None:          local\..\Chris Liebing - Higher Things (FJAAK Remix).flac [25s/44.1kHz1250kbps/3.7MB]
+None:          local\..\Fjaak - Spirit.flac [20s/44.1kHz1250kbps/3.0MB]
+Searching: Nobody Known - Nonexistent Track
+Not found: Nobody Known - Nonexistent Track
+Searching: A1 - Same Name
+Initialize: local\..\Same Name.flac [12s/44.1kHz1258kbps/1.8MB]
+None:          local\..\Same Name.flac [12s/44.1kHz1258kbps/1.8MB]
+Searching: A2 - Same Name
+Initialize: local\..\Same Name.flac [13s/44.1kHz1248kbps/1.9MB]
+None:          local\..\Same Name.flac [13s/44.1kHz1248kbps/1.9MB]
+Searching: Comma, Artist - Say, Hi
+Initialize: local\..\Comma, Artist - Say, Hi.wav [10s/44.1kHz1411kbps/1.7MB]
+None:          local\..\Comma, Artist - Say, Hi.wav [10s/44.1kHz1411kbps/1.7MB]
+Searching: Quote "Q" Artist - Not Here
+Not found: Quote "Q" Artist - Not Here
+Downloaded 5 of Total 7 (71.43 %)
+
+Completed: 5 succeeded, 2 failed.

@@ -1,0 +1,1 @@
+[{"User":{"Username":"local","UploadSpeed":9.536743E-05,"HasFreeUploadSlot":true},"File":{"Length":20,"Filename":"peerA\\Music\\Fjaak\\Fjaak - Spirit.flac","Size":3131685,"Bitrate":1250,"SampleRate":44100,"BitDepth":16}}]

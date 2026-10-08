@@ -1,0 +1,9 @@
+filepath,artist,album,title,length,tracktype,state,failurereason
+./in\1\Fjaak - Spirit.flac,Fjaak,,Spirit,20,0,1,0
+./in\2\Chris Liebing - Higher Things (FJAAK Remix).flac,Chris Liebing,,Higher Things (FJAAK Remix),25,0,1,0
+./in\4\Same Name.flac,A1,,Same Name,-1,0,1,0
+./in\5\Same Name.flac,A2,,Same Name,-1,0,1,0
+"./in\6\Comma, Artist - Say, Hi.wav","Comma, Artist",,"Say, Hi",-1,0,1,0
+,Nobody Known,,Nonexistent Track,-1,0,2,3
+,"Quote ""Q"" Artist",,Not Here,-1,0,2,3
+

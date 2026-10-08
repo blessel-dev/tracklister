@@ -1,0 +1,73 @@
+2026-10-08 23:54:35 [info] [cli] Starting CLI session in local mode
+2026-10-08 23:54:35 [debug] [soulseek] Creating Soulseek client instance...
+2026-10-08 23:54:35 [info] [soulseek] Using local files Soulseek client.
+2026-10-08 23:54:35 [info] [soulseek] Reading tags from mock files dir, this may take a while. Use --mock-files-no-read-tags if tags are not needed.
+2026-10-08 23:54:35 [debug] [jobs] Soulseek services initialized
+2026-10-08 23:54:35 [debug] [jobs] [1] ExtractJob: pending: <TMP>\w\p01\input.csv
+2026-10-08 23:54:35 [info] [jobs] [1] ExtractJob: CSV: Input: <TMP>\w\p01\input.csv
+2026-10-08 23:54:35 [info] [jobs] [1] ExtractJob: CSV: Using columns: artist:"Artist", title:"Title", length:"Length".
+2026-10-08 23:54:35 [warn] [jobs] [1] ExtractJob: CSV: Couldn't parse track length "" with format "s"
+2026-10-08 23:54:35 [debug] [jobs] [1] ExtractJob: extracted 7 jobs, 7 songs: <TMP>\w\p01\input.csv
+2026-10-08 23:54:35 [debug] [jobs] [2] Job List: pending: input
+2026-10-08 23:54:35 [info] [jobs] [2] Job List: running: input
+2026-10-08 23:54:35 [info] [cli] Downloading 7 tracks:
+2026-10-08 23:54:35 [debug] [jobs] [3] SongJob: pending: Fjaak - Spirit
+2026-10-08 23:54:35 [debug] [jobs] [3] SongJob: waiting search: Fjaak - Spirit
+2026-10-08 23:54:35 [info] [jobs] [3] SongJob: searching: Fjaak - Spirit
+2026-10-08 23:54:36 [debug] [soulseek] 1 results found: Fjaak - Spirit (20s)
+2026-10-08 23:54:36 [debug] [jobs] [4] SongJob: pending: Chris Liebing - Higher Things (FJAAK Remix)
+2026-10-08 23:54:36 [debug] [jobs] [4] SongJob: waiting search: Chris Liebing - Higher Things (FJAAK Remix)
+2026-10-08 23:54:36 [info] [jobs] [4] SongJob: searching: Chris Liebing - Higher Things (FJAAK Remix)
+2026-10-08 23:54:36 [debug] [jobs] [5] SongJob: pending: Nobody Known - Nonexistent Track
+2026-10-08 23:54:36 [debug] [soulseek] 1 results found: Chris Liebing - Higher Things (FJAAK Remix) (25s)
+2026-10-08 23:54:36 [debug] [jobs] [6] SongJob: pending: A1 - Same Name
+2026-10-08 23:54:36 [debug] [soulseek] Downloading: Chris Liebing - Higher Things (FJAAK Remix) (25s) from 'local\peerB\Techno\Chris Liebing - Higher Things (FJAAK Remix).flac' to '<TMP>\w\p01\in\.sockseek-staging\18fd6e5743ea4ad8864f67b259cab0c0\Chris Liebing - Higher Things (FJAAK Remix).flac.incomplete'
+2026-10-08 23:54:36 [debug] [jobs] [7] SongJob: pending: A2 - Same Name
+2026-10-08 23:54:36 [debug] [soulseek] Downloading: Fjaak - Spirit (20s) from 'local\peerA\Music\Fjaak\Fjaak - Spirit.flac' to '<TMP>\w\p01\in\.sockseek-staging\262b7483354d4e34a7dc1fba39b84c8d\Fjaak - Spirit.flac.incomplete'
+2026-10-08 23:54:36 [debug] [jobs] [8] SongJob: pending: Comma, Artist - Say, Hi
+2026-10-08 23:54:36 [debug] [jobs] [9] SongJob: pending: Quote "Q" Artist - Not Here
+2026-10-08 23:54:36 [info] [jobs] [3] SongJob: downloading: Fjaak - Spirit: local\..\Music\Fjaak\Fjaak - Spirit.flac
+2026-10-08 23:54:36 [info] [jobs] [4] SongJob: downloading: Chris Liebing - Higher Things (FJAAK Remix): local\peerB\Techno\Chris Liebing - Higher Things (FJAAK Remix).flac
+2026-10-08 23:54:36 [debug] [jobs] [3] SongJob: download succeeded from local\peerA\Music\Fjaak\Fjaak - Spirit.flac to '<TMP>\w\p01\in\.sockseek-staging\262b7483354d4e34a7dc1fba39b84c8d\Fjaak - Spirit.flac': Fjaak - Spirit (20s)
+2026-10-08 23:54:36 [debug] [jobs] [4] SongJob: download succeeded from local\peerB\Techno\Chris Liebing - Higher Things (FJAAK Remix).flac to '<TMP>\w\p01\in\.sockseek-staging\18fd6e5743ea4ad8864f67b259cab0c0\Chris Liebing - Higher Things (FJAAK Remix).flac': Chris Liebing - Higher Things (FJAAK Remix) (25s)
+2026-10-08 23:54:36 [info] [jobs] [4] SongJob: succeeded: Chris Liebing - Higher Things (FJAAK Remix): local\peerB\Techno\Chris Liebing - Higher Things (FJAAK Remix).flac
+2026-10-08 23:54:36 [info] [jobs] [3] SongJob: succeeded: Fjaak - Spirit: local\..\Music\Fjaak\Fjaak - Spirit.flac
+2026-10-08 23:54:36 [debug] [jobs] [5] SongJob: waiting search: Nobody Known - Nonexistent Track
+2026-10-08 23:54:36 [debug] [jobs] [6] SongJob: waiting search: A1 - Same Name
+2026-10-08 23:54:36 [info] [jobs] [5] SongJob: searching: Nobody Known - Nonexistent Track
+2026-10-08 23:54:36 [info] [jobs] [6] SongJob: searching: A1 - Same Name
+2026-10-08 23:54:36 [debug] [soulseek] 0 results found: Nobody Known - Nonexistent Track
+2026-10-08 23:54:36 [debug] [soulseek] 1 results found: A1 - Same Name
+2026-10-08 23:54:36 [debug] [jobs] [5] SongJob: no suitable candidates after search: Nobody Known - Nonexistent Track
+2026-10-08 23:54:36 [debug] [soulseek] Downloading: A1 - Same Name from 'local\peerC\A1\Same Name.flac' to '<TMP>\w\p01\in\.sockseek-staging\551624975c92462a98b52f7a670c4553\Same Name.flac.incomplete'
+2026-10-08 23:54:36 [info] [jobs] [6] SongJob: downloading: A1 - Same Name: local\peerC\A1\Same Name.flac
+2026-10-08 23:54:36 [info] [jobs] [5] SongJob: failed [No search results]: Nobody Known - Nonexistent Track
+    Error: No Soulseek file results found.
+2026-10-08 23:54:36 [debug] [jobs] [7] SongJob: waiting search: A2 - Same Name
+2026-10-08 23:54:36 [info] [jobs] [7] SongJob: searching: A2 - Same Name
+2026-10-08 23:54:36 [debug] [soulseek] 1 results found: A2 - Same Name
+2026-10-08 23:54:36 [debug] [soulseek] Downloading: A2 - Same Name from 'local\peerC\A2\Same Name.flac' to '<TMP>\w\p01\in\.sockseek-staging\c67aac90c8e14602be346faa9b2a6f87\Same Name.flac.incomplete'
+2026-10-08 23:54:36 [info] [jobs] [7] SongJob: downloading: A2 - Same Name: local\peerC\A2\Same Name.flac
+2026-10-08 23:54:36 [debug] [jobs] [6] SongJob: download succeeded from local\peerC\A1\Same Name.flac to '<TMP>\w\p01\in\.sockseek-staging\551624975c92462a98b52f7a670c4553\Same Name.flac': A1 - Same Name
+2026-10-08 23:54:36 [info] [jobs] [6] SongJob: succeeded: A1 - Same Name: local\peerC\A1\Same Name.flac
+2026-10-08 23:54:36 [debug] [jobs] [8] SongJob: waiting search: Comma, Artist - Say, Hi
+2026-10-08 23:54:36 [info] [jobs] [8] SongJob: searching: Comma, Artist - Say, Hi
+2026-10-08 23:54:36 [debug] [soulseek] 1 results found: Comma, Artist - Say, Hi
+2026-10-08 23:54:36 [debug] [soulseek] Downloading: Comma, Artist - Say, Hi from 'local\peerD\Comma, Artist - Say, Hi.wav' to '<TMP>\w\p01\in\.sockseek-staging\bac357e421d9421082c03dc5a9752838\Comma, Artist - Say, Hi.wav.incomplete'
+2026-10-08 23:54:36 [debug] [jobs] [7] SongJob: download succeeded from local\peerC\A2\Same Name.flac to '<TMP>\w\p01\in\.sockseek-staging\c67aac90c8e14602be346faa9b2a6f87\Same Name.flac': A2 - Same Name
+2026-10-08 23:54:36 [info] [jobs] [8] SongJob: downloading: Comma, Artist - Say, Hi: local\peerD\Comma, Artist - Say, Hi.wav
+2026-10-08 23:54:36 [info] [jobs] [7] SongJob: succeeded: A2 - Same Name: local\peerC\A2\Same Name.flac
+2026-10-08 23:54:36 [debug] [jobs] [9] SongJob: waiting search: Quote "Q" Artist - Not Here
+2026-10-08 23:54:36 [info] [jobs] [9] SongJob: searching: Quote "Q" Artist - Not Here
+2026-10-08 23:54:36 [info] [core] Downloaded 4, Failed 1 of Total 7 (71.43 %)
+2026-10-08 23:54:36 [debug] [soulseek] 0 results found: Quote "Q" Artist - Not Here
+2026-10-08 23:54:36 [debug] [jobs] [9] SongJob: no suitable candidates after search: Quote "Q" Artist - Not Here
+2026-10-08 23:54:36 [info] [jobs] [9] SongJob: failed [No search results]: Quote "Q" Artist - Not Here
+    Error: No Soulseek file results found.
+2026-10-08 23:54:36 [debug] [jobs] [8] SongJob: download succeeded from local\peerD\Comma, Artist - Say, Hi.wav to '<TMP>\w\p01\in\.sockseek-staging\bac357e421d9421082c03dc5a9752838\Comma, Artist - Say, Hi.wav': Comma, Artist - Say, Hi
+2026-10-08 23:54:36 [info] [jobs] [8] SongJob: succeeded: Comma, Artist - Say, Hi: local\peerD\Comma, Artist - Say, Hi.wav
+2026-10-08 23:54:36 [info] [jobs] [2] Job List: partial: input
+    Error: Some child jobs completed and some failed or were cancelled.
+2026-10-08 23:54:36 [debug] [jobs] Exiting RunAsync
+2026-10-08 23:54:36 [info] [cli] Completed: 5 succeeded, 2 failed.
+2026-10-08 23:54:36 [debug] [cli] Exiting CLI session in local mode with code 1 (WorkFailed)

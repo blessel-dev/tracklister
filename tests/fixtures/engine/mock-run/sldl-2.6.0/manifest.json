@@ -1,0 +1,58 @@
+[
+ {
+  "snum": 1,
+  "uid": "65aef37fc277",
+  "pos": 1,
+  "artist": "Fjaak",
+  "title": "Spirit",
+  "length": 20
+ },
+ {
+  "snum": 2,
+  "uid": "bff4cac172ae",
+  "pos": 2,
+  "artist": "Chris Liebing",
+  "title": "Higher Things (FJAAK Remix)",
+  "length": 25
+ },
+ {
+  "snum": 3,
+  "uid": "d006c9ee234a",
+  "pos": 3,
+  "artist": "Nobody Known",
+  "title": "Nonexistent Track",
+  "length": null
+ },
+ {
+  "snum": 4,
+  "uid": "e09ee8f5d210",
+  "pos": 4,
+  "artist": "A1",
+  "title": "Same Name",
+  "length": null
+ },
+ {
+  "snum": 5,
+  "uid": "1cd7cbd6c02a",
+  "pos": 5,
+  "artist": "A2",
+  "title": "Same Name",
+  "length": null
+ },
+ {
+  "snum": 6,
+  "uid": "f7496b135fd5",
+  "pos": 6,
+  "artist": "Comma, Artist",
+  "title": "Say, Hi",
+  "length": null
+ },
+ {
+  "snum": 7,
+  "uid": "dc952d4fc70f",
+  "pos": 7,
+  "artist": "Quote \"Q\" Artist",
+  "title": "Not Here",
+  "length": null
+ }
+]

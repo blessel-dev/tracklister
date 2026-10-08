@@ -1,0 +1,9 @@
+engine.log  6315
+in/1/Fjaak - Spirit.flac  3131685
+in/2/Chris Liebing - Higher Things (FJAAK Remix).flac  3914422
+in/4/Same Name.flac  1888369
+in/5/Same Name.flac  2028828
+in/6/Comma, Artist - Say, Hi.wav  1764044
+index.csv  470
+input.csv  241
+playlist.m3u  272

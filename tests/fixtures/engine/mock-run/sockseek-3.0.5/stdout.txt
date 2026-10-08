@@ -1,0 +1,41 @@
+[cli] Starting CLI session in local mode
+[soulseek] Using local files Soulseek client.
+[soulseek] Reading tags from mock files dir, this may take a while. Use --mock-files-no-read-tags if tags are not needed.
+[001] ExtractJob: CSV: Input: <TMP>\w\p01\input.csv
+[001] ExtractJob: CSV: Using columns: artist:"Artist", title:"Title", length:"Length".
+[001] ExtractJob: CSV: Couldn't parse track length "" with format "s"
+[002] Job List: running: input
+[cli] Downloading 7 tracks:
+  Fjaak - Spirit (20s)
+  Chris Liebing - Higher Things (FJAAK Remix) (25s)
+  Nobody Known - Nonexistent Track
+  A1 - Same Name
+  A2 - Same Name
+  Comma, Artist - Say, Hi
+  Quote "Q" Artist - Not Here
+[003] SongJob: searching: Fjaak - Spirit
+[004] SongJob: searching: Chris Liebing - Higher Things (FJAAK Remix)
+[003] SongJob: downloading: Fjaak - Spirit: local\..\Music\Fjaak\Fjaak - Spirit.flac
+[004] SongJob: downloading: Chris Liebing - Higher Things (FJAAK Remix): local\peerB\Techno\Chris Liebing - Higher Things (FJAAK Remix).flac
+[004] SongJob: succeeded: Chris Liebing - Higher Things (FJAAK Remix): local\peerB\Techno\Chris Liebing - Higher Things (FJAAK Remix).flac
+[003] SongJob: succeeded: Fjaak - Spirit: local\..\Music\Fjaak\Fjaak - Spirit.flac
+[005] SongJob: searching: Nobody Known - Nonexistent Track
+[006] SongJob: searching: A1 - Same Name
+[006] SongJob: downloading: A1 - Same Name: local\peerC\A1\Same Name.flac
+[005] SongJob: failed [No search results]: Nobody Known - Nonexistent Track
+    Error: No Soulseek file results found.
+[007] SongJob: searching: A2 - Same Name
+[007] SongJob: downloading: A2 - Same Name: local\peerC\A2\Same Name.flac
+[006] SongJob: succeeded: A1 - Same Name: local\peerC\A1\Same Name.flac
+[008] SongJob: searching: Comma, Artist - Say, Hi
+[008] SongJob: downloading: Comma, Artist - Say, Hi: local\peerD\Comma, Artist - Say, Hi.wav
+[007] SongJob: succeeded: A2 - Same Name: local\peerC\A2\Same Name.flac
+[009] SongJob: searching: Quote "Q" Artist - Not Here
+[core] Downloaded 4, Failed 1 of Total 7 (71.43 %)
+[009] SongJob: failed [No search results]: Quote "Q" Artist - Not Here
+    Error: No Soulseek file results found.
+[008] SongJob: succeeded: Comma, Artist - Say, Hi: local\peerD\Comma, Artist - Say, Hi.wav
+[002] Job List: partial: input
+    Error: Some child jobs completed and some failed or were cancelled.
+
+[cli] Completed: 5 succeeded, 2 failed.
