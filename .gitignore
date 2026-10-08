@@ -1,0 +1,38 @@
+# Environments and build output
+.venv/
+venv/
+build/
+dist/
+entrega/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs and diagnostics (may contain peer names or paths)
+*.log
+logs/
+Diagnostico_*.txt
+
+# User config, credentials and downloads: NEVER commit
+*.conf
+sldl.conf
+sockseek.conf
+settings.json
+library.json
+credentials*
+*.secret
+.env
+descargas/
+downloads/
+Descargas/
+
+# Engine binaries are downloaded and SHA-256-verified at build time, never committed
+third_party/engines/bin/
+*.exe
+
+# Local scratch
+.tmp/
+*.tmp
