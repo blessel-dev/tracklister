@@ -2,6 +2,8 @@
 
 Regenerate (only after a deliberate adapter change, then review the diff):
     $env:TRACKLISTER_UPDATE_GOLDEN="1"; .venv\\Scripts\\python.exe -m pytest -q tests\\engine\\test_cli_golden.py
+
+SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 

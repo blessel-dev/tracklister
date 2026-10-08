@@ -1,4 +1,7 @@
-"""Quality rule per preset: MP3 CBR >= 320 only, CDJ conversions, Personalizado limits."""
+"""Quality rule per preset: MP3 CBR >= 320 only, CDJ conversions, Personalizado limits.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 from tests.fakes.synth import make_track

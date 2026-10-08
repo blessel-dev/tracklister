@@ -1,4 +1,7 @@
-"""Fake-lossless check on synthetic audio: brick-wall cuts flagged, dark mixes not."""
+"""Fake-lossless check on synthetic audio: brick-wall cuts flagged, dark mixes not.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import pytest

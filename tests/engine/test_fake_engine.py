@@ -1,4 +1,7 @@
-"""The FAKE engine honours the adapter's argv and reproduces the real engines' output shapes."""
+"""The FAKE engine honours the adapter's argv and reproduces the real engines' output shapes.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import csv

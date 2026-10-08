@@ -1,4 +1,7 @@
-"""'Reordenar carpeta existente' on the sandbox cases of 01 section 3 (P3)."""
+"""'Reordenar carpeta existente' on the sandbox cases of 01 section 3 (P3).
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import unicodedata

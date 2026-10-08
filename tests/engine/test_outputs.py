@@ -1,4 +1,7 @@
-"""Output parsing against the REAL engines' mock-mode outputs (tests/fixtures/engine/mock-run)."""
+"""Output parsing against the REAL engines' mock-mode outputs (tests/fixtures/engine/mock-run).
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import json

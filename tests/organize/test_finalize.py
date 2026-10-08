@@ -1,4 +1,7 @@
-"""place_verified (root vs _dudosos, idempotent) and sync_names (swaps through temp names)."""
+"""place_verified (root vs _dudosos, idempotent) and sync_names (swaps through temp names).
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 from pathlib import Path

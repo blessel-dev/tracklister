@@ -1,4 +1,7 @@
-"""Redactor: own secrets, IPs, peers -> peer-N, user profile path."""
+"""Redactor: own secrets, IPs, peers -> peer-N, user profile path.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import os
@@ -42,4 +45,11 @@ def test_assert_no_secrets():
     assert_no_secrets("todo limpio", ["usuario-prueba"])
     with pytest.raises(AssertionError):
         assert_no_secrets("hola USUARIO-PRUEBA", ["usuario-prueba"])
-    assert os.environ.get("USERPROFILE") is not None or True
+
+
+def test_very_short_secrets_only_as_whole_tokens():
+    r = Redactor(secrets=["jo", "7"])
+    out = r.redact("[003] SongJob: searching: Jo - Joy Division 7 | Logging in as jo..")
+    assert out == "[003] SongJob: searching: [censurado] - Joy Division [censurado] | Logging in as [censurado].."
+    assert_no_secrets(out, ["jo", "7"])
+    assert os.environ.get("PATH")

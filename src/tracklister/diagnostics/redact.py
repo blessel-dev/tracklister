@@ -71,7 +71,7 @@ class Redactor:
             return text
         out = text
         for s in self._secrets:
-            out = self._sub_ci(out, s, CENSORED)
+            out = re.sub(secret_pattern(s), lambda _m: CENSORED, out, flags=re.IGNORECASE)
         for p in self._profiles:
             for variant in (p, p.replace("\\", "/"), p.replace("\\", "\\\\")):
                 out = self._sub_ci(out, variant, "%USERPROFILE%")
@@ -83,9 +83,19 @@ class Redactor:
         return out
 
 
+SHORT_SECRET = 4
+
+
+def secret_pattern(s: str) -> str:
+    """Regex for a secret. Very short ones (< 4 chars) only match as a whole token, so that a
+    one-letter account name does not wipe every letter of the engine's output."""
+    if len(s) < SHORT_SECRET:
+        return r"(?<![A-Za-z0-9])" + re.escape(s) + r"(?![A-Za-z0-9])"
+    return re.escape(s)
+
+
 def assert_no_secrets(text: str, secrets: Iterable[str]) -> None:
-    """Raise AssertionError if any secret survived (case-insensitive)."""
-    low = text.lower()
+    """Raise AssertionError if any secret survived (case-insensitive, same rule as redact)."""
     for s in secrets:
-        if s and s.lower() in low:
+        if s and re.search(secret_pattern(s), text, flags=re.IGNORECASE):
             raise AssertionError("el informe contiene un dato privado sin censurar")

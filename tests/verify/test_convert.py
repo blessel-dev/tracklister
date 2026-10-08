@@ -1,4 +1,7 @@
-"""CDJ conversion: FLAC 96k/24 -> AIFF 48k/24 with tags + cover; exact copies; never AIFF-C/float."""
+"""CDJ conversion: FLAC 96k/24 -> AIFF 48k/24 with tags + cover; exact copies; never AIFF-C/float.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import mutagen

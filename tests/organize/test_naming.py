@@ -1,4 +1,7 @@
-"""Names from the row index, Windows-safe, long paths."""
+"""Names from the row index, Windows-safe, long paths.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import os

@@ -1,4 +1,7 @@
-"""Journal: never overwrite, persisted, undo in reverse order."""
+"""Journal: never overwrite, persisted, undo in reverse order.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 from tracklister.organize.journal import Journal

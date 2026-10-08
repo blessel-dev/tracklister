@@ -1,4 +1,7 @@
-"""Engine CSV: quoting, no BOM, LF, ORIGINAL not appended, empty title refused, snum order."""
+"""Engine CSV: quoting, no BOM, LF, ORIGINAL not appended, empty title refused, snum order.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import csv

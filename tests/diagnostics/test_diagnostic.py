@@ -1,4 +1,7 @@
-"""Diagnostico against the FAKE engine: search-only by default, redacted report."""
+"""Diagnostico against the FAKE engine: search-only by default, redacted report.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import json

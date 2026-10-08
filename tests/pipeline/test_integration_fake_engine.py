@@ -1,4 +1,7 @@
-"""End to end with the FAKE engine: every scenario of the brief's offline integration list."""
+"""End to end with the FAKE engine: every scenario of the brief's offline integration list.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import json

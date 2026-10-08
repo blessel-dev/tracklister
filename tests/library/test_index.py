@@ -1,4 +1,7 @@
-"""Library index: keys, root files only, duration tolerance, rebuild from set.json."""
+"""Library index: keys, root files only, duration tolerance, rebuild from set.json.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 from tracklister.core.jsonio import write_json

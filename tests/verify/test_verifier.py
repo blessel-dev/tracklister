@@ -1,4 +1,7 @@
-"""verify_file(): the fixed verdict rules on synthetic files."""
+"""verify_file(): the fixed verdict rules on synthetic files.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 from tests.fakes.synth import make_track

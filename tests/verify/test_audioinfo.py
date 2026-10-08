@@ -1,4 +1,7 @@
-"""probe(): real container by header, truncation, tags, MP3 bitrate mode."""
+"""probe(): real container by header, truncation, tags, MP3 bitrate mode.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 from tests.fakes.synth import make_track

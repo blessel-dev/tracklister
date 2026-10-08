@@ -1,4 +1,7 @@
-"""Credential store on the FAKE keyring backend (conftest fake_keyring)."""
+"""Credential store on the FAKE keyring backend (conftest fake_keyring).
+
+SPDX-License-Identifier: GPL-3.0-or-later
+"""
 from __future__ import annotations
 
 import pytest
