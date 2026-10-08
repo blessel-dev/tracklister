@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import io
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -202,11 +203,22 @@ def _download_lines(dialect: EngineDialect, stdout_path: Path) -> list[tuple[str
 
 
 def _files_in(d: Path) -> list[Path]:
-    if not d.is_dir():
+    """Files in one in/<snum>/ folder; long names come back in \\\\?\\ form so they stay openable."""
+    try:
+        with os.scandir(_long(d)) as it:
+            found = [(e.stat().st_size, e.name, e.path) for e in it
+                     if e.is_file() and not e.name.lower().endswith(INCOMPLETE_SUFFIXES)]
+    except OSError:
         return []
-    return sorted((f for f in d.iterdir()
-                   if f.is_file() and not f.name.lower().endswith(INCOMPLETE_SUFFIXES)),
-                  key=lambda f: (-f.stat().st_size, f.name))
+    found.sort(key=lambda x: (-x[0], x[1]))
+    return [Path(p) for _, _, p in found]
+
+
+def _long(p: Path) -> str:
+    s = os.path.abspath(str(p))
+    if os.name == "nt" and not s.startswith("\\\\?\\"):
+        return "\\\\?\\" + s
+    return s
 
 
 def collect_outputs(job: EngineJob, manifest: list[ManifestItem], dialect: EngineDialect) -> dict[int, ItemOutcome]:

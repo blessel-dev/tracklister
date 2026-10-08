@@ -43,6 +43,14 @@ KICKED = ("Soulseek server kicked this client, probably because the same account
           "elsewhere. Stopping this run.")
 
 
+def lp(p) -> str:
+    """Long-path form on Windows (the real engines are .NET and long-path aware)."""
+    s = os.path.abspath(str(p))
+    if os.name == "nt" and len(s) >= 240 and not s.startswith("\\\\?\\"):
+        return "\\\\?\\" + s
+    return s
+
+
 def norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", s or "")
     s = "".join(c for c in s if not unicodedata.combining(c)).lower()
@@ -313,16 +321,16 @@ def main(argv: list[str]) -> int:
                    .replace("{slsk-filename}", stem).replace("{ext}", ext)) + ext
             dst = out_dir / Path(rel)
             if dialect == V3:
-                stage = out_dir / ".sockseek-staging" / uuid.uuid4().hex / (file_base(f["path"]) + ".incomplete")
-                write_audio(f, it, stage)
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(stage, dst)
+                stage = out_dir / ".sockseek-staging" / uuid.uuid4().hex / (stem + ext + ".incomplete")
+                write_audio(f, it, Path(lp(stage)))
+                os.makedirs(lp(dst.parent), exist_ok=True)
+                os.replace(lp(stage), lp(dst))
                 try:
-                    stage.parent.rmdir()
+                    os.rmdir(lp(stage.parent))
                 except OSError:
                     pass
             else:
-                write_audio(f, it, dst)
+                write_audio(f, it, Path(lp(dst)))
             results[it["snum"]] = {"state": 1, "file": dst, "f": f, "item": it}
             log.line(f"{did} succeeded: {q}: {display(f)}" if dialect == V3 else
                      "Succeeded:".ljust(14) + f" {display(f)}")

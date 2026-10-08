@@ -19,6 +19,7 @@ from tracklister.core.model import (
     LIBRARY_SCHEMA, DoubtKind, LibraryEntry, ResultState, SetDoc, TrackRow, VersionKind,
 )
 from tracklister.core.textnorm import classify_version, norm_key, split_artists
+from tracklister.organize.naming import win_long
 
 DURATION_TOL_S = 3.0
 _LIBRARY_STATES = {ResultState.VERIFICADO, ResultState.YA_EN_BIBLIOTECA}
@@ -76,15 +77,15 @@ class LibraryIndex:
                                                          res.doubt == DoubtKind.ESPECTRO):
                 continue
             p = set_dir / res.file
-            if not p.is_file():
+            if not os.path.isfile(win_long(p)):
                 continue
             artist = row.artist_display or row.search_artist
             parts = split_artists(artist)
             self.entries.append(LibraryEntry(
                 key=row_key(row), artist_norm=norm_key(parts[0] if parts else artist), title_norm=norm_key(row.title),
-                version_kind=str(classify_version(row.version)), path=str(p.resolve()), set_id=doc.set_id,
+                version_kind=str(classify_version(row.version)), path=os.path.abspath(str(p)), set_id=doc.set_id,
                 set_name=doc.name, pos=row.pos, duration_s=res.duration_s, format=res.format,
-                size=p.stat().st_size, added_at=_now()))
+                size=os.path.getsize(win_long(p)), added_at=_now()))
             added += 1
         return added
 
@@ -94,7 +95,7 @@ class LibraryIndex:
         for e in self.entries:
             if e.key != key or (exclude_set_id and e.set_id == exclude_set_id):
                 continue
-            if not os.path.isfile(e.path):
+            if not os.path.isfile(win_long(e.path)):
                 continue
             if row.expected_duration_s and e.duration_s and abs(e.duration_s - row.expected_duration_s) > DURATION_TOL_S:
                 continue
@@ -103,7 +104,7 @@ class LibraryIndex:
 
     def prune_missing(self) -> int:
         before = len(self.entries)
-        self.entries = [e for e in self.entries if os.path.isfile(e.path)]
+        self.entries = [e for e in self.entries if os.path.isfile(win_long(e.path))]
         return before - len(self.entries)
 
     def rebuild(self, library_root: Path) -> int:
