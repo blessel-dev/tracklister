@@ -1,0 +1,91 @@
+"""Redaction of engine output and of the Diagnostico report.
+
+Owner: ENGINE branch.
+SPDX-License-Identifier: GPL-3.0-or-later
+
+- Secrets (own username/password) -> "[censurado]" (the engines print the login username).
+- Any IPv4/IPv6 literal (validated with `ipaddress`, so "23:51:27" or "3.0.5" stay) and the
+  user's own IPs -> "[censurado]".
+- Peer names registered with peer() -> "peer-1", "peer-2"... (stable per Redactor).
+- The Windows user profile path -> "%USERPROFILE%" (it contains the Windows account name).
+"""
+from __future__ import annotations
+
+import ipaddress
+import os
+import re
+from pathlib import Path
+from typing import Iterable
+
+CENSORED = "[censurado]"
+_IP_CANDIDATE = re.compile(r"(?<![\w.:])[0-9A-Fa-f:.]*[.:][0-9A-Fa-f:.]*(?![\w.:])")
+
+
+def _is_ip(token: str) -> bool:
+    t = token.strip("[]")
+    if t.count(".") == 3 and ":" not in t:
+        try:
+            ipaddress.IPv4Address(t)
+            return True
+        except ValueError:
+            return False
+    if t.count(":") >= 2:
+        try:
+            ipaddress.IPv6Address(t)
+            return True
+        except ValueError:
+            return False
+    return False
+
+
+class Redactor:
+    def __init__(self, secrets: Iterable[str] = (), own_ips: Iterable[str] = ()):
+        self._secrets: list[str] = []
+        for s in secrets:
+            self.add_secret(s)
+        self._own_ips = [ip for ip in own_ips if ip]
+        self._peers: dict[str, str] = {}
+        profile = os.environ.get("USERPROFILE") or str(Path.home())
+        self._profiles = sorted({p for p in (profile, str(Path.home())) if p and len(p) > 3}, key=len, reverse=True)
+
+    def add_secret(self, s: str | None) -> None:
+        if s and s not in self._secrets:
+            self._secrets.append(s)
+            self._secrets.sort(key=len, reverse=True)
+
+    @property
+    def secrets(self) -> list[str]:
+        return list(self._secrets)
+
+    def peer(self, name: str) -> str:
+        """Stable pseudonym for a peer name within this report."""
+        if name not in self._peers:
+            self._peers[name] = f"peer-{len(self._peers) + 1}"
+        return self._peers[name]
+
+    def _sub_ci(self, text: str, needle: str, repl: str) -> str:
+        return re.sub(re.escape(needle), lambda _m: repl, text, flags=re.IGNORECASE)
+
+    def redact(self, text: str) -> str:
+        if not text:
+            return text
+        out = text
+        for s in self._secrets:
+            out = self._sub_ci(out, s, CENSORED)
+        for p in self._profiles:
+            for variant in (p, p.replace("\\", "/"), p.replace("\\", "\\\\")):
+                out = self._sub_ci(out, variant, "%USERPROFILE%")
+        for ip in self._own_ips:
+            out = out.replace(ip, CENSORED)
+        out = _IP_CANDIDATE.sub(lambda m: CENSORED if _is_ip(m.group(0)) else m.group(0), out)
+        for name in sorted(self._peers, key=len, reverse=True):
+            out = re.sub(r"(?<![\w-])" + re.escape(name) + r"(?![\w-])", lambda _m, n=name: self._peers[n], out)
+        return out
+
+
+def assert_no_secrets(text: str, secrets: Iterable[str]) -> None:
+    """Raise AssertionError if any secret survived (case-insensitive)."""
+    low = text.lower()
+    for s in secrets:
+        if s and s.lower() in low:
+            raise AssertionError("el informe contiene un dato privado sin censurar")
