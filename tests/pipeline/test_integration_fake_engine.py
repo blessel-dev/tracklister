@@ -98,7 +98,7 @@ def test_version_equivocada_goes_to_dudosos(tmp_path):
     r = _res(s, 1)
     assert r.state == ResultState.DUDOSO and r.doubt == DoubtKind.VERSION
     assert r.file == "_dudosos/01 - Fjaak - Spirit.flac" and (s.set_dir / r.file).exists()
-    assert any("Otra version" in x for x in r.reasons)
+    assert any("Otra versión" in x for x in r.reasons)
 
 
 def test_radio_edit_too_short(tmp_path):
@@ -107,7 +107,7 @@ def test_radio_edit_too_short(tmp_path):
     h.run(s, runner)
     r = _res(s, 1)
     assert r.state == ResultState.DUDOSO and r.doubt == DoubtKind.VERSION and r.file.startswith("_dudosos/")
-    assert any("Duracion" in x for x in r.reasons)
+    assert any("Duración" in x for x in r.reasons)
 
 
 def test_flac_transcodificado_stays_marked(tmp_path):
@@ -144,7 +144,7 @@ def test_sin_resultados_asks_lossy_once_and_peer_timeout(tmp_path):
     assert [p.name for p in s.doc.passes] == ["lossless", "mp3_320"]
     s2, runner2 = h.session("peer_timeout")
     h.run(s2, runner2)
-    assert _res(s2, 1).state == ResultState.FALLIDA and "ninguna descarga termino" in _res(s2, 1).reasons[0]
+    assert _res(s2, 1).state == ResultState.FALLIDA and "ninguna descarga terminó" in _res(s2, 1).reasons[0]
     assert [p.name for p in s2.doc.passes] == ["lossless"]          # MP3 not approved -> no lossy pass
 
 
@@ -216,7 +216,7 @@ def test_login_failure_marks_rows_and_stops(tmp_path):
     s, runner = h.session("login_falla")
     events, asked = h.run(s, runner, approve=lambda rows: {r.uid for r in rows})
     assert all(_res(s, i).state == ResultState.FALLIDA for i in (1, 2))
-    assert "usuario y tu contrasena" in _res(s, 1).reasons[0]
+    assert "usuario y tu contraseña" in _res(s, 1).reasons[0]
     assert any(e.kind == "error" and "Ajustes" in e.message_es for e in events)
     assert len(s.doc.passes) == 1 and asked == []
 
@@ -227,7 +227,7 @@ def test_ban_stops_the_run(tmp_path):
     events, asked = h.run(s, runner, approve=lambda rows: {r.uid for r in rows})
     assert _res(s, 1).state == ResultState.VERIFICADO
     assert _res(s, 2).state == ResultState.FALLIDA and _res(s, 3).state == ResultState.FALLIDA
-    assert any(e.kind == "error" and "Soulseek corto la sesion" in e.message_es for e in events)
+    assert any(e.kind == "error" and "Soulseek cortó la sesión" in e.message_es for e in events)
     assert asked == [] and len(s.doc.passes) == 1
 
 

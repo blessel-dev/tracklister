@@ -76,12 +76,12 @@ def verify_file(row: TrackRow, path: Path, accept: AcceptRule, *, lossy_allowed:
             reasons.append(f"Otro artista: '{ident.got_artist or '?'}' (se buscaba '{row.artist_display}', "
                            f"coincide {ident.artist:.0f}%).")
         if ident.title < TITLE_MIN:
-            reasons.append(f"Otro titulo: '{ident.got_title or '?'}' (se buscaba '{row.title}', "
+            reasons.append(f"Otro título: '{ident.got_title or '?'}' (se buscaba '{row.title}', "
                            f"coincide {ident.title:.0f}%).")
         doubt = doubt or DoubtKind.IDENTIDAD
 
     if not ident.version_ok:
-        reasons.append(f"Otra version: {ident.version_reason_es}.")
+        reasons.append(f"Otra versión: {ident.version_reason_es}.")
         doubt = doubt or DoubtKind.VERSION
 
     duration = dec if dec is not None else hdr
@@ -92,16 +92,16 @@ def verify_file(row: TrackRow, path: Path, accept: AcceptRule, *, lossy_allowed:
             d = 1.0
         elif diff <= duration_review_s:
             d = 0.5
-            reasons.append(f"Duracion {_fmt_s(duration)} s; se esperaban {expected} s ({diff:.0f} s de diferencia).")
+            reasons.append(f"Duración {_fmt_s(duration)} s; se esperaban {expected} s ({diff:.0f} s de diferencia).")
         else:
             d = 0.0
-            reasons.append(f"Duracion {_fmt_s(duration)} s; se esperaban {expected} s ({diff:.0f} s de diferencia): "
-                           "puede ser otra version (radio edit, extended...).")
+            reasons.append(f"Duración {_fmt_s(duration)} s; se esperaban {expected} s ({diff:.0f} s de diferencia): "
+                           "puede ser otra versión (radio edit, extended...).")
             doubt = doubt or DoubtKind.DURACION
     else:
         d = 0.75
         flags.append("sin_duracion_esperada")
-        reasons.append("Sin duracion esperada: no se pudo comprobar la duracion.")
+        reasons.append("Sin duración esperada: no se pudo comprobar la duración.")
 
     score = int(round(0.35 * ident.artist + 0.45 * ident.title + 20 * d))
     if doubt is not None:
@@ -110,10 +110,10 @@ def verify_file(row: TrackRow, path: Path, accept: AcceptRule, *, lossy_allowed:
         state, doubt = ResultState.VERIFICADO, None
     elif score >= 50:
         state, doubt = ResultState.DUDOSO, DoubtKind.REVISAR
-        reasons.append(f"Confianza {score}/100: revisalo (se queda en el set).")
+        reasons.append(f"Confianza {score}/100: revísalo (se queda en el set).")
     else:
         state, doubt = ResultState.DUDOSO, DoubtKind.IDENTIDAD
-        reasons.append(f"Confianza {score}/100: probablemente no es la cancion pedida.")
+        reasons.append(f"Confianza {score}/100: probablemente no es la canción pedida.")
     if spectral and info.is_lossless and doubt in (None, DoubtKind.REVISAR):
         sp = fake_lossless_check(info.path)
         if sp.suspicious:

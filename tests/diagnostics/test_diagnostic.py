@@ -45,7 +45,7 @@ def test_search_only_candidates_and_report(tmp_path):
     assert len(diag) == 2 and all(d.error_es is None for d in diag)
     c1 = diag[0].candidates
     assert [c.peer for c in c1] == ["maria.lopez", "peerA"]
-    assert not c1[0].accepted and "otra version" in c1[0].why_es
+    assert not c1[0].accepted and "otra versión" in c1[0].why_es
     assert c1[1].accepted and c1[1].why_es.startswith("elegido")
     assert not list((paths.work_dir / "diagnostico").rglob("*.flac"))      # nothing downloaded
     red = Redactor(secrets=[CREDS.username, CREDS.password], own_ips=["83.45.1.200"])
@@ -74,7 +74,7 @@ def test_download_only_when_opted_in(tmp_path):
     diag = run_diagnostic(rows, runner, CREDS, download=True, max_rows=1, paths=paths, settings=Settings())
     # like the real engine, the fake takes the FIRST candidate that passes its filters (the remix);
     # the app's verification refuses to accept it silently
-    assert len(diag) == 1 and diag[0].result_es.startswith("dudoso: Otra version")
+    assert len(diag) == 1 and diag[0].result_es.startswith("dudoso: Otra versión")
     rows2, runner2, paths2 = _setup(tmp_path / "b")
     diag2 = run_diagnostic(rows2[1:], runner2, CREDS, download=True, max_rows=1, paths=paths2, settings=Settings())
     assert diag2[0].result_es.startswith("verificado")

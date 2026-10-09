@@ -48,11 +48,11 @@ MISSING = (ResultState.PENDIENTE, ResultState.EN_CURSO, ResultState.NO_ENCONTRAD
 RETRYABLE = (ResultState.NO_ENCONTRADO, ResultState.FALLIDA, ResultState.NO_CUMPLE_FORMATO)
 
 REASON_ES = {
-    "NoSearchResults": "Soulseek no devolvio ningun resultado para esta busqueda.",
-    "NoMatchingResults": "Hubo resultados, pero ninguno cumple los filtros (formato, titulo, artista o duracion).",
-    "NoSuitableFileFound": "Hubo resultados, pero ninguno cumple los filtros (formato, titulo, artista o duracion).",
-    "AllDownloadsFailed": "Se encontro, pero ninguna descarga termino (usuarios desconectados o sin respuesta).",
-    "OutOfDownloadRetries": "Se encontro, pero se agotaron los reintentos de descarga.",
+    "NoSearchResults": "Soulseek no devolvió ningún resultado para esta búsqueda.",
+    "NoMatchingResults": "Hubo resultados, pero ninguno cumple los filtros (formato, título, artista o duración).",
+    "NoSuitableFileFound": "Hubo resultados, pero ninguno cumple los filtros (formato, título, artista o duración).",
+    "AllDownloadsFailed": "Se encontró, pero ninguna descarga terminó (usuarios desconectados o sin respuesta).",
+    "OutOfDownloadRetries": "Se encontró, pero se agotaron los reintentos de descarga.",
     "Cancelled": "Cancelado.",
 }
 
@@ -342,19 +342,19 @@ class SetSession:
             if outcome is not None and outcome.file is not None:
                 self._handle_file(row, res, outcome, fmt, lossy_ok, width, bid, had_quarantined)
             elif had_quarantined:
-                res.reasons = res.reasons + [f"{label}: no aparecio nada mejor."]
+                res.reasons = res.reasons + [f"{label}: no apareció nada mejor."]
             elif result.cancelled:
                 res.state = ResultState.PENDIENTE
                 res.reasons = ["Cancelado antes de terminar esta pista."]
             elif result.banned and (outcome is None or outcome.engine_state == "unknown"):
                 res.state = ResultState.FALLIDA
-                res.reasons = ["Soulseek corto la sesion antes de llegar a esta pista."]
+                res.reasons = ["Soulseek cortó la sesión antes de llegar a esta pista."]
             elif result.fatal_es and (outcome is None or outcome.engine_state == "unknown"):
                 res.state, res.doubt, res.file = ResultState.FALLIDA, None, None
                 res.reasons = [result.fatal_es]
             elif outcome is not None and outcome.engine_state == "not_found":
                 res.state, res.doubt, res.file = ResultState.NO_ENCONTRADO, None, None
-                res.reasons = [REASON_ES.get(outcome.reason or "", "No se encontro en Soulseek.") +
+                res.reasons = [REASON_ES.get(outcome.reason or "", "No se encontró en Soulseek.") +
                                f" (formatos: {', '.join(fmt.formats)})"]
             else:
                 reason = outcome.reason if outcome is not None else None
@@ -367,8 +367,8 @@ class SetSession:
         shutil.rmtree(win_long(work / "in"), ignore_errors=True)
         on_event(SessionEvent("pass_finished", message_es=f"{label}: terminada.", total=total))
         if result.banned:
-            return ("Soulseek corto la sesion (posible exceso de busquedas o la misma cuenta abierta en otro "
-                    "programa). Espera 30 minutos y pulsa Reintentar fallos.")
+            return ("Soulseek cortó la sesión (posible exceso de búsquedas o la misma cuenta abierta en otro "
+                    "programa). Espera 30 minutos y pulsa «Reintentar fallos».")
         if result.fatal_es and not any(o.engine_state != "unknown" for o in result.outcomes.values()):
             return result.fatal_es
         return None
@@ -405,7 +405,7 @@ class SetSession:
             samplerate, bitdepth, container = conv.samplerate, conv.bitdepth, "aiff"
             flags.append("convertido_aiff")
             reasons.append(conv.warning_es or "Convertido a AIFF para CDJ antiguos (mismo sample rate y bits). "
-                                              "El original esta en _originales.")
+                                              "El original está en _originales.")
         res.file = place_verified(self.set_dir, row, src, verdict, width, self.journal, bid)
         res.state, res.doubt, res.score = verdict.state, verdict.doubt, verdict.score
         res.reasons, res.flags = reasons, flags

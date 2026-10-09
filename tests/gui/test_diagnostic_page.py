@@ -26,7 +26,7 @@ def test_report_is_redacted_saved_and_copied(window, qtbot, ready_services, tmp_
     assert page.cancel_btn.isVisible()
     qtbot.waitUntil(lambda: page.task is None, timeout=90000)
     rep = page.box.toPlainText()
-    assert rep.startswith("Diagnostico de Tracklister")
+    assert rep.startswith("Diagnóstico de Tracklister")
     assert "peer-1" in rep and "peer-2" in rep
     for secret in (TEST_USER, TEST_PASS, "peerA", "peerB"):
         assert secret not in rep

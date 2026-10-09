@@ -80,7 +80,7 @@ def test_runner_ban(tmp_path):
 def test_runner_login_failure_gives_a_clear_reason(tmp_path):
     for dialect in (EngineDialect.SOCKSEEK3, EngineDialect.SLDL2):
         res, _, _, _ = _run(tmp_path / str(dialect), "login_falla", dialect)
-        assert res.fatal_es and "usuario y tu contrasena" in res.fatal_es
+        assert res.fatal_es and "usuario y tu contraseña" in res.fatal_es
         assert all(o.engine_state == "unknown" for o in res.outcomes.values())
         assert "usuario-prueba" not in res.stdout_path.read_text(encoding="utf-8")
 

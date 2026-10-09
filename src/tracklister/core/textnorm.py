@@ -130,17 +130,17 @@ def versions_compatible(wanted: str | None, got: str | None) -> tuple[bool, str]
     full = (VersionKind.ORIGINAL, VersionKind.EXTENDED)
     if wk in full:
         if gk in full:
-            return True, "version original"
-        return False, f"se pedia la original y el archivo es '{nfc(got)}'"
+            return True, "versión original"
+        return False, f"se pedía la original y el archivo es '{nfc(got)}'"
     if wk == VersionKind.RADIO_EDIT:
         return (gk == VersionKind.RADIO_EDIT,
-                "radio edit" if gk == VersionKind.RADIO_EDIT else f"se pedia radio edit y el archivo es '{nfc(got) or 'original'}'")
+                "radio edit" if gk == VersionKind.RADIO_EDIT else f"se pedía radio edit y el archivo es '{nfc(got) or 'original'}'")
     want_rmx = remixer_of(wanted)
     if want_rmx:
         if got is None or gk in full:
-            return False, f"se pedia '{nfc(wanted)}' y el archivo es la original"
+            return False, f"se pedía '{nfc(wanted)}' y el archivo es la original"
         if fuzz.partial_ratio(want_rmx, norm_key(got)) >= 85:
             return True, f"remixer '{nfc(wanted)}' presente"
-        return False, f"se pedia '{nfc(wanted)}' y el archivo es '{nfc(got)}'"
+        return False, f"se pedía '{nfc(wanted)}' y el archivo es '{nfc(got)}'"
     ok = fuzz.ratio(norm_key(wanted), norm_key(got)) >= 85
-    return ok, ("version coincide" if ok else f"version distinta: '{nfc(got)}'")
+    return ok, ("versión coincide" if ok else f"versión distinta: '{nfc(got)}'")

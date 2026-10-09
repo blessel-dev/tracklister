@@ -93,12 +93,12 @@ def parse_progress_line(dialect: EngineDialect, line: str) -> EngineEvent | None
 _FATAL = (
     (re.compile(r"login failed|failed to ensure soulseek connection|missing soulseek (username|password)|"
                 r"no soulseek username or password", re.IGNORECASE),
-     "No se pudo entrar en Soulseek: revisa tu usuario y tu contrasena en Ajustes (y que la cuenta no "
-     "este abierta en otro programa)."),
+     "No se pudo entrar en Soulseek: revisa tu usuario y tu contraseña en Ajustes (y que la cuenta no "
+     "esté abierta en otro programa)."),
     (re.compile(r"address already in use|only one usage of each socket address|failed to bind", re.IGNORECASE),
-     "El puerto de escucha esta ocupado por otro programa: cambia el puerto en Ajustes."),
+     "El puerto de escucha está ocupado por otro programa: cambia el puerto en Ajustes."),
     (re.compile(r"^input error:|unknown argument", re.IGNORECASE),
-     "El motor no acepto las opciones de Tracklister: reinstala Tracklister o cambia de motor en Ajustes."),
+     "El motor no aceptó las opciones de Tracklister: reinstala Tracklister o cambia de motor en Ajustes."),
 )
 
 

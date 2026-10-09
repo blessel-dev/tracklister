@@ -54,7 +54,7 @@ class CredentialStore:
 
     def set(self, creds: Credentials) -> None:
         if not creds.username.strip() or not creds.password:
-            raise CredentialError("Escribe tu usuario y tu contrasena de Soulseek.")
+            raise CredentialError("Escribe tu usuario y tu contraseña de Soulseek.")
         try:
             old_user = keyring.get_password(self.service, config.KEYRING_ACCOUNT_KEY)
             keyring.set_password(self.service, creds.username, creds.password)

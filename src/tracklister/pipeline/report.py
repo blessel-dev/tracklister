@@ -17,8 +17,8 @@ STATE_ES = {
     ResultState.YA_EN_BIBLIOTECA: "Ya en biblioteca", ResultState.OMITIDA: "Omitida",
 }
 DOUBT_ES = {
-    DoubtKind.IDENTIDAD: f"otra cancion (en {DUDOSOS})", DoubtKind.VERSION: f"otra version (en {DUDOSOS})",
-    DoubtKind.DURACION: f"duracion que no cuadra (en {DUDOSOS})",
+    DoubtKind.IDENTIDAD: f"otra canción (en {DUDOSOS})", DoubtKind.VERSION: f"otra versión (en {DUDOSOS})",
+    DoubtKind.DURACION: f"duración que no cuadra (en {DUDOSOS})",
     DoubtKind.ESPECTRO: "posible lossless falso (se queda en el set)",
     DoubtKind.REVISAR: "revisar (se queda en el set)",
 }
@@ -79,7 +79,7 @@ def report_text(doc: SetDoc, *, preset_label: str, engine_id: str | None = None)
             for reason in res.reasons:
                 out.append(f"    - {reason}")
             if "posible_falso_lossless" in res.flags:
-                out.append("    ! Marca: posible lossless falso. Escuchalo antes de pincharlo.")
-    out += ["", f"Las dudas de identidad, version o duracion estan en la carpeta {DUDOSOS}.",
-            f"Los FLAC originales convertidos para CDJ antiguos estan en {ORIGINALES}."]
+                out.append("    ! Marca: posible lossless falso. Escúchalo antes de pincharlo.")
+    out += ["", f"Las dudas de identidad, versión o duración están en la carpeta {DUDOSOS}.",
+            f"Los FLAC originales convertidos para CDJ antiguos están en {ORIGINALES}."]
     return "\n".join(out) + "\n"

@@ -87,20 +87,20 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
         problems.append(f"formato {ext or '?'} no pedido en esta pasada")
     ok_v, why_v = versions_compatible(row.version, version)
     if not ok_v:
-        problems.append(f"otra version ({why_v})")
+        problems.append(f"otra versión ({why_v})")
     d = 0.75
     if row.expected_duration_s and duration:
         diff = abs(duration - row.expected_duration_s)
         d = 1.0 if diff <= 3 else (0.5 if diff <= 10 else 0.0)
         if diff > 10:
-            problems.append(f"duracion {duration:.0f} s (se esperaban {row.expected_duration_s} s)")
+            problems.append(f"duración {duration:.0f} s (se esperaban {row.expected_duration_s} s)")
     if fmt.min_bitrate and bitrate is not None and ext == "mp3" and bitrate < fmt.min_bitrate:
         problems.append(f"{bitrate} kbps (se piden {fmt.min_bitrate})")
     score = round(0.35 * art + 0.45 * title + 20 * d, 1)
     if art < 60:
         problems.append(f"artista distinto ({art:.0f}%)")
     if title < 70:
-        problems.append(f"titulo distinto ({title:.0f}%)")
+        problems.append(f"título distinto ({title:.0f}%)")
     if problems:
         return score, False, "rechazado: " + "; ".join(problems)
     if score < 80:
@@ -152,12 +152,12 @@ def run_diagnostic(rows: list[TrackRow], runner: EngineRunner, creds: Credential
             d.error_es = e.msg_es
             break
         if res.banned:
-            d.error_es = "Soulseek corto la sesion durante la busqueda."
+            d.error_es = "Soulseek cortó la sesión durante la búsqueda."
             break
         arr = _parse_json_line(res.stdout_path)
         if arr is None:
-            d.error_es = ("El motor no devolvio resultados (sin conexion, usuario o contrasena incorrectos, "
-                          "o busqueda cancelada).")
+            d.error_es = ("El motor no devolvió resultados (sin conexión, usuario o contraseña incorrectos, "
+                          "o búsqueda cancelada).")
         else:
             accepted_one = False
             for c in arr[:MAX_CANDIDATES]:
@@ -178,7 +178,7 @@ def run_diagnostic(rows: list[TrackRow], runner: EngineRunner, creds: Credential
                 d.candidates.append(CandidateLine(user, tail, f.get("Size"), br, float(dur) if dur else None,
                                                   score, ok, why, f.get("SampleRate")))
             if not arr:
-                d.error_es = "Sin resultados en Soulseek para esta busqueda."
+                d.error_es = "Sin resultados en Soulseek para esta búsqueda."
         shutil.rmtree(work, ignore_errors=True)
     if download and chosen and not cancel.is_set() and settings is not None:
         from tracklister.pipeline.session import SetSession

@@ -36,14 +36,14 @@ def test_correct_file_verified(tmp_path):
 def test_original_vs_remix_goes_to_version_doubt(tmp_path):
     v = _v(tmp_path, "x.flac", tags={"artist": "Fjaak", "title": "Spirit (Kai Van Dongen Remix)"})
     assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.VERSION
-    assert any("Otra version" in r for r in v.reasons_es)
+    assert any("Otra versión" in r for r in v.reasons_es)
 
 
 def test_radio_edit_too_short(tmp_path):
     v = _v(tmp_path, "r.flac", row=_row("Blasha & Allatt", "Dust 1", dur=40), seconds=18,
            tags={"artist": "Blasha & Allatt", "title": "Dust 1 (Radio Edit)"})
     assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.VERSION
-    assert any("Duracion" in r for r in v.reasons_es)
+    assert any("Duración" in r for r in v.reasons_es)
     plain = _v(tmp_path, "p.flac", row=_row(dur=40), seconds=18, tags=TAGS)
     assert plain.doubt == DoubtKind.DURACION
 

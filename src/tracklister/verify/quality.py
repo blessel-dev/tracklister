@@ -28,11 +28,11 @@ def check_quality(info: AudioInfo, accept: AcceptRule, *, lossy_allowed: bool) -
     c = info.container
     if not info.ext_matches and c != "unknown":
         flags.append("extension_distinta")
-        reasons.append(f"El archivo se llama {info.path.suffix or '(sin extension)'} pero por dentro es "
+        reasons.append(f"El archivo se llama {info.path.suffix or '(sin extensión)'} pero por dentro es "
                        f"{_LABEL.get(c, c)}.")
     if c == "unknown" or (info.decoded_duration_s is None and c != "m4a"):
         return QualityCheck(False, False, reasons + ["No se puede leer el audio del archivo (formato "
-                                                     "desconocido o archivo danado)."], flags + ["ilegible"])
+                                                     "desconocido o archivo dañado)."], flags + ["ilegible"])
     if c == "mp3":
         if not lossy_allowed or accept.mp3_min_kbps is None:
             return QualityCheck(False, False, reasons + ["Es un MP3 y este preset pide lossless."],
@@ -41,10 +41,10 @@ def check_quality(info: AudioInfo, accept: AcceptRule, *, lossy_allowed: bool) -
         if mode in ("vbr", "abr"):
             return QualityCheck(False, False, reasons + [
                 f"MP3 {mode.upper()} (unos {info.bitrate_kbps or '?'} kbps): solo vale MP3 CBR de "
-                f"{accept.mp3_min_kbps} kbps o mas."], flags + ["mp3_vbr"])
+                f"{accept.mp3_min_kbps} kbps o más."], flags + ["mp3_vbr"])
         if (info.bitrate_kbps or 0) < accept.mp3_min_kbps:
             return QualityCheck(False, False, reasons + [
-                f"MP3 de {info.bitrate_kbps or '?'} kbps: se pide {accept.mp3_min_kbps} kbps o mas."],
+                f"MP3 de {info.bitrate_kbps or '?'} kbps: se pide {accept.mp3_min_kbps} kbps o más."],
                 flags + ["mp3_bajo_bitrate"])
         if mode == "unknown":
             flags.append("mp3_modo_desconocido")
@@ -71,6 +71,6 @@ def check_quality(info: AudioInfo, accept: AcceptRule, *, lossy_allowed: bool) -
         return QualityCheck(True, needs, reasons, flags)
     if over_sr or over_bd:
         return QualityCheck(False, False, reasons + [
-            f"{info.samplerate or '?'} Hz / {info.bitdepth or '?'} bits supera el maximo elegido "
+            f"{info.samplerate or '?'} Hz / {info.bitdepth or '?'} bits supera el máximo elegido "
             f"({accept.max_samplerate or '-'} Hz / {accept.max_bitdepth or '-'} bits)."], flags + ["supera_maximo"])
     return QualityCheck(True, needs, reasons, flags)

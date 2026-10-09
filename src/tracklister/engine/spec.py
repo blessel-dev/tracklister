@@ -114,7 +114,7 @@ def _safe_extract(zip_path: Path, dest: Path) -> None:
             if info.is_dir():
                 continue
             if name.is_absolute() or ".." in name.parts or ":" in info.filename:
-                raise EngineMissing(f"El zip del motor contiene una ruta no valida: {info.filename}")
+                raise EngineMissing(f"El zip del motor contiene una ruta no válida: {info.filename}")
             target = dest.joinpath(*name.parts)
             target.parent.mkdir(parents=True, exist_ok=True)
             with z.open(info) as src, open(target, "wb") as out:
@@ -148,7 +148,7 @@ def resolve_engine(engine_id: str, paths: AppPaths, bundled_dir: Path | None = N
             raise EngineMissing(
                 f"El archivo del motor {zpath.name} no coincide con su huella SHA-256 "
                 f"(esperada {pin.asset_sha256[:12]}..., encontrada {got[:12]}...). "
-                "Vuelve a descargar Tracklister desde su pagina oficial.")
+                "Vuelve a descargar Tracklister desde su página oficial.")
         tmp = target.with_name(target.name + ".tmp")
         if tmp.exists():
             shutil.rmtree(tmp)
@@ -164,7 +164,7 @@ def resolve_engine(engine_id: str, paths: AppPaths, bundled_dir: Path | None = N
         return EngineSpec(engine_id, pin.dialect, (str(target / pin.exe_name),))
     raise EngineMissing(
         f"No se encuentra el motor {engine_id} ({asset_name(pin)}). "
-        "Vuelve a descomprimir Tracklister completo o reinstalalo.")
+        "Vuelve a descomprimir Tracklister completo o reinstálalo.")
 
 
 def fake_engine_spec(dialect: EngineDialect = EngineDialect.SOCKSEEK3) -> EngineSpec:

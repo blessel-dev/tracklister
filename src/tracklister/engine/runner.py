@@ -98,8 +98,8 @@ class EngineRunner:
 
         wait = self.budget.wait_time(n)
         while wait > 0:
-            emit(EngineEvent("log", None, f"Esperando {int(wait) + 1} s para no superar el limite de "
-                                          "busquedas de Soulseek..."))
+            emit(EngineEvent("log", None, f"Esperando {int(wait) + 1} s para no superar el límite de "
+                                          "búsquedas de Soulseek..."))
             if cancel.wait(min(wait, 1.0)):
                 return EngineRunResult(None, True, False, collect_outputs(job, manifest, self.spec.dialect),
                                        job.log_path, job.stdout_path, argv_red)

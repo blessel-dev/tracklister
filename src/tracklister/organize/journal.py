@@ -126,7 +126,7 @@ class Journal:
                         errors.append(f"No se encuentra {dst.name}: no se puede devolver a su sitio.")
                         remaining.append(op)
                     elif os.path.lexists(win_long(src)):
-                        errors.append(f"Ya existe {src.name}: no se sobrescribe; {dst.name} se queda como esta.")
+                        errors.append(f"Ya existe {src.name}: no se sobrescribe; {dst.name} se queda como está.")
                         remaining.append(op)
                     else:
                         os.makedirs(win_long(src.parent), exist_ok=True)

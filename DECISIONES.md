@@ -72,7 +72,7 @@ Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditor
 
 ## D. Motor (construcción)
 
-1. **Contraseñas que empiezan por `-`**: los dos motores partirían un valor como `-abc` en `-a -b -c`. En ese caso la app pasa `--pass=-abc` (y lo mismo con el usuario), que los dos aceptan.
+1. **Contraseñas que empiezan por `-`**: los dos motores partirían un valor como `-abc` en `-a -b -c`. En ese caso la app pega el valor a la opción con un `=` (`--pass=<valor>`, y lo mismo con el usuario), que los dos aceptan.
 2. **Los motores escriben tu usuario** en su salida ("Logging in as ..." / "Login ..."). La app lo censura en todo lo que muestra y reescribe censurado el `engine.log` de cada pasada. La contraseña no la escriben nunca.
 
 ## E. Entradas, enriquecimiento y avisos (construcción)
@@ -122,7 +122,7 @@ Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditor
 
 ## G. Interfaz (construcción)
 
-1. **Idioma**: la interfaz usa tildes y eñes (Diagnóstico, Contraseña, Título...). Los mensajes que vienen del motor, de la verificación y de los informes siguen sin tildes ("cancion", "version", "se pedia"); ver N.5.
+1. **Idioma**: toda la app escribe en español con tildes y eñes (Diagnóstico, Contraseña, Título...), también los motivos de cada pista, el informe del set y el del Diagnóstico (ver N.5). Los nombres de archivo y de carpeta que crea la app por su cuenta (`Diagnostico_<fecha>.txt`, `_dudosos`, `_originales`) van sin tildes.
 2. **Primer inicio**: pide tu cuenta de Soulseek (va al Administrador de credenciales de Windows), la carpeta de la biblioteca (por defecto `Música\Tracklister`), el preset y el puerto (49998), y muestra el aviso de compartir con Nicotine+ y una nota legal con la casilla "Entendido". No prueba el inicio de sesión: desde este portátil no se puede conectar a Soulseek, y en casa la primera descarga o el Diagnóstico dicen claramente si el usuario o la contraseña fallan.
 3. **Pista repetida**: se pregunta cada vez, con "Usar el que ya tengo (copiar a este set)", "Descargar de nuevo en este set" y la casilla "Aplicar a todos los repetidos de este set". Si hay varias copias en la biblioteca, se elige cuál en un desplegable. Si cierras el diálogo sin elegir, no empieza la descarga y no se copia nada. "Aplicar a todos" usa la primera copia de la biblioteca para cada repetida.
 4. **Lista de MP3**: si faltan pistas en lossless, se pregunta una vez por set con todas marcadas; "No, dejarlas sin descargar" no busca ninguna en MP3.
@@ -155,4 +155,4 @@ Detalle de la marca: `construccion\identidad-visual.md`.
 2. **`.gitignore`**: la regla `credentials*` escondía también el código `src/tracklister/engine/credentials.py`. Ahora es `/credentials*` (en la raíz) y `credentials*.json` (en cualquier sitio), y un archivo nuevo del código ya no se queda fuera del repo sin avisar.
 3. **Comprobación de secretos antes de publicar**: `.\.venv\Scripts\python.exe tools\secrets_scan.py` revisa todo lo que se publicaría en GitHub y solo cuenta, sin enseñar nunca ningún valor: claves y tokens, cuentas escritas (líneas `usuario =`/`password =`, `--user`/`--pass` con valor, `"password": "..."`), y el nombre de la cuenta de Windows y del PC donde se ejecuta. Tiene que salir todo a 0 (hoy sale 0). Un test hace lo mismo en cada ejecución y otro comprueba que una descarga completa con el motor falso, el informe y el Diagnóstico no escriben la cuenta en ningún archivo.
 4. **Pruebas de la unión** (`tests/integration/`): la ventana real con el importador, el enriquecimiento (respuestas grabadas), el aviso de actualización (GitHub simulado) y el motor falso, de la tracklist a la carpeta ordenada; y un set con nombres raros dentro de una carpeta tan profunda que las rutas pasan de 260 caracteres.
-5. **Textos del motor y de los informes sin tildes**: se quedan así en la v1.0. Se entienden y no rompen nada, pero se nota la diferencia con el resto de la interfaz. Unificarlos es un cambio de textos que toca muchos tests; si quieres, va en la 1.0.1.
+5. **Tildes también en los mensajes del motor y en los informes**: los motivos que ves en Resultados ("Otra versión: se pedía la original..."), el `Informe - <set>.txt` y el informe del Diagnóstico estaban escritos sin tildes ("cancion", "contrasena") y no casaban con el resto de la interfaz. Ahora van bien escritos. Los valores internos que se guardan en `set.json` (por ejemplo el tipo de duda `version`/`duracion`) no cambian, así que los sets ya creados se siguen abriendo igual.

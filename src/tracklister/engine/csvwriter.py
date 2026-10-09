@@ -66,10 +66,10 @@ def write_engine_csv(rows: Sequence[TrackRow], path: Path) -> list[ManifestItem]
     lines = [",".join(_q(h) for h in HEADER)]
     for snum, row in enumerate(ordered, start=1):
         if not row.download:
-            raise ValueError(f"la fila {row.pos} no esta marcada para descargar")
+            raise ValueError(f"la fila {row.pos} no está marcada para descargar")
         title = engine_title(row)
         if not title.strip():
-            raise ValueError(f"la fila {row.pos} no tiene titulo: nunca se envia al motor")
+            raise ValueError(f"la fila {row.pos} no tiene título: nunca se envía al motor")
         artist = engine_artist(row)
         length = int(row.expected_duration_s) if row.expected_duration_s else None
         lines.append(",".join((_q(artist), _q(title), _q("" if length is None else str(length)))))

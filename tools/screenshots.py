@@ -2,33 +2,39 @@
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
-    .\\.venv\\Scripts\\python.exe tools\\screenshots.py [--out DIR] [--themes hormigon,noche] [--only a,b]
+    .\\.venv\\Scripts\\python.exe tools\\screenshots.py [--out DIR] [--themes hormigon,noche] [--only a,b] [--keep]
 
 Fully offline and safe for the corporate laptop:
-- TRACKLISTER_HOME -> a temp dir (nothing touches the real %APPDATA%/%LOCALAPPDATA%);
+- TRACKLISTER_HOME -> a scratch dir (nothing touches the real %APPDATA%/%LOCALAPPDATA%);
 - an in-memory keyring with a dummy account (never the Windows Credential Manager);
 - the FAKE engine (tests/fakes/fake_engine.py) with tests/fakes/scenarios.py networks: no Soulseek;
 - no enrichment, no update check, no Downloads watcher.
 The 'nuevo set' and 'reordenar' captures import the sample trackid.net CSV
 (tests/fixtures/inputs/) with the REAL importer (tracklister.inputs.importer).
+The scratch data (settings, library, set folders) lives under the repo's git-ignored .tmp\\, so
+the paths shown in the screens carry no Windows account name; it is deleted at the end unless
+--keep is given.
 
-Screens: 01 primer inicio, 02 nuevo set, 03 descargando, 04 resultados (every state), 05 duplicado,
-06 lossy, 07 reordenar, 08 diagnostico, 09 ajustes; 00-vista-general.png puts them side by side.
+Screens: 01 primer inicio (+ 01b scrolled down), 02 nuevo set, 03 descargando, 04 resultados
+(every state), 05 duplicado, 06 lossy, 07 reordenar, 08 diagnostico, 09 ajustes (+ 09b scrolled
+down); 00-vista-general.png puts them side by side.
 """
 from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import sys
 import tempfile
 import threading
 import time
 from pathlib import Path
 
-os.environ["QT_QPA_PLATFORM"] = "offscreen"
-_HOME = Path(tempfile.mkdtemp(prefix="tl-capturas-"))
-os.environ["TRACKLISTER_HOME"] = str(_HOME)
 REPO = Path(__file__).resolve().parents[1]
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+(REPO / ".tmp").mkdir(exist_ok=True)
+_HOME = Path(tempfile.mkdtemp(prefix="capturas-", dir=REPO / ".tmp"))
+os.environ["TRACKLISTER_HOME"] = str(_HOME / "home")
 for p in (REPO / "src", REPO):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
@@ -38,8 +44,15 @@ import keyring.backend  # noqa: E402
 
 DEFAULT_OUT = Path(r"c:\projects\ABLETON\.agents\tasks\tracklister-v2\construccion\capturas")
 SAMPLE_CSV = REPO / "tests" / "fixtures" / "inputs" / "fjaak-techno-dj-set-section-may-2026.csv"
-SCREENS = ("primer-inicio", "nuevo-set", "descargando", "resultados", "duplicado", "lossy", "reordenar",
-           "diagnostico", "ajustes")
+SCREENS = ("primer-inicio", "primer-inicio-abajo", "nuevo-set", "descargando", "resultados", "duplicado", "lossy",
+           "reordenar", "diagnostico", "ajustes", "ajustes-abajo")
+SCREEN_LABELS_ES = {
+    "primer-inicio": "Primer inicio", "primer-inicio-abajo": "Primer inicio (final de la página)",
+    "nuevo-set": "Nuevo set (CSV de trackid.net de muestra)", "descargando": "Descargando",
+    "resultados": "Resultados (todos los estados)", "duplicado": "Pista repetida",
+    "lossy": "Pistas que solo están en MP3", "reordenar": "Reordenar carpeta existente",
+    "diagnostico": "Diagnóstico", "ajustes": "Ajustes", "ajustes-abajo": "Ajustes (final de la página)",
+}
 DUMMY_USER, DUMMY_PASS = "usuario-prueba", "clave-prueba"
 
 
@@ -67,11 +80,13 @@ keyring.set_keyring(_MemoryKeyring())
 
 from PySide6.QtCore import QRect, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QFont, QImage, QPainter  # noqa: E402
+from PySide6.QtWidgets import QScrollArea  # noqa: E402
 
+import tracklister.gui.pages.first_run as first_run_page  # noqa: E402
+import tracklister.gui.pages.settings as settings_page  # noqa: E402
 from tests.fakes.scenarios import build_scenario  # noqa: E402
 from tests.gui.fakes import FakeServices, ScriptedPrompter  # noqa: E402
-from tracklister.core.model import DuplicateChoice, SourceRef, TrackRow  # noqa: E402
-from tracklister.core.paths import app_paths  # noqa: E402
+from tracklister.core.model import DuplicateChoice, ResultState, SourceRef, TrackRow  # noqa: E402
 from tracklister.engine.credentials import CredentialStore, Credentials  # noqa: E402
 from tracklister.gui.app import build_window, create_app  # noqa: E402
 from tracklister.gui.dialogs import DuplicateDialog, LossyDialog  # noqa: E402
@@ -163,6 +178,22 @@ def save(img: QImage, out: Path, name: str) -> Path:
     return p
 
 
+def scroll_to_bottom(app, page) -> None:
+    """Long pages (primer inicio, ajustes) are scroll areas: show their last part too."""
+    sa = page.findChild(QScrollArea)
+    if sa is not None:
+        bar = sa.verticalScrollBar()
+        bar.setValue(bar.maximum())
+    settle(app, 200)
+
+
+def use_library_root_as_default(lib: Path) -> None:
+    """The first-run and Ajustes pages propose the user's Music folder; in the captures they
+    propose the scratch library this run really uses."""
+    first_run_page.default_library_root = lambda: lib
+    settings_page.default_library_root = lambda: lib
+
+
 def run_previous_set(services, root: Path, tmp: Path) -> None:
     """'Anterior': the correcto scenario finalized, so the library has two tracks."""
     rows, net = build_scenario("correcto", tmp / "net-anterior")
@@ -175,17 +206,23 @@ def run_previous_set(services, root: Path, tmp: Path) -> None:
 
 def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]:
     shots: dict[str, Path] = {}
-    work = Path(tempfile.mkdtemp(prefix=f"tl-{theme}-", dir=_HOME))
+    work = _HOME / theme
+    work.mkdir(parents=True, exist_ok=True)
     os.environ["TRACKLISTER_HOME"] = str(work / "home")     # own settings + library per theme
-    lib = work / "biblioteca"
+    lib = work / "Música" / "Tracklister"
+    use_library_root_as_default(lib)
 
     def want(name):
         return not only or name in only
 
-    if want("primer-inicio"):
+    if want("primer-inicio") or want("primer-inicio-abajo"):
         s = new_services(lib, ready=False)
         w = make_window(app, s, theme=theme)
-        shots["primer-inicio"] = save(w.grab().toImage(), out, f"01-primer-inicio-{theme}")
+        if want("primer-inicio"):
+            shots["primer-inicio"] = save(w.grab().toImage(), out, f"01-primer-inicio-{theme}")
+        if want("primer-inicio-abajo"):
+            scroll_to_bottom(app, w.first_run)
+            shots["primer-inicio-abajo"] = save(w.grab().toImage(), out, f"01b-primer-inicio-abajo-{theme}")
         close_window(app, w)
 
     s = new_services(lib)
@@ -198,16 +235,17 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
         close_window(app, w)
 
     if want("descargando"):
+        # peerB answers slowly: the first track is verified while the second one still downloads
         rows, net = build_scenario("correcto", work / "net-slow")
         import json
         data = json.loads(net.read_text(encoding="utf-8"))
         data["peers"] = {"peerB": {"slow": True, "slow_s": 60}}
         net.write_text(json.dumps(data), encoding="utf-8")
-        s2 = new_services(work / "biblioteca-descargando", network=net)
+        s2 = new_services(lib, network=net)
         w = make_window(app, s2, theme=theme)
         w.start_download("Descargando", rows, [SourceRef("tabla", "set.csv")])
-        wait_until(app, lambda: w.results.model.counts().get("en_curso", 0) >= len(rows), 30)
-        settle(app, 2500)                     # the fake engine prints its search/download lines
+        wait_until(app, lambda: w.results.model.counts().get(ResultState.VERIFICADO, 0) >= 1, 60)
+        settle(app, 1500)
         shots["descargando"] = save(w.grab().toImage(), out, f"03-descargando-{theme}")
         w.cancel_run()
         wait_until(app, lambda: not w.worker_running(), 60)
@@ -252,7 +290,7 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
 
     if want("reordenar"):
         rows, origin = sample_rows(s)
-        old = work / "carpeta-antigua"
+        old = work / "Música" / "Sets antiguos" / "Fjaak mayo 2026"
         old.mkdir(parents=True, exist_ok=True)
         names = ["Blasha & Allatt - 8AM in Salford.mp3", "phara - grey ribbon (original mix).flac",
                  "05. Justyn Nell - Visions.mp3", "Roll Dann - The Red House (Original Mix).mp3",
@@ -285,29 +323,32 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
         shots["diagnostico"] = save(w.grab().toImage(), out, f"08-diagnostico-{theme}")
         close_window(app, w)
 
-    if want("ajustes"):
+    if want("ajustes") or want("ajustes-abajo"):
         w = make_window(app, s, theme=theme)
         w.go("settings")
         settle(app, 500)
-        shots["ajustes"] = save(w.grab().toImage(), out, f"09-ajustes-{theme}")
+        if want("ajustes"):
+            shots["ajustes"] = save(w.grab().toImage(), out, f"09-ajustes-{theme}")
+        if want("ajustes-abajo"):
+            scroll_to_bottom(app, w.settings_page)
+            shots["ajustes-abajo"] = save(w.grab().toImage(), out, f"09b-ajustes-abajo-{theme}")
         close_window(app, w)
     return shots
 
 
 def overview(shots: dict[str, dict[str, Path]], out: Path) -> Path:
-    """One sheet: one row per screen, one column per theme, with labels."""
+    """One sheet: one row per screen, one column per theme, every capture at the same scale
+    (dialogs keep their real size relative to the window), with Spanish labels."""
     themes = list(shots)
     screens = [s for s in SCREENS if any(s in shots[t] for t in themes)]
-    cell_w, scale, pad, label_h = 560, 560 / 1280, 16, 30
-    rows = []
-    for sc in screens:
-        h = 0
-        for t in themes:
-            p = shots[t].get(sc)
-            if p:
-                img = QImage(str(p))
-                h = max(h, int(img.height() * cell_w / max(1, img.width())))
-        rows.append(h)
+    window_w, cell_w, pad, label_h = 1280, 600, 16, 30
+    scale = cell_w / window_w
+
+    def size_of(path: Path) -> tuple[int, int]:
+        img = QImage(str(path))
+        return max(1, round(img.width() * scale)), max(1, round(img.height() * scale))
+
+    rows = [max((size_of(shots[t][sc])[1] for t in themes if sc in shots[t]), default=0) for sc in screens]
     width = pad + len(themes) * (cell_w + pad)
     height = pad + 40 + sum(h + label_h + pad for h in rows)
     sheet = QImage(width, height, QImage.Format.Format_RGB32)
@@ -315,7 +356,7 @@ def overview(shots: dict[str, dict[str, Path]], out: Path) -> Path:
     p = QPainter(sheet)
     p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
     f = QFont("Inter")
-    f.setPixelSize(15)
+    f.setPixelSize(16)
     f.setBold(True)
     p.setFont(f)
     p.setPen(QColor("#161616"))
@@ -323,25 +364,25 @@ def overview(shots: dict[str, dict[str, Path]], out: Path) -> Path:
         p.drawText(QRect(pad + i * (cell_w + pad), pad, cell_w, 30), Qt.AlignmentFlag.AlignLeft,
                    {"hormigon": "Hormigón (claro)", "noche": "Noche (oscuro)"}.get(t, t))
     y = pad + 40
-    f.setPixelSize(12)
+    f.setPixelSize(13)
     f.setBold(False)
     p.setFont(f)
     for sc, h in zip(screens, rows):
         for i, t in enumerate(themes):
             x = pad + i * (cell_w + pad)
-            p.drawText(QRect(x, y, cell_w, label_h - 6), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, sc)
+            p.setPen(QColor("#161616"))
+            p.drawText(QRect(x, y, cell_w, label_h - 6), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
+                       SCREEN_LABELS_ES.get(sc, sc))
             path = shots[t].get(sc)
             if path:
-                img = QImage(str(path))
-                ih = int(img.height() * cell_w / max(1, img.width()))
-                p.drawImage(QRect(x, y + label_h, cell_w, ih), img)
-                p.setPen(QColor("#161616"))
-                p.drawRect(QRect(x, y + label_h, cell_w - 1, ih - 1))
+                iw, ih = size_of(path)
+                ix = x + (cell_w - iw) // 2
+                p.drawImage(QRect(ix, y + label_h, iw, ih), QImage(str(path)))
+                p.drawRect(QRect(ix, y + label_h, iw - 1, ih - 1))
         y += h + label_h + pad
     p.end()
     target = out / "00-vista-general.png"
     sheet.save(str(target))
-    _ = scale
     return target
 
 
@@ -350,16 +391,25 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--themes", default="hormigon,noche")
     ap.add_argument("--only", default="", help="comma-separated subset of: " + ",".join(SCREENS))
+    ap.add_argument("--keep", action="store_true", help="keep the scratch data (settings, library, sets)")
     args = ap.parse_args(argv)
     only = {x.strip() for x in args.only.split(",") if x.strip()}
     app = create_app(["screenshots"])
     shots = {}
-    for theme in [t.strip() for t in args.themes.split(",") if t.strip()]:
-        shots[theme] = capture_theme(app, theme, args.out, only)
-        print(f"{theme}: {len(shots[theme])} capturas")
-    sheet = overview(shots, args.out)
-    print(f"vista general: {sheet}")
-    print(f"TRACKLISTER_HOME temporal: {app_paths().config_dir.parent}")
+    try:
+        for theme in [t.strip() for t in args.themes.split(",") if t.strip()]:
+            shots[theme] = capture_theme(app, theme, args.out, only)
+            print(f"{theme}: {len(shots[theme])} capturas")
+        sheet = overview(shots, args.out)
+        print(f"vista general: {sheet}")
+    finally:
+        if args.keep:
+            print(f"datos de las capturas: {_HOME}")
+        else:
+            settle(app, 300)
+            shutil.rmtree(_HOME, ignore_errors=True)
+            if _HOME.exists():
+                print(f"no se pudo borrar del todo {_HOME}")
     return 0
 
 

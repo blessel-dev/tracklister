@@ -105,7 +105,7 @@ def propose_reorder(folder: Path, rows: list[TrackRow]) -> list[ReorderProposal]
     for ri, row in enumerate(usable):
         if ri not in taken_rows:
             out.append(ReorderProposal(row.uid, row.pos, None, None, 0.0, "missing",
-                                       "No hay ningun archivo que encaje con esta fila."))
+                                       "No hay ningún archivo que encaje con esta fila."))
             continue
         s, fi = taken_rows[ri]
         src = files[fi]
@@ -114,18 +114,18 @@ def propose_reorder(folder: Path, rows: list[TrackRow]) -> list[ReorderProposal]
         if rivals:
             others = ", ".join(files[x[1]].name for x in rivals[:3])
             out.append(ReorderProposal(row.uid, row.pos, src, dst, round(s, 1), "ambiguous",
-                                       f"Hay otro archivo casi igual de parecido ({others}): confirmalo."))
+                                       f"Hay otro archivo casi igual de parecido ({others}): confírmalo."))
         else:
             out.append(ReorderProposal(row.uid, row.pos, src, dst, round(s, 1), "match",
                                        f"Coincide {s:.0f}%."))
     for r in rows:
         if r.is_id or not (r.title or "").strip():
             out.append(ReorderProposal(r.uid, r.pos, None, None, 0.0, "missing",
-                                       "Fila sin titulo o ID: no se empareja con ningun archivo."))
+                                       "Fila sin título o ID: no se empareja con ningún archivo."))
     for fi, f in enumerate(files):
         if fi not in taken_files:
             out.append(ReorderProposal("", 0, f, None, 0.0, "extra",
-                                       "Este archivo no encaja con ninguna fila: se deja como esta."))
+                                       "Este archivo no encaja con ninguna fila: se deja como está."))
     out.sort(key=lambda p: (p.pos == 0, p.pos, str(p.src or "")))
     return out
 

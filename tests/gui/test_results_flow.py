@@ -74,7 +74,7 @@ def test_every_state_with_icon_and_text_then_retry(window, qtbot, ready_services
     assert "Listo:" in window.results.banner.message() and "_dudosos" in window.results.banner.message()
     # details of the selected row
     window.results.table.selectRow(1)
-    assert "Otra version" in window.results.detail.text()
+    assert "Otra versión" in window.results.detail.text()
     # Copiar tracklist / informe
     window.results.copy_btn.click()
     assert ready_services.copied[-1].startswith("01. Fjaak - Spirit\n02. Fjaak - Raw")

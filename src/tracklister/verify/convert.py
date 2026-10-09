@@ -206,5 +206,5 @@ def to_aiff_pcm(src: Path, dst: Path, *, max_samplerate: int = 48000, max_bitdep
     warning = None
     if down:
         warning = (f"Convertido de {sr / 1000:g} kHz/{src_bits} bits a {tsr / 1000:g} kHz/{tbits} bits "
-                   "para que lo lean los CDJ antiguos. El original esta en _originales.")
+                   "para que lo lean los CDJ antiguos. El original está en _originales.")
     return ConvertResult(dst, tsr, tbits, down, warning)
