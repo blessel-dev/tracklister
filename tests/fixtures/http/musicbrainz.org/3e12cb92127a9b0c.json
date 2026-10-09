@@ -1,0 +1,59 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Duff\" AND artist:\"Introversion\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:17:47.490Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "a9104076-9be4-4382-8acc-9bf07a04e978",
+     "score": 100,
+     "title": "Duff",
+     "length": 304000,
+     "video": null,
+     "first-release-date": "2026-05-07",
+     "artist-credit": [
+      {
+       "name": "Introversion",
+       "joinphrase": "",
+       "artist": {
+        "id": "85b9c620-7b7a-469a-8034-95b02d2bbaf4",
+        "name": "Introversion"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "78db0ecd-9c41-4c90-8353-c1a8e749bb99",
+       "title": "src009",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

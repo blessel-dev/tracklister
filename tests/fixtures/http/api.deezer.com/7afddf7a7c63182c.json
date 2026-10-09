@@ -1,0 +1,172 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "DJ Dextro Covil dos Abutres"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3214701901,
+     "type": "track",
+     "title": "Covil dos Abutres",
+     "title_short": "Covil dos Abutres",
+     "title_version": "",
+     "duration": 309,
+     "rank": 87103,
+     "isrc": "DEH742502391",
+     "artist": {
+      "id": 131288,
+      "name": "DJ Dextro"
+     },
+     "album": {
+      "id": 707127031,
+      "title": "Covil dos Abutres"
+     }
+    },
+    {
+     "id": 3214701961,
+     "type": "track",
+     "title": "Savana Urbana",
+     "title_short": "Savana Urbana",
+     "title_version": "",
+     "duration": 305,
+     "rank": 95974,
+     "isrc": "DEH742502397",
+     "artist": {
+      "id": 131288,
+      "name": "DJ Dextro"
+     },
+     "album": {
+      "id": 707127031,
+      "title": "Covil dos Abutres"
+     }
+    },
+    {
+     "id": 3214701931,
+     "type": "track",
+     "title": "Element One",
+     "title_short": "Element One",
+     "title_version": "",
+     "duration": 289,
+     "rank": 65419,
+     "isrc": "DEH742502394",
+     "artist": {
+      "id": 131288,
+      "name": "DJ Dextro"
+     },
+     "album": {
+      "id": 707127031,
+      "title": "Covil dos Abutres"
+     }
+    },
+    {
+     "id": 3214701911,
+     "type": "track",
+     "title": "Correct Incorrect",
+     "title_short": "Correct Incorrect",
+     "title_version": "",
+     "duration": 296,
+     "rank": 79819,
+     "isrc": "DEH742502392",
+     "artist": {
+      "id": 131288,
+      "name": "DJ Dextro"
+     },
+     "album": {
+      "id": 707127031,
+      "title": "Covil dos Abutres"
+     }
+    },
+    {
+     "id": 3214701941,
+     "type": "track",
+     "title": "Beautiful Day",
+     "title_short": "Beautiful Day",
+     "title_version": "",
+     "duration": 299,
+     "rank": 68402,
+     "isrc": "DEH742502395",
+     "artist": {
+      "id": 131288,
+      "name": "DJ Dextro"
+     },
+     "album": {
+      "id": 707127031,
+      "title": "Covil dos Abutres"
+     }
+    },
+    {
+     "id": 3214701971,
+     "type": "track",
+     "title": "Diferenças",
+     "title_short": "Diferenças",
+     "title_version": "",
+     "duration": 285,
+     "rank": 53182,
+     "isrc": "DEH742502398",
+     "artist": {
+      "id": 131288,
+      "name": "DJ Dextro"
+     },
+     "album": {
+      "id": 707127031,
+      "title": "Covil dos Abutres"
+     }
+    },
+    {
+     "id": 3214701921,
+     "type": "track",
+     "title": "Vida e Morte",
+     "title_short": "Vida e Morte",
+     "title_version": "",
+     "duration": 296,
+     "rank": 34498,
+     "isrc": "DEH742502393",
+     "artist": {
+      "id": 131288,
+      "name": "DJ Dextro"
+     },
+     "album": {
+      "id": 707127031,
+      "title": "Covil dos Abutres"
+     }
+    },
+    {
+     "id": 3214701951,
+     "type": "track",
+     "title": "Time Line",
+     "title_short": "Time Line",
+     "title_version": "",
+     "duration": 323,
+     "rank": 25136,
+     "isrc": "DEH742502396",
+     "artist": {
+      "id": 131288,
+      "name": "DJ Dextro"
+     },
+     "album": {
+      "id": 707127031,
+      "title": "Covil dos Abutres"
+     }
+    }
+   ],
+   "total": 8
+  }
+ }
+}

@@ -1,0 +1,33 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"I'm Still Here\" AND artist:\"Ferdinger\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:17:09.215Z",
+   "count": 0,
+   "offset": 0,
+   "recordings": []
+  }
+ }
+}

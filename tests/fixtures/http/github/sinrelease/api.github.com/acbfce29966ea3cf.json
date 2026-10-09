@@ -1,0 +1,19 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.github.com/repos/tracklister-test/tracklister/releases/latest",
+  "params": []
+ },
+ "response": {
+  "status": 404,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "message": "Not Found",
+   "documentation_url": "https://docs.github.com/rest/releases/releases"
+  }
+ },
+ "note": "hand-written: GitHub REST releases/latest, documented shape"
+}

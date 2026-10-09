@@ -1,0 +1,60 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Truncate Dust 1"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 2,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1773193892,
+     "artistName": "Truncate",
+     "trackName": "Dust 1",
+     "collectionName": "Dust - EP",
+     "trackTimeMillis": 304147,
+     "releaseDate": "2024-10-17T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1773193893,
+     "artistName": "Truncate",
+     "trackName": "Dust 1 (Kai Van Dongen Remix)",
+     "collectionName": "Dust - EP",
+     "trackTimeMillis": 289714,
+     "releaseDate": "2024-10-17T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

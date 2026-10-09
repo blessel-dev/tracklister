@@ -1,0 +1,64 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Chris Liebing Higher Things"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3991366251,
+     "type": "track",
+     "title": "Higher Things (FJAAK Remix)",
+     "title_short": "Higher Things",
+     "title_version": "(FJAAK Remix)",
+     "duration": 289,
+     "rank": 181745,
+     "isrc": "DEBE72600276",
+     "artist": {
+      "id": 176167,
+      "name": "Chris Liebing"
+     },
+     "album": {
+      "id": 971785201,
+      "title": "Higher Things (FJAAK Remix)"
+     }
+    },
+    {
+     "id": 3865664621,
+     "type": "track",
+     "title": "Higher Things",
+     "title_short": "Higher Things",
+     "title_version": "",
+     "duration": 297,
+     "rank": 105817,
+     "isrc": "DEBE72600009",
+     "artist": {
+      "id": 176167,
+      "name": "Chris Liebing"
+     },
+     "album": {
+      "id": 926731391,
+      "title": "Evolver"
+     }
+    }
+   ],
+   "total": 2
+  }
+ }
+}

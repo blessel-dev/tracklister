@@ -1,0 +1,64 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Roll Dann The Red House"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3578122801,
+     "type": "track",
+     "title": "The Red House (Original)",
+     "title_short": "The Red House",
+     "title_version": "(Original)",
+     "duration": 339,
+     "rank": 97589,
+     "isrc": "NLCK42514966",
+     "artist": {
+      "id": 13320983,
+      "name": "Roll Dann"
+     },
+     "album": {
+      "id": 829401631,
+      "title": "The Red House"
+     }
+    },
+    {
+     "id": 2109912,
+     "type": "track",
+     "title": "Dolly House Meddley",
+     "title_short": "Dolly House Meddley",
+     "title_version": "",
+     "duration": 208,
+     "rank": 250664,
+     "isrc": "FR05S0600020",
+     "artist": {
+      "id": 11777,
+      "name": "Red Rat"
+     },
+     "album": {
+      "id": 211902,
+      "title": "Don's Collector, Vol. 2"
+     }
+    }
+   ],
+   "total": 2
+  }
+ }
+}

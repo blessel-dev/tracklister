@@ -1,0 +1,46 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Blasha & Allatt 8AM in Salford"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 2058657227,
+     "type": "track",
+     "title": "8AM in Salford",
+     "title_short": "8AM in Salford",
+     "title_version": "",
+     "duration": 360,
+     "rank": 187981,
+     "isrc": "UK6491400125",
+     "artist": {
+      "id": 54703222,
+      "name": "Blasha & Allatt"
+     },
+     "album": {
+      "id": 384476717,
+      "title": "src004"
+     }
+    }
+   ],
+   "total": 1
+  }
+ }
+}

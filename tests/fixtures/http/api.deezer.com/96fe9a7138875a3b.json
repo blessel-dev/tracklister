@@ -1,0 +1,64 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Introversion Duff"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 759178582,
+     "type": "track",
+     "title": "Duat",
+     "title_short": "Duat",
+     "title_version": "",
+     "duration": 370,
+     "rank": 18300,
+     "isrc": "NLCK41057858",
+     "artist": {
+      "id": 10787016,
+      "name": "Introversion"
+     },
+     "album": {
+      "id": 111886232,
+      "title": "Onryo"
+     }
+    },
+    {
+     "id": 4110095661,
+     "type": "track",
+     "title": "Duff",
+     "title_short": "Duff",
+     "title_version": "",
+     "duration": 304,
+     "rank": 15842,
+     "isrc": "UK6491400241",
+     "artist": {
+      "id": 10787016,
+      "name": "Introversion"
+     },
+     "album": {
+      "id": 1013198671,
+      "title": "2021-2026"
+     }
+    }
+   ],
+   "total": 2
+  }
+ }
+}

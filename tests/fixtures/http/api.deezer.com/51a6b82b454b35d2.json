@@ -1,0 +1,82 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Truncate Dust 1"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3038652131,
+     "type": "track",
+     "title": "Dust 1 (Kai Van Dongen Remix)",
+     "title_short": "Dust 1 (Kai Van Dongen Remix)",
+     "title_version": "",
+     "duration": 289,
+     "rank": 18552,
+     "isrc": "USA2P2464944",
+     "artist": {
+      "id": 1178387,
+      "name": "Truncate"
+     },
+     "album": {
+      "id": 654604581,
+      "title": "Dust"
+     }
+    },
+    {
+     "id": 3038652151,
+     "type": "track",
+     "title": "Dust 3",
+     "title_short": "Dust 3",
+     "title_version": "",
+     "duration": 285,
+     "rank": 32045,
+     "isrc": "USA2P2464946",
+     "artist": {
+      "id": 1178387,
+      "name": "Truncate"
+     },
+     "album": {
+      "id": 654604581,
+      "title": "Dust"
+     }
+    },
+    {
+     "id": 3038652121,
+     "type": "track",
+     "title": "Dust 1",
+     "title_short": "Dust 1",
+     "title_version": "",
+     "duration": 304,
+     "rank": 7803,
+     "isrc": "USA2P2464943",
+     "artist": {
+      "id": 1178387,
+      "name": "Truncate"
+     },
+     "album": {
+      "id": 654604581,
+      "title": "Dust"
+     }
+    }
+   ],
+   "total": 3
+  }
+ }
+}

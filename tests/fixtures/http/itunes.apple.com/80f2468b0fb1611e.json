@@ -1,0 +1,48 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Justyn Nell Visions"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 1,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1683770726,
+     "artistName": "Justyn Nell",
+     "trackName": "Visions",
+     "collectionName": "Desolation - EP",
+     "trackTimeMillis": 286222,
+     "releaseDate": "2023-07-28T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

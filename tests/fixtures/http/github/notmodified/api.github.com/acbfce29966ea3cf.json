@@ -1,0 +1,17 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.github.com/repos/tracklister-test/tracklister/releases/latest",
+  "params": []
+ },
+ "response": {
+  "status": 304,
+  "headers": {
+   "etag": "W/\"etag-101\"",
+   "x-ratelimit-remaining": "59"
+  },
+  "json": null
+ },
+ "note": "hand-written: GitHub REST releases/latest, documented shape"
+}

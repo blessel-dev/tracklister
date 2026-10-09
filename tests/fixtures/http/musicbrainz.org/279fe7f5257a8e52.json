@@ -1,0 +1,59 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"8AM in Salford\" AND artist:\"Blasha\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:16:25.529Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "e3bbbaf6-f109-4394-9589-fc596be0c15c",
+     "score": 100,
+     "title": "8am in Salford",
+     "length": 360943,
+     "video": null,
+     "first-release-date": "2023-01-27",
+     "artist-credit": [
+      {
+       "name": "Blasha & Allatt",
+       "joinphrase": "",
+       "artist": {
+        "id": "827e2128-4a1c-476f-aa4e-d3636d57f28d",
+        "name": "Blasha & Allatt"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "ad8cdf32-95a7-470c-844c-e792eb8f8246",
+       "title": "src004",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

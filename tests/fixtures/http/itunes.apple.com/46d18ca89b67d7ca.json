@@ -1,0 +1,132 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "DJ Dextro Covil dos Abutres"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 8,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1794084340,
+     "artistName": "DJ Dextro",
+     "trackName": "Covil dos Abutres",
+     "collectionName": "Covil dos Abutres",
+     "trackTimeMillis": 309908,
+     "releaseDate": "2025-04-04T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1794084343,
+     "artistName": "DJ Dextro",
+     "trackName": "Element One",
+     "collectionName": "Covil dos Abutres",
+     "trackTimeMillis": 289744,
+     "releaseDate": "2025-04-04T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1794084347,
+     "artistName": "DJ Dextro",
+     "trackName": "Diferenças",
+     "collectionName": "Covil dos Abutres",
+     "trackTimeMillis": 285048,
+     "releaseDate": "2025-04-04T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1794084341,
+     "artistName": "DJ Dextro",
+     "trackName": "Correct Incorrect",
+     "collectionName": "Covil dos Abutres",
+     "trackTimeMillis": 296333,
+     "releaseDate": "2025-04-04T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1794084342,
+     "artistName": "DJ Dextro",
+     "trackName": "Vida e Morte",
+     "collectionName": "Covil dos Abutres",
+     "trackTimeMillis": 296290,
+     "releaseDate": "2025-04-04T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1794084344,
+     "artistName": "DJ Dextro",
+     "trackName": "Beautiful Day",
+     "collectionName": "Covil dos Abutres",
+     "trackTimeMillis": 299170,
+     "releaseDate": "2025-04-04T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1794084345,
+     "artistName": "DJ Dextro",
+     "trackName": "Time Line",
+     "collectionName": "Covil dos Abutres",
+     "trackTimeMillis": 323347,
+     "releaseDate": "2025-04-04T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1794084346,
+     "artistName": "DJ Dextro",
+     "trackName": "Savana Urbana",
+     "collectionName": "Covil dos Abutres",
+     "trackTimeMillis": 305950,
+     "releaseDate": "2025-04-04T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

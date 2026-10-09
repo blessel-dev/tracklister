@@ -1,0 +1,48 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "STIPP Corrie"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 1,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1884883908,
+     "artistName": "STIPP & Sandrien",
+     "trackName": "Corrie",
+     "collectionName": "Fuga VII",
+     "trackTimeMillis": 356679,
+     "releaseDate": "2026-04-17T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

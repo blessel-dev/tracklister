@@ -1,0 +1,48 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Lewis Fautzi Zona Neutra"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 1,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1870845288,
+     "artistName": "Lewis Fautzi",
+     "trackName": "Zona Neutra",
+     "collectionName": "Quatro Níveis - EP",
+     "trackTimeMillis": 308000,
+     "releaseDate": "2026-02-06T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,59 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Glaður Og Reifur\" AND artist:\"Exos\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:17:31.035Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "9a587084-2bfd-4350-a1b1-b042de245395",
+     "score": 100,
+     "title": "Glaður Og Reifur",
+     "length": 303072,
+     "video": null,
+     "first-release-date": "2025-12-19",
+     "artist-credit": [
+      {
+       "name": "Exos",
+       "joinphrase": "",
+       "artist": {
+        "id": "010df668-d0b3-4ea6-9aa7-21a84396b5b7",
+        "name": "Exos"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "d9550024-e4cb-408d-a5c8-4cc53afd2509",
+       "title": "Sweet Dreams",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

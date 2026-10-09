@@ -1,0 +1,84 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Chris Liebing Higher Things"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 4,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6762710389,
+     "artistName": "Chris Liebing",
+     "trackName": "Higher Things (FJAAK Remix)",
+     "collectionName": "Higher Things (FJAAK Remix) - Single",
+     "trackTimeMillis": 289489,
+     "releaseDate": "2026-05-29T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1873359293,
+     "artistName": "Chris Liebing",
+     "trackName": "Higher Things",
+     "collectionName": "Evolver",
+     "trackTimeMillis": 297810,
+     "releaseDate": "2026-03-27T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6762710390,
+     "artistName": "Chris Liebing",
+     "trackName": "Higher Things",
+     "collectionName": "Higher Things (FJAAK Remix) - Single",
+     "trackTimeMillis": 297810,
+     "releaseDate": "2026-03-27T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1530079182,
+     "artistName": "Nicolas Bougaïeff",
+     "trackName": "Inward Megalith (Chris Liebing Remix)",
+     "collectionName": "Higher Up The Spiral",
+     "trackTimeMillis": 435692,
+     "releaseDate": "2020-09-11T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

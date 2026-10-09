@@ -1,0 +1,46 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Exos Glaður Og Reifur"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3669900022,
+     "type": "track",
+     "title": "Glaður Og Reifur",
+     "title_short": "Glaður Og Reifur",
+     "title_version": "",
+     "duration": 303,
+     "rank": 62887,
+     "isrc": "DEH742535540",
+     "artist": {
+      "id": 62237,
+      "name": "exos"
+     },
+     "album": {
+      "id": 861119332,
+      "title": "Sweet Dreams"
+     }
+    }
+   ],
+   "total": 1
+  }
+ }
+}

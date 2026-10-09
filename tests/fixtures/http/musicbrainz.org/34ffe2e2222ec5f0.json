@@ -1,0 +1,62 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Zona Neutra\" AND artist:\"Lewis Fautzi\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:17:36.465Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "cdfb8b86-9467-4116-beb4-33a8bb970187",
+     "score": 100,
+     "title": "Zona Neutra",
+     "length": 308000,
+     "video": null,
+     "first-release-date": "2026-02-06",
+     "isrcs": [
+      "NLCK42601562"
+     ],
+     "artist-credit": [
+      {
+       "name": "Lewis Fautzi",
+       "joinphrase": "",
+       "artist": {
+        "id": "c0a8613f-e3df-4b02-864a-675dad00b4c4",
+        "name": "Lewis Fautzi"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "408550e8-eb28-4cd5-b50b-9b73e1dffba9",
+       "title": "Quatro Níveis",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

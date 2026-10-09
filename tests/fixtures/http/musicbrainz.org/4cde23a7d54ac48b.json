@@ -1,0 +1,113 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Dust 1\" AND artist:\"Truncate\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:17:14.652Z",
+   "count": 3,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "c4f0223f-ff1a-4782-a9e8-419ab70b394e",
+     "score": 100,
+     "title": "Dust 1",
+     "length": 304000,
+     "video": null,
+     "first-release-date": "2024-10-16",
+     "artist-credit": [
+      {
+       "name": "Truncate",
+       "joinphrase": "",
+       "artist": {
+        "id": "e5bd3c6a-faca-47d1-a8bd-90aac7cf9c8a",
+        "name": "Truncate"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "b4220aaa-a6f0-4115-9299-e5011e124495",
+       "title": "Dust",
+       "status": "Official"
+      }
+     ]
+    },
+    {
+     "id": "19933ad8-cc2a-40f2-ba9c-fd3f982ea111",
+     "score": 83,
+     "title": "Dust 1 (Kai Van Dongen remix)",
+     "length": 289000,
+     "video": null,
+     "first-release-date": "2024-10-16",
+     "artist-credit": [
+      {
+       "name": "Truncate",
+       "joinphrase": "",
+       "artist": {
+        "id": "e5bd3c6a-faca-47d1-a8bd-90aac7cf9c8a",
+        "name": "Truncate"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "b4220aaa-a6f0-4115-9299-e5011e124495",
+       "title": "Dust",
+       "status": "Official"
+      }
+     ]
+    },
+    {
+     "id": "64423fe8-3d61-4287-88f2-58be0fa21da5",
+     "score": 83,
+     "title": "Dust 1 (Kai Van Dongen remix)",
+     "length": 99000,
+     "disambiguation": "part of “FJAAK at Movement Detroit 2025” DJ‐mix",
+     "video": null,
+     "first-release-date": "2025-05-24",
+     "isrcs": [
+      "US23A8819723"
+     ],
+     "artist-credit": [
+      {
+       "name": "Truncate",
+       "joinphrase": "",
+       "artist": {
+        "id": "e5bd3c6a-faca-47d1-a8bd-90aac7cf9c8a",
+        "name": "Truncate"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "d6e035ea-1e94-4bc9-b65f-f78c536b6b90",
+       "title": "FJAAK at Movement Detroit 2025",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

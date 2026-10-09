@@ -1,0 +1,206 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "ANFS Caballero"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 613465182,
+     "type": "track",
+     "title": "Ma Story",
+     "title_short": "Ma Story",
+     "title_version": "",
+     "duration": 204,
+     "rank": 181548,
+     "isrc": "BEEO71700012",
+     "artist": {
+      "id": 10147346,
+      "name": "Caballero & JeanJass"
+     },
+     "album": {
+      "id": 83592222,
+      "title": "Double Hélice 2"
+     }
+    },
+    {
+     "id": 427471682,
+     "type": "track",
+     "title": "Cool Kids (feat. Caballero & JeanJass, Alex Lucas & Anser)",
+     "title_short": "Cool Kids (feat. Caballero & JeanJass, Alex Lucas & Anser)",
+     "title_version": "",
+     "duration": 176,
+     "rank": 216591,
+     "isrc": "BEGD31700017",
+     "artist": {
+      "id": 1606292,
+      "name": "Todiefor"
+     },
+     "album": {
+      "id": 51461272,
+      "title": "Cool Kids (feat. Caballero & JeanJass, Alex Lucas & Anser)"
+     }
+    },
+    {
+     "id": 782604262,
+     "type": "track",
+     "title": "Como Han Pasado los Años (Remastered)",
+     "title_short": "Como Han Pasado los Años",
+     "title_version": "(Remastered)",
+     "duration": 218,
+     "rank": 62888,
+     "isrc": "DEXO31919407",
+     "artist": {
+      "id": 101590,
+      "name": "Los Tres Caballeros"
+     },
+     "album": {
+      "id": 116076282,
+      "title": "La Leyenda de Los Tres Caballeros (Remastered)"
+     }
+    },
+    {
+     "id": 3387214491,
+     "type": "track",
+     "title": "Saint Evolution (TV Size) [From Los Caballeros Del Zodiaco Omega] (Cover Español Latino)",
+     "title_short": "Saint Evolution (TV Size) [From Los Caballeros Del Zodiaco Omega]",
+     "title_version": "(Cover Español Latino)",
+     "duration": 106,
+     "rank": 31782,
+     "isrc": "QZPJ32454348",
+     "artist": {
+      "id": 251548622,
+      "name": "Black Anisinger"
+     },
+     "album": {
+      "id": 763430901,
+      "title": "Los Caballeros Del Zodiaco Omega (Covers TV Size Español Latino)"
+     }
+    },
+    {
+     "id": 3387214471,
+     "type": "track",
+     "title": "Pegasus Fantasy ver.Omega (TV Size) [From Los Caballeros Del Zodiaco Omega] (Cover Español Latino)",
+     "title_short": "Pegasus Fantasy ver.Omega (TV Size) [From Los Caballeros Del Zodiaco Omega]",
+     "title_version": "(Cover Español Latino)",
+     "duration": 104,
+     "rank": 105184,
+     "isrc": "QZPJ32454346",
+     "artist": {
+      "id": 251548622,
+      "name": "Black Anisinger"
+     },
+     "album": {
+      "id": 763430901,
+      "title": "Los Caballeros Del Zodiaco Omega (Covers TV Size Español Latino)"
+     }
+    },
+    {
+     "id": 552664642,
+     "type": "track",
+     "title": "Cien Años",
+     "title_short": "Cien Años",
+     "title_version": "",
+     "duration": 184,
+     "rank": 32405,
+     "isrc": "QZ5AB2058639",
+     "artist": {
+      "id": 1621776,
+      "name": "Polo Rojas"
+     },
+     "album": {
+      "id": 72741792,
+      "title": "Cien Años"
+     }
+    },
+    {
+     "id": 137292886,
+     "type": "track",
+     "title": "Caballitos de Anís",
+     "title_short": "Caballitos de Anís",
+     "duration": 268,
+     "rank": 73298,
+     "isrc": "QMBZ91646248",
+     "artist": {
+      "id": 259276,
+      "name": "Javier Corcobado"
+     },
+     "album": {
+      "id": 14724756,
+      "title": "A Nadie"
+     }
+    },
+    {
+     "id": 4178650862,
+     "type": "track",
+     "title": "Komm wir fahr´n ans Meer",
+     "title_short": "Komm wir fahr´n ans Meer",
+     "title_version": "",
+     "duration": 165,
+     "rank": 37588,
+     "isrc": "QT6FK2600925",
+     "artist": {
+      "id": 5845506,
+      "name": "Daniel Caballero"
+     },
+     "album": {
+      "id": 1038848752,
+      "title": "Komm wir fahr´n ans Meer"
+     }
+    },
+    {
+     "id": 66108377,
+     "type": "track",
+     "title": "Les trois caballeros (Marche)",
+     "title_short": "Les trois caballeros (Marche)",
+     "duration": 305,
+     "rank": 183919,
+     "isrc": "FR0W61302071",
+     "artist": {
+      "id": 4041441,
+      "name": "Nicolas Grandfils"
+     },
+     "album": {
+      "id": 6467894,
+      "title": "Mes 20 ans d'accordéon"
+     }
+    },
+    {
+     "id": 3826772181,
+     "type": "track",
+     "title": "Caballito de mar (feat. Piero)",
+     "title_short": "Caballito de mar (feat. Piero)",
+     "title_version": "",
+     "duration": 162,
+     "rank": 255069,
+     "isrc": "BK4DA2433368",
+     "artist": {
+      "id": 4627468,
+      "name": "Cantoalegre"
+     },
+     "album": {
+      "id": 912778681,
+      "title": "Cantar y jugar: 25 años"
+     }
+    }
+   ],
+   "total": 300
+  }
+ }
+}

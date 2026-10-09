@@ -1,0 +1,46 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "OFF / GRID No Money No Problems"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 2897928491,
+     "type": "track",
+     "title": "No Money No Problems",
+     "title_short": "No Money No Problems",
+     "title_version": "",
+     "duration": 305,
+     "rank": 77196,
+     "isrc": "NLCK42412742",
+     "artist": {
+      "id": 195735737,
+      "name": "OFF / GRID"
+     },
+     "album": {
+      "id": 617819531,
+      "title": "Renegades"
+     }
+    }
+   ],
+   "total": 1
+  }
+ }
+}

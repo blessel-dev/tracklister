@@ -1,0 +1,46 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Lewis Fautzi Zona Neutra"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3787405842,
+     "type": "track",
+     "title": "Zona Neutra",
+     "title_short": "Zona Neutra",
+     "title_version": "",
+     "duration": 308,
+     "rank": 66445,
+     "isrc": "NLCK42601562",
+     "artist": {
+      "id": 1198556,
+      "name": "Lewis Fautzi"
+     },
+     "album": {
+      "id": 901831082,
+      "title": "Quatro Níveis"
+     }
+    }
+   ],
+   "total": 1
+  }
+ }
+}

@@ -1,0 +1,208 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "STIPP Corrie"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3898824821,
+     "type": "track",
+     "title": "Corrie",
+     "title_short": "Corrie",
+     "title_version": "",
+     "duration": 356,
+     "rank": 100970,
+     "isrc": "BEN582600015",
+     "artist": {
+      "id": 61734672,
+      "name": "Stipp"
+     },
+     "album": {
+      "id": 939064281,
+      "title": "Fuga VII"
+     }
+    },
+    {
+     "id": 2775635411,
+     "type": "track",
+     "title": "Correlation",
+     "title_short": "Correlation",
+     "title_version": "",
+     "duration": 410,
+     "rank": 137866,
+     "isrc": "FR6V82165010",
+     "artist": {
+      "id": 1357516,
+      "name": "Valentin Stip"
+     },
+     "album": {
+      "id": 580297601,
+      "title": "Sigh"
+     }
+    },
+    {
+     "id": 3681650212,
+     "type": "track",
+     "title": "STEPPIN CORRECT",
+     "title_short": "STEPPIN CORRECT",
+     "title_version": "",
+     "duration": 108,
+     "rank": 75689,
+     "isrc": "QT6F72507666",
+     "artist": {
+      "id": 1150549,
+      "name": "Slew"
+     },
+     "album": {
+      "id": 865369362,
+      "title": "WHO ELSE? (DELUXE)"
+     }
+    },
+    {
+     "id": 3328783501,
+     "type": "track",
+     "title": "Never Be The Same Again (Markus Schulz Coldharbour Club Mix)",
+     "title_short": "Never Be The Same Again",
+     "title_version": "(Markus Schulz Coldharbour Club Mix)",
+     "duration": 420,
+     "rank": 74878,
+     "isrc": "NLF710601045",
+     "artist": {
+      "id": 6234,
+      "name": "Markus Schulz"
+     },
+     "album": {
+      "id": 743846651,
+      "title": "Without You Near (The Remixes)"
+     }
+    },
+    {
+     "id": 44293131,
+     "type": "track",
+     "title": "So Much More (Ambient Mix)",
+     "title_short": "So Much More",
+     "title_version": "(Ambient Mix)",
+     "duration": 215,
+     "rank": 153771,
+     "isrc": "NLF711204158",
+     "artist": {
+      "id": 97524,
+      "name": "Andy Moor"
+     },
+     "album": {
+      "id": 4366271,
+      "title": "Armada Lounge, Vol. 5 (The Best Downtempo Songs For Your Listening Pleasure)"
+     }
+    },
+    {
+     "id": 51604401,
+     "type": "track",
+     "title": "She Moves [Mix Cut] (Original Mix)",
+     "title_short": "She Moves [Mix Cut]",
+     "title_version": "(Original Mix)",
+     "duration": 440,
+     "rank": 101713,
+     "isrc": "NLF711000426",
+     "artist": {
+      "id": 97524,
+      "name": "Andy Moor"
+     },
+     "album": {
+      "id": 4977661,
+      "title": "A State Of Trance 2010 (Mixed by Armin van Buuren)"
+     }
+    },
+    {
+     "id": 6518174,
+     "type": "track",
+     "title": "She Moves",
+     "title_short": "She Moves",
+     "title_version": "",
+     "duration": 550,
+     "rank": 71551,
+     "isrc": "NLF711000314",
+     "artist": {
+      "id": 97524,
+      "name": "Andy Moor"
+     },
+     "album": {
+      "id": 600899,
+      "title": "She Moves"
+     }
+    },
+    {
+     "id": 99341574,
+     "type": "track",
+     "title": "Time Goes By (Super8 Extended Deep Mix)",
+     "title_short": "Time Goes By",
+     "title_version": "(Super8 Extended Deep Mix)",
+     "duration": 510,
+     "rank": 58559,
+     "isrc": "GBEWA0500045",
+     "artist": {
+      "id": 1676697,
+      "name": "Carrie Skipper"
+     },
+     "album": {
+      "id": 10169310,
+      "title": "Time Goes By"
+     }
+    },
+    {
+     "id": 138826901,
+     "type": "track",
+     "title": "She Moves (Solis & Sean Truby Remix)",
+     "title_short": "She Moves",
+     "title_version": "(Solis & Sean Truby Remix)",
+     "duration": 392,
+     "rank": 107187,
+     "isrc": "NLF711605918",
+     "artist": {
+      "id": 97524,
+      "name": "Andy Moor"
+     },
+     "album": {
+      "id": 14915993,
+      "title": "Global DJ Broadcast - Top 20 January 2017"
+     }
+    },
+    {
+     "id": 67765870,
+     "type": "track",
+     "title": "Tora's Angel (Album Mix)",
+     "title_short": "Tora's Angel",
+     "title_version": "(Album Mix)",
+     "duration": 240,
+     "rank": 70217,
+     "isrc": "NLF711306244",
+     "artist": {
+      "id": 97524,
+      "name": "Andy Moor"
+     },
+     "album": {
+      "id": 6633946,
+      "title": "Armada Lounge, Vol. 6"
+     }
+    }
+   ],
+   "total": 26
+  }
+ }
+}

@@ -1,0 +1,67 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Corrie\" AND artist:\"STIPP\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:17:20.147Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "1561a168-c086-4e94-9dd5-dd148e25ed72",
+     "score": 100,
+     "title": "Corrie",
+     "length": 356679,
+     "video": null,
+     "first-release-date": "2026-04-17",
+     "artist-credit": [
+      {
+       "name": "STIPP",
+       "joinphrase": " & ",
+       "artist": {
+        "id": "5d28d023-fe35-41fd-afb9-a88c98caadd5",
+        "name": "STIPP"
+       }
+      },
+      {
+       "name": "Sandrien",
+       "joinphrase": "",
+       "artist": {
+        "id": "0e560c3c-fb13-412c-b1eb-ee2798e7f1e0",
+        "name": "Sandrien"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "ac5ca0e7-c096-449f-8e9b-98ff1c91931b",
+       "title": "Fuga VII",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

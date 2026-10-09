@@ -1,0 +1,216 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "ANFS Caballero"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 15,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1723342693,
+     "artistName": "Banda Caballeros",
+     "trackName": "La Quebradora (En Vivo)",
+     "collectionName": "En Vivo Desde el Capomo (En Vivo)",
+     "trackTimeMillis": 137125,
+     "releaseDate": "2023-12-08T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1631309232,
+     "artistName": "Banda Caballeros",
+     "trackName": "El Son del Titán",
+     "collectionName": "El Son del Titán - Single",
+     "trackTimeMillis": 159851,
+     "releaseDate": "2022-06-24T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1625648602,
+     "artistName": "Banda Caballeros",
+     "trackName": "El Semáforo",
+     "collectionName": "El Semáforo - Single",
+     "trackTimeMillis": 152903,
+     "releaseDate": "2022-05-20T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1723342290,
+     "artistName": "Banda Caballeros",
+     "trackName": "El Son del Tlacololero (En Vivo)",
+     "collectionName": "En Vivo Desde el Capomo (En Vivo)",
+     "trackTimeMillis": 248375,
+     "releaseDate": "2023-12-08T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1658529927,
+     "artistName": "Banda Caballeros",
+     "trackName": "El Son del Lobito",
+     "collectionName": "Pa'l Amigo Juan",
+     "trackTimeMillis": 133692,
+     "releaseDate": "2022-12-16T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1658529937,
+     "artistName": "Banda Caballeros",
+     "trackName": "Quien Me Enamora",
+     "collectionName": "Pa'l Amigo Juan",
+     "trackTimeMillis": 151558,
+     "releaseDate": "2022-12-16T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1684753707,
+     "artistName": "Banda Caballeros",
+     "trackName": "Fin de Semana",
+     "collectionName": "Fin de Semana - Single",
+     "trackTimeMillis": 202909,
+     "releaseDate": "2023-05-02T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1633094258,
+     "artistName": "Banda Caballeros",
+     "trackName": "El Caballito",
+     "collectionName": "El Caballito - Single",
+     "trackTimeMillis": 194356,
+     "releaseDate": "2022-07-14T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1658529919,
+     "artistName": "Banda Caballeros",
+     "trackName": "Tumbando Caña",
+     "collectionName": "Pa'l Amigo Juan",
+     "trackTimeMillis": 154400,
+     "releaseDate": "2022-12-16T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1705197793,
+     "artistName": "Banda Caballeros",
+     "trackName": "Suspiros",
+     "collectionName": "Puro Compa, Vol. 1",
+     "trackTimeMillis": 186500,
+     "releaseDate": "2023-09-08T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1648441757,
+     "artistName": "Banda Caballeros",
+     "trackName": "La Cobra (feat. Grupo Expediente)",
+     "collectionName": "La Cobra (feat. Grupo Expediente) - Single",
+     "trackTimeMillis": 150626,
+     "releaseDate": "2022-10-07T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1658529662,
+     "artistName": "Banda Caballeros",
+     "trackName": "Eva María",
+     "collectionName": "Pa'l Amigo Juan",
+     "trackTimeMillis": 164800,
+     "releaseDate": "2022-12-16T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1658529945,
+     "artistName": "Banda Caballeros",
+     "trackName": "Amor Ranchero",
+     "collectionName": "Pa'l Amigo Juan",
+     "trackTimeMillis": 138300,
+     "releaseDate": "2022-12-16T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1723342674,
+     "artistName": "Banda Caballeros",
+     "trackName": "El Ki Ki Ki (En Vivo)",
+     "collectionName": "En Vivo Desde el Capomo (En Vivo)",
+     "trackTimeMillis": 197875,
+     "releaseDate": "2023-12-08T12:00:00Z",
+     "primaryGenreName": "Música Mexicana",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1887549850,
+     "artistName": "Anfs",
+     "trackName": "Caballero",
+     "collectionName": "Adenosine - EP",
+     "trackTimeMillis": 338500,
+     "releaseDate": "2026-04-10T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

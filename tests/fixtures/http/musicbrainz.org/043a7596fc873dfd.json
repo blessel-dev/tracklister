@@ -1,0 +1,62 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Higher Things\" AND artist:\"Chris Liebing\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:17:53.008Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "13245daf-a124-4fa6-bf58-c7897623cb33",
+     "score": 100,
+     "title": "Higher Things",
+     "length": 297810,
+     "video": null,
+     "first-release-date": "2026-03-27",
+     "isrcs": [
+      "DEBE72600009"
+     ],
+     "artist-credit": [
+      {
+       "name": "Chris Liebing",
+       "joinphrase": "",
+       "artist": {
+        "id": "86a1c458-2d97-42cd-a142-a8fee30ae4a1",
+        "name": "Chris Liebing"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "21ab6ca6-99cd-418f-8c41-7266e681e678",
+       "title": "Evolver",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,156 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Blasha & Allatt 8AM in Salford"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 10,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1658378008,
+     "artistName": "Blasha & Allatt",
+     "trackName": "8AM in Salford",
+     "collectionName": "src004 - EP",
+     "trackTimeMillis": 360943,
+     "releaseDate": "2023-01-27T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6784143849,
+     "artistName": "Blasha & Allatt",
+     "trackName": "8AM in Salford",
+     "collectionName": "2021-2026",
+     "trackTimeMillis": 360943,
+     "releaseDate": "2023-01-27T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1444371079,
+     "artistName": "Blasha & Allatt",
+     "trackName": "Broughton 93",
+     "collectionName": "Ben Sims pres. Tribology",
+     "trackTimeMillis": 360000,
+     "releaseDate": "2018-12-07T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1575988545,
+     "artistName": "Blasha & Allatt",
+     "trackName": "Take Seven",
+     "collectionName": "Ben Sims presents Synchronicity, Pt. 1",
+     "trackTimeMillis": 367733,
+     "releaseDate": "2021-07-30T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1599789452,
+     "artistName": "Blasha & Allatt",
+     "trackName": "Take Seven",
+     "collectionName": "Ben Sims presents Synchronicity",
+     "trackTimeMillis": 367733,
+     "releaseDate": "2021-12-21T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1722506967,
+     "artistName": "Shcuro & Vil",
+     "trackName": "Rumble the Funk (Blasha & Allatt Remix)",
+     "collectionName": "Repercussions Part 1 - EP",
+     "trackTimeMillis": 349523,
+     "releaseDate": "2024-02-09T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1481988351,
+     "artistName": "Blue Hour",
+     "trackName": "Miramar (Blasha & Allatt Remix)",
+     "collectionName": "Remixed 04 - EP",
+     "trackTimeMillis": 367571,
+     "releaseDate": "2019-11-04T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1758958861,
+     "artistName": "Maccari",
+     "trackName": "Deep Convotulion (Blasha & Allatt Remix)",
+     "collectionName": "Deep Convolution EP",
+     "trackTimeMillis": 332546,
+     "releaseDate": "2023-09-08T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1519865207,
+     "artistName": "Blue Hour",
+     "trackName": "Miramar (Blasha & Allatt Remix)",
+     "collectionName": "Remixed Complete",
+     "trackTimeMillis": 367571,
+     "releaseDate": "2019-11-04T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1786022454,
+     "artistName": "Reptile",
+     "trackName": "Sequoia (Blasha & Allatt Remix)",
+     "collectionName": "Sequoia - EP",
+     "trackTimeMillis": 373409,
+     "releaseDate": "2024-12-10T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

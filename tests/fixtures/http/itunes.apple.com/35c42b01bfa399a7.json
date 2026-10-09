@@ -1,0 +1,84 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Klint Gunslingers"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 4,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1741514825,
+     "artistName": "Klint",
+     "trackName": "Gunslingers",
+     "collectionName": "Gunslingers - EP",
+     "trackTimeMillis": 326842,
+     "releaseDate": "2024-05-24T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1741514833,
+     "artistName": "Klint",
+     "trackName": "Undercover",
+     "collectionName": "Gunslingers - EP",
+     "trackTimeMillis": 326842,
+     "releaseDate": "2024-05-24T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1741514829,
+     "artistName": "Klint",
+     "trackName": "Paris Tokyo",
+     "collectionName": "Gunslingers - EP",
+     "trackTimeMillis": 324519,
+     "releaseDate": "2024-05-24T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1741514831,
+     "artistName": "Klint",
+     "trackName": "Chaotic Funk",
+     "collectionName": "Gunslingers - EP",
+     "trackTimeMillis": 329162,
+     "releaseDate": "2024-05-24T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

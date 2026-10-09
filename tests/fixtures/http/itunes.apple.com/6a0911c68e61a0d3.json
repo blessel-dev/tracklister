@@ -1,0 +1,60 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Plug Trax Zoned Out"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 2,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1889202120,
+     "artistName": "Plug Trax",
+     "trackName": "Zoned Out",
+     "collectionName": "Zoned Out - Single",
+     "trackTimeMillis": 295267,
+     "releaseDate": "2026-05-01T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1889179826,
+     "artistName": "Plug Trax",
+     "trackName": "Zoned Out",
+     "collectionName": "Neon Signs",
+     "trackTimeMillis": 295267,
+     "releaseDate": "2026-05-01T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

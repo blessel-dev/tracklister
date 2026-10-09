@@ -1,0 +1,100 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Klint Gunslingers"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 2754255931,
+     "type": "track",
+     "title": "Gunslingers",
+     "title_short": "Gunslingers",
+     "title_version": "",
+     "duration": 326,
+     "rank": 10038,
+     "isrc": "NLCK42405470",
+     "artist": {
+      "id": 3939,
+      "name": "Klint"
+     },
+     "album": {
+      "id": 574425301,
+      "title": "Gunslingers"
+     }
+    },
+    {
+     "id": 2754255961,
+     "type": "track",
+     "title": "Undercover",
+     "title_short": "Undercover",
+     "title_version": "",
+     "duration": 326,
+     "rank": 14855,
+     "isrc": "NLCK42405473",
+     "artist": {
+      "id": 3939,
+      "name": "Klint"
+     },
+     "album": {
+      "id": 574425301,
+      "title": "Gunslingers"
+     }
+    },
+    {
+     "id": 2754255951,
+     "type": "track",
+     "title": "Chaotic Funk",
+     "title_short": "Chaotic Funk",
+     "title_version": "",
+     "duration": 329,
+     "rank": 3428,
+     "isrc": "NLCK42405472",
+     "artist": {
+      "id": 3939,
+      "name": "Klint"
+     },
+     "album": {
+      "id": 574425301,
+      "title": "Gunslingers"
+     }
+    },
+    {
+     "id": 2754255941,
+     "type": "track",
+     "title": "Paris Tokyo",
+     "title_short": "Paris Tokyo",
+     "title_version": "",
+     "duration": 324,
+     "rank": 10525,
+     "isrc": "NLCK42405471",
+     "artist": {
+      "id": 3939,
+      "name": "Klint"
+     },
+     "album": {
+      "id": 574425301,
+      "title": "Gunslingers"
+     }
+    }
+   ],
+   "total": 4
+  }
+ }
+}

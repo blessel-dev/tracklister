@@ -1,0 +1,59 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Visions\" AND artist:\"Justyn Nell\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:16:36.396Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "dc00c622-bd99-471d-a9a4-9fb703d68ede",
+     "score": 100,
+     "title": "Visions",
+     "length": 286222,
+     "video": null,
+     "first-release-date": "2023-07-28",
+     "artist-credit": [
+      {
+       "name": "Justyn Nell",
+       "joinphrase": "",
+       "artist": {
+        "id": "792b1eea-6b18-41fb-bea9-ff25b6f18d3d",
+        "name": "Justyn Nell"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "c594c60d-cc97-4692-86e3-3cb791104858",
+       "title": "Desolation",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

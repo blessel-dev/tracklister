@@ -1,0 +1,46 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Ferdinger I'm Still Here"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3908733891,
+     "type": "track",
+     "title": "I'm Still Here",
+     "title_short": "I'm Still Here",
+     "title_version": "",
+     "duration": 282,
+     "rank": 56723,
+     "isrc": "DEVV92601602",
+     "artist": {
+      "id": 5009897,
+      "name": "Ferdinger"
+     },
+     "album": {
+      "id": 942601991,
+      "title": "Partly Cloudy"
+     }
+    }
+   ],
+   "total": 1
+  }
+ }
+}

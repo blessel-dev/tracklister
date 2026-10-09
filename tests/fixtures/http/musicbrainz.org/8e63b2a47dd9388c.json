@@ -1,0 +1,59 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Last Ray\" AND artist:\"Axel Karakasis\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:16:52.792Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "7ac80cc8-3c95-4870-b50f-b8e15d654524",
+     "score": 100,
+     "title": "Last Ray",
+     "length": 333617,
+     "video": null,
+     "first-release-date": "2025-09-24",
+     "artist-credit": [
+      {
+       "name": "Axel Karakasis",
+       "joinphrase": "",
+       "artist": {
+        "id": "5314f2de-f9f3-46e1-b5b1-ee737e8c23c0",
+        "name": "Axel Karakasis"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "eabf4a69-9f0f-4486-a739-f21a8494bba7",
+       "title": "Outcast",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

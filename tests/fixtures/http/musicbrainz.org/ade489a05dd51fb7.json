@@ -1,0 +1,59 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"Covil dos Abutres\" AND artist:\"DJ Dextro\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:16:47.338Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "09caecec-c27d-4d9c-8efa-6f1ccaadb696",
+     "score": 100,
+     "title": "Covil Dos Abutres",
+     "length": 309000,
+     "video": null,
+     "first-release-date": "2025-04-04",
+     "artist-credit": [
+      {
+       "name": "DJ Dextro",
+       "joinphrase": "",
+       "artist": {
+        "id": "c403d050-ce50-4550-82fa-11ce50e18beb",
+        "name": "DJ Dextro"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "0757ab6e-d679-4e0d-a29e-decfe1bc9b92",
+       "title": "Covil Dos Abutres",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,46 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Axel Karakasis Last Ray"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3489100711,
+     "type": "track",
+     "title": "Last Ray",
+     "title_short": "Last Ray",
+     "title_version": "",
+     "duration": 333,
+     "rank": 7918,
+     "isrc": "UK6491400211",
+     "artist": {
+      "id": 148218,
+      "name": "Axel Karakasis"
+     },
+     "album": {
+      "id": 798271101,
+      "title": "Outcast"
+     }
+    }
+   ],
+   "total": 1
+  }
+ }
+}

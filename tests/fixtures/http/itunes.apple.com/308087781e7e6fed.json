@@ -1,0 +1,60 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Introversion Duff"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 2,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1881846408,
+     "artistName": "Introversion",
+     "trackName": "Duff",
+     "collectionName": "src009 - EP",
+     "trackTimeMillis": 304225,
+     "releaseDate": "2026-05-07T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6784143875,
+     "artistName": "Introversion",
+     "trackName": "Duff",
+     "collectionName": "2021-2026",
+     "trackTimeMillis": 304225,
+     "releaseDate": "2026-05-07T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,144 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "OFF / GRID No Money No Problems"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 9,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1758493725,
+     "artistName": "Off Grid",
+     "trackName": "No Money No Problems",
+     "collectionName": "Renegades - EP",
+     "trackTimeMillis": 305566,
+     "releaseDate": "2024-09-27T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1852685191,
+     "artistName": "Off-Grid Official",
+     "trackName": "Summer",
+     "collectionName": "Summer - Single",
+     "trackTimeMillis": 136129,
+     "releaseDate": "2025-10-18T12:00:00Z",
+     "primaryGenreName": "Hip-Hop/Rap",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1708247384,
+     "artistName": "Diddy",
+     "trackName": "Gotta Move On (feat. Bryson Tiller)",
+     "collectionName": "The Love Album: Off the Grid (Extended)",
+     "trackTimeMillis": 160777,
+     "releaseDate": "2022-06-17T12:00:00Z",
+     "primaryGenreName": "R&B/Soul",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1849785334,
+     "artistName": "Lee Senpai",
+     "trackName": "Summer",
+     "collectionName": "Off-Grid Royalty",
+     "trackTimeMillis": 136202,
+     "releaseDate": "2025-10-18T12:00:00Z",
+     "primaryGenreName": "Hip-Hop/Rap",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1587795282,
+     "artistName": "Kanye West",
+     "trackName": "Off The Grid",
+     "collectionName": "Donda",
+     "trackTimeMillis": 339250,
+     "releaseDate": "2021-08-29T12:00:00Z",
+     "primaryGenreName": "Hip-Hop/Rap",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1667456655,
+     "artistName": "Play On Words",
+     "trackName": "No Problems",
+     "collectionName": "No Problems - Single",
+     "trackTimeMillis": 204706,
+     "releaseDate": "2023-02-03T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1595496800,
+     "artistName": "Kanye West",
+     "trackName": "Off The Grid",
+     "collectionName": "Donda (Deluxe)",
+     "trackTimeMillis": 339250,
+     "releaseDate": "2021-08-29T07:00:00Z",
+     "primaryGenreName": "Hip-Hop/Rap",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1651260533,
+     "artistName": "Eleven Tha Outcast",
+     "trackName": "No Wings (Radio Edit)",
+     "collectionName": "No Wings (Radio Edit) - Single",
+     "trackTimeMillis": 203103,
+     "releaseDate": "2022-10-31T12:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1820145075,
+     "artistName": "The Rartel",
+     "trackName": "Going Off The Grid (Live)",
+     "collectionName": "The Money Problem",
+     "trackTimeMillis": 204000,
+     "releaseDate": "2025-07-11T12:00:00Z",
+     "primaryGenreName": "Rock",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.github.com/repos/tracklister-test/tracklister/releases/latest",
+  "params": []
+ },
+ "response": {
+  "status": 403,
+  "headers": {
+   "content-type": "application/json; charset=utf-8",
+   "x-ratelimit-limit": "60",
+   "x-ratelimit-remaining": "0",
+   "x-ratelimit-reset": "1792000000"
+  },
+  "json": {
+   "message": "API rate limit exceeded. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+   "documentation_url": "https://docs.github.com/rest/overview/rate-limits-for-the-rest-api"
+  }
+ },
+ "note": "hand-written: GitHub REST releases/latest, documented shape"
+}

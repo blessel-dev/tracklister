@@ -1,0 +1,59 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://musicbrainz.org/ws/2/recording",
+  "params": [
+   [
+    "query",
+    "recording:\"No Money No Problems\" AND artist:\"OFF / GRID\""
+   ],
+   [
+    "fmt",
+    "json"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json"
+  },
+  "json": {
+   "created": "2026-10-09T01:17:03.752Z",
+   "count": 1,
+   "offset": 0,
+   "recordings": [
+    {
+     "id": "8fce373d-3a44-4569-b3a5-d52a028c69f2",
+     "score": 100,
+     "title": "No Money No Problems",
+     "length": 305566,
+     "video": null,
+     "first-release-date": "2024-09-27",
+     "artist-credit": [
+      {
+       "name": "OFF / GRID",
+       "joinphrase": "",
+       "artist": {
+        "id": "bbf3bbc1-ca7f-42d0-85b8-668eb694dc83",
+        "name": "OFF / GRID"
+       }
+      }
+     ],
+     "releases": [
+      {
+       "id": "d9b14cb3-e7f9-40eb-9899-4f3fe72ac34f",
+       "title": "Renegades",
+       "status": "Official"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
