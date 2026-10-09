@@ -58,8 +58,12 @@ def test_port_engine_and_checks(window, tmp_path):
     window.go("settings")
     sp = window.settings_page
     sp.port.setText("50001")
-    sp.port.editingFinished.emit()
     assert _saved().listen_port == 50001
+    sp.port.setText("70000")                                 # out of range: not saved
+    assert _saved().listen_port == 50001
+    window.go("new_set")                                     # leaving Ajustes shows the saved port again
+    assert sp.port.text() == "50001"
+    window.go("settings")
     sp.engine.setCurrentIndex(sp.engine.findData("sldl-2.6.0"))
     assert _saved().engine_id == "sldl-2.6.0"
     sp.enrich_box.setChecked(True)

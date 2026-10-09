@@ -69,7 +69,6 @@ keyring.set_keyring(_MemoryKeyring())
 
 from PySide6.QtCore import QRect, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QFont, QImage, QPainter  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from tests.fakes.scenarios import build_scenario  # noqa: E402
 from tests.gui.fakes import FakeServices, ScriptedPrompter  # noqa: E402

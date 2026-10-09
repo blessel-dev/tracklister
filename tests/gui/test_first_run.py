@@ -36,6 +36,9 @@ def test_validation_messages(fresh_window, fake_keyring):
     p.user.setText(TEST_USER)
     assert p.submit() is False and "contraseña" in p.error.text()
     p.password.setText(TEST_PASS)
+    p.port.setText("80")
+    assert p.submit() is False and "puerto" in p.error.text()
+    p.port.setText("49998")
     p.accept_box.setChecked(False)
     assert p.submit() is False and "Entendido" in p.error.text()
     assert CredentialStore().get() is None and fake_keyring.store == {}

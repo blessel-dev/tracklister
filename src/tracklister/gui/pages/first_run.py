@@ -146,7 +146,7 @@ class FirstRunPage(QWidget):
     def _fail(self, text: str, widget: QWidget | None = None) -> None:
         self.error.setText(text)
         self.error.show()
-        for w in (self.user, self.password, self.folder):
+        for w in (self.user, self.password, self.folder, self.port):
             w.setProperty("invalid", w is widget)
             repolish(w)
         if widget is not None:
@@ -167,6 +167,9 @@ class FirstRunPage(QWidget):
             Path(folder).mkdir(parents=True, exist_ok=True)
         except OSError as e:
             self._fail(f"No se puede crear esa carpeta ({e.strerror or e}). Elige otra.", self.folder)
+            return False
+        if not self.port.hasAcceptableInput():
+            self._fail("El puerto tiene que ser un número entre 1024 y 65535.", self.port)
             return False
         if not self.accept_box.isChecked():
             self._fail("Marca «Entendido» para continuar.", None)

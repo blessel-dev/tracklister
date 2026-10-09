@@ -171,8 +171,8 @@ class SettingsPage(QWidget):
         nform = QFormLayout()
         self.port = IntField(int(s.listen_port or config.DEFAULT_LISTEN_PORT), 1024, 65535)
         self.port.setFixedWidth(110)
-        self.port.setAccessibleName("Puerto de escucha")
-        self.port.editingFinished.connect(self._save_port)
+        self.port.setAccessibleName("Puerto de escucha (1024 a 65535)")
+        self.port.textChanged.connect(self._save_port)
         nform.addRow("Puerto de escucha", self.port)
         self.engine = QComboBox()
         for eid in ENGINE_PINS:
@@ -287,9 +287,18 @@ class SettingsPage(QWidget):
         cp.allow_lossy_fallback = self.lossy_fallback.isChecked()
         self._save()
 
-    def _save_port(self) -> None:
-        self.services.settings.listen_port = int(self.port.value())
-        self._save()
+    def _save_port(self, *_args) -> None:
+        """Saved as soon as the field holds a valid port (1024-65535); anything else is not saved."""
+        if self._loading or not self.port.hasAcceptableInput():
+            return
+        if int(self.port.value()) != int(self.services.settings.listen_port):
+            self.services.settings.listen_port = int(self.port.value())
+            self._save()
+
+    def hideEvent(self, e) -> None:  # noqa: N802
+        if not self.port.hasAcceptableInput():          # half-typed port: show the saved one again
+            self.port.setValue(int(self.services.settings.listen_port))
+        super().hideEvent(e)
 
     def _save_engine(self) -> None:
         self.services.settings.engine_id = str(self.engine.currentData())

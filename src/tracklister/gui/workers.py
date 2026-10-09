@@ -7,11 +7,15 @@ SetSession.run calls its callback from the engine reader thread and from the ses
 every callback becomes a Qt signal, so the widgets are only touched in the GUI thread. The
 lossy question (asked once per run, inside the session thread) is answered by the GUI through
 answer_lossy(); cancelling also releases a pending question.
+
+Short jobs (import, enrichment, update check, yt-dlp, reorder, Diagnostico) are Tasks on daemon
+threads; the set session is a QThread that the window waits for before closing.
 """
 from __future__ import annotations
 
 import logging
 import threading
+import time
 import traceback
 from typing import Callable, Iterable
 
@@ -33,31 +37,47 @@ def error_text(e: BaseException) -> str:
     return f"Error inesperado ({type(e).__name__}): {e}"
 
 
-class Task(QThread):
-    """Runs fn(task) in a thread. fn may use task.progress.emit and task.cancel."""
+class Task(QObject):
+    """Runs fn(task) in a daemon thread; fn may use task.progress.emit, task.message.emit and
+    task.cancel. Signals reach the GUI thread queued. A daemon thread (not a QThread) so that a
+    slow network call can never block or crash the app when the window closes."""
 
     succeeded = Signal(object)
     failed = Signal(str)
     progress = Signal(int, int)
     message = Signal(str)
+    finished = Signal()
 
     def __init__(self, fn: Callable[["Task"], object], parent: QObject | None = None):
         super().__init__(parent)
         self._fn = fn
         self.cancel = threading.Event()
+        self._thread = threading.Thread(target=self._run, name="tracklister-task", daemon=True)
 
-    def run(self) -> None:
+    def start(self) -> None:
+        self._thread.start()
+
+    def isRunning(self) -> bool:  # noqa: N802 - same name as QThread's
+        return self._thread.is_alive()
+
+    def wait(self, ms: int) -> bool:
+        self._thread.join(max(0, ms) / 1000)
+        return not self._thread.is_alive()
+
+    def _run(self) -> None:
         try:
             result = self._fn(self)
         except Exception as e:  # noqa: BLE001 - reported to the user, never silently lost
             log.error("task failed: %s", traceback.format_exc())
             self.failed.emit(error_text(e))
-            return
-        self.succeeded.emit(result)
+        else:
+            self.succeeded.emit(result)
+        finally:
+            self.finished.emit()
 
 
 class TaskPool(QObject):
-    """Keeps running tasks referenced until they finish (a dropped QThread would crash)."""
+    """Keeps every task referenced until its thread has finished and its signals were delivered."""
 
     def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
@@ -83,6 +103,7 @@ class TaskPool(QObject):
 
     def _done(self, t: Task) -> None:
         self._tasks.discard(t)
+        t.wait(1000)            # the thread is only returning from its last emit
         t.deleteLater()
 
     def busy(self) -> bool:
@@ -93,8 +114,10 @@ class TaskPool(QObject):
             t.cancel.set()
 
     def wait_all(self, ms: int = 20000) -> None:
+        """Wait (at most ms in total) for running tasks; their late signals are then dropped."""
+        end = time.monotonic() + ms / 1000
         for t in list(self._tasks):
-            t.wait(ms)
+            t.wait(int(max(0.0, end - time.monotonic()) * 1000))
 
 
 class SessionWorker(QThread):

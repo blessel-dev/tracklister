@@ -4,6 +4,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+import gc
 import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -21,6 +22,21 @@ TEST_PASS = "clave-prueba"
 def app(qapp):
     from tracklister.gui.app import prepare_app
     return prepare_app(qapp)
+
+
+@pytest.fixture(autouse=True)
+def _collect_garbage_in_the_gui_thread():
+    """Windows and pages of the previous test are collected here, in the GUI thread, never by an
+    automatic collection inside a worker thread (see tracklister.gui.gcguard)."""
+    yield
+    gc.collect()
+
+
+@pytest.fixture(scope="package", autouse=True)
+def _restore_automatic_gc():
+    yield
+    from tracklister.gui import gcguard
+    gcguard.uninstall()
 
 
 @pytest.fixture

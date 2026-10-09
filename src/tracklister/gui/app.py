@@ -26,6 +26,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from tracklister import config
 from tracklister.assets import asset_path, load_tokens
 from tracklister.core.paths import app_paths
+from tracklister.gui import gcguard
 from tracklister.gui.theme import ThemeManager, register_fonts
 
 log = logging.getLogger("tracklister.gui")
@@ -40,6 +41,7 @@ def prepare_app(app: QApplication) -> QApplication:
     app.setStyle("Fusion")
     register_fonts()
     app.setWindowIcon(QIcon(str(asset_path(load_tokens()["app_icon"]))))
+    gcguard.install(app)            # cyclic GC only in the GUI thread (see gcguard.py)
     return app
 
 
