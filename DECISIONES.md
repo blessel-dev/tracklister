@@ -2,7 +2,7 @@
 
 Estabas dormido, así que en cada pregunta abierta tomé el valor recomendado y lo apunto aquí. Si quieres cambiar alguna, dime la letra y el número (por ejemplo "G.4") y lo ajusto.
 
-Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditoria-actual.md` §5 y fuentes `02-fuentes-tracklists.md` §5. Las secciones A a C responden a esas preguntas. Las demás recogen lo que se decidió al construir cada parte: D (motor), E (entradas y enriquecimiento), G (interfaz), M (marca), N (unión final de todo) y P (empaquetado y publicación).
+Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditoria-actual.md` §5 y fuentes `02-fuentes-tracklists.md` §5. Las secciones A a C responden a esas preguntas. Las demás recogen lo que se decidió al construir cada parte: D (motor), E (entradas y enriquecimiento), G (interfaz), M (marca), N (unión final de todo), P (empaquetado y publicación) y R (arreglos de la auditoría externa).
 
 ## A. Preguntas de la auditoría (01 §5)
 
@@ -190,3 +190,31 @@ Detalle de la marca: `construccion\identidad-visual.md`.
     - Comprueba que se abre el primer inicio, que sale con código 0, que el registro queda limpio y que copia yt-dlp entero.
     - En este portátil pasó con la plataforma real de Windows (3,5 s) y en modo offscreen, el que usa GitHub Actions.
     - La captura está en `construccion\capturas\exe\`. En la copia guardada, la carpeta de la biblioteca, que muestra la ruta real de tu Música, se ve como `C:\Users\<usuario>\Music\Tracklister`.
+
+## R. Arreglos de la auditoría externa (ronda 1, 9 oct)
+
+La auditoría de Claude Code y su revisión (`construccion\auditorias\veredicto-r2.json`) pidieron estos cambios. Entre paréntesis, el número del hallazgo.
+
+1. **"Reintentar fallos" con las pistas de `_dudosos`** (N1): antes el motor volvía a elegir el mismo primer candidato y bajaba otra vez el archivo rechazado, sin decir nada.
+   - Las pistas dudosas por otra canción, otra versión o duración van en su propia pasada relajada, con `--banned-users` y los usuarios de Soulseek que ya les dieron un archivo rechazado. Esos nombres se acumulan entre reintentos y se guardan solo en tu PC (`set.json`), nunca en el informe del Diagnóstico.
+   - Tu propia cuenta nunca va en esa lista.
+   - Si no se sabe de qué usuario vino el archivo, o su nombre lleva una coma o espacios en los extremos (los motores parten la lista por comas y recortan los espacios, así que no se podría vetar), la pista no se vuelve a buscar: volvería el mismo archivo. Se queda en `_dudosos` con un motivo que dice qué hacer: revisar el archivo, o corregir artista, título o versión en la tabla de Nuevo set y volver a descargar.
+   - Si un reintento trae un archivo idéntico byte a byte al que ya está en `_dudosos` (otro usuario comparte la misma copia), el motivo lo dice: "Ha vuelto el mismo archivo...".
+   - Una pista dudosa conserva su archivo de `_dudosos` y su duda mientras no llegue otro mejor, también si la pasada se cancela o no encuentra nada. Antes, una pasada sin resultado la dejaba como "no encontrada" y perdía la referencia a su archivo.
+   - El archivo rechazado nunca se borra: si llega uno bueno, el viejo se queda en `_dudosos` y el informe lo lista (R.7).
+2. **Títulos con otros números y artistas parciales** (N2): "Dust 1" frente a "Dust 2" daba 83 % y salía verificado.
+   - Si los títulos base no llevan exactamente los mismos números (cifras y caras de vinilo como A1/B2; "01" cuenta como "1"), es otra pista: duda de identidad y a `_dudosos`, también sin duración esperada.
+   - Un número de pista pegado al nombre del archivo ("01 Spirit.flac", "01 Fjaak - Spirit.mp3") no cuenta como número del título. "808 State" y "2 Unlimited" siguen bien.
+   - Artista: se compara artista por artista ("Fjaak" frente a "Fjaak, Chris Liebing" sigue siendo 100). Una coincidencia parcial ("Systems" por "Planetary Assault Systems") solo cuenta si el nombre más corto tiene 2 palabras o más.
+   - La misma regla vale para la descarga, para "Reordenar carpeta existente" (una carpeta con solo "Dust 2" no se empareja con la fila "Dust 1") y para las explicaciones del Diagnóstico.
+3. **MP3 sin cabecera CBR/VBR** (N3): sin el frame Xing/Info/VBRI, mutagen solo da el bitrate del primer frame, así que un VBR que empieza a 320 pasaba por CBR. Ahora se leen los frames del principio y de hacia el 25, 50 y 75 % del archivo: solo vale si todos tienen el mismo bitrate y llega al mínimo. Si varían, "no cumple formato" (MP3 VBR); si no se pueden leer, también: nunca se acepta en silencio. Vale para todos los presets que admiten MP3.
+4. **"CDJ antiguos" con archivos dañados** (B1): un FLAC truncado tumbaba toda la descarga.
+   - Un archivo con duda de identidad, versión o duración (también el truncado) no se convierte: va tal cual a `_dudosos` con su número, sin AIFF y sin copia en `_originales`.
+   - Si la conversión a AIFF falla (un FLAC dañado cerca del final), la pista queda "no cumple formato" con el motivo, sin dejar nada a medias.
+   - Si un archivo no se puede mover o guardar, solo esa pista queda "fallida" con su motivo; las demás de la pasada y las pasadas siguientes siguen.
+   - Pase lo que pase, ninguna pista se queda "en curso" y el registro para deshacer se cierra.
+5. **Un solo motor a la vez** (N6): no se puede empezar una descarga, "Reintentar fallos" ni "Continuar descarga" con un Diagnóstico en marcha, ni al revés. Los dos entrarían con la misma cuenta y el mismo puerto, y Soulseek cortaría uno. Sale el aviso "Espera a que termine el Diagnóstico (o cancélalo)."
+6. **Un archivo reutilizado conserva su marca** (N8): la biblioteca guarda la marca "posible lossless falso" de cada archivo (un `library.json` antiguo sin ella se sigue leyendo). Al elegir "Usar el que ya tengo", la pista sale como "Ya en biblioteca · posible lossless falso", con un motivo que dice de qué set viene, y el informe del set lo marca. El diálogo de repetidos también lo dice.
+7. **Re-ejecuciones** (N5): al reordenar la tabla, la copia de `_originales` cambia de número junto con su AIFF, en el mismo registro para deshacer. El informe del set lista, sin borrarlos, los archivos de audio de la carpeta, de `_dudosos` y de `_originales` que ya no son de ninguna pista de la tabla (filas borradas o intentos anteriores).
+8. **"Personalizado" con 256 o 192 kbps** (N4): es una elección del propio usuario, fuera de la regla de 320. Lossless, CDJ antiguos y Solo MP3 320 siguen pidiendo MP3 CBR de 320 kbps.
+9. **La contraseña va en la línea de comandos del motor** (N9): los motores solo aceptan la cuenta así (`--user`/`--pass`) o en un archivo de configuración, y Tracklister nunca escribe tu contraseña en un archivo (por eso `--no-config`). Mientras descarga, otro programa de tu propio PC podría verla en la lista de procesos; nunca se escribe en los registros ni en los informes (salen `***`). **Pendiente para la entrega**: explicarlo en `entrega\LEEME.md`, en el punto 6 ("Si algo falla") o en una nota de seguridad.

@@ -32,6 +32,13 @@ Status: under construction (v1.0.0). Pending decisions are in [DECISIONES.md](DE
 - Release: pushing a tag `v<version>` runs `.github/workflows/release.yml` on a Windows runner (tests, build,
   smoke test) and publishes those files as a GitHub Release. The tag must match `__version__`.
 
+## Security notes
+
+- The Soulseek account lives only in Windows Credential Manager (keyring); no file stores it.
+- The engines accept the account only on their command line (`--user`/`--pass`) or in a config file, and
+  Tracklister never writes the password to a file (`--no-config`). While an engine runs, other processes of
+  the same Windows session can read its command line. Logs, reports and `pass.json` only ever show `***`.
+
 ## Licence
 
 Tracklister is free software: GPL-3.0-or-later (GNU General Public License, version 3 or, at your option,
