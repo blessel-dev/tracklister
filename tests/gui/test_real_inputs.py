@@ -41,8 +41,8 @@ def real_window(qtbot, app, real_services, prompter):
     w.pool.wait_all(10000)
 
 
-@pytest.mark.skipif(not SAMPLE.is_file(), reason="INPUTS fixture not present")
 def test_sample_trackid_csv_through_the_real_importer(real_window, qtbot, real_services):
+    assert SAMPLE.is_file(), SAMPLE                      # INPUTS fixture: never skipped since integration
     page = real_window.new_set
     page.import_source(SAMPLE)
     qtbot.waitUntil(lambda: not page._busy and page.model.rowCount() > 0, timeout=20000)
