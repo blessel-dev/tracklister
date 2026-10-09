@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from PySide6.QtCore import QFileSystemWatcher, QMimeData, QObject, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QPainter, QPixmap
-from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout,
-                               QWidget)
+from PySide6.QtGui import QIntValidator, QPainter, QPixmap
+from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy,
+                               QVBoxLayout, QWidget)
 
 from tracklister.assets import asset_path
 from tracklister.core.model import ResultState
@@ -345,6 +345,28 @@ class DownloadsWatcher(QObject):
             self._seen.add(key)
             if self.is_candidate(p):
                 self.found.emit(key)
+
+
+class IntField(QLineEdit):
+    """Whole-number field (port, row count). A QLineEdit, not a QSpinBox: the mouse wheel never
+    changes it by accident while scrolling a page, and it styles cleanly with the QSS."""
+
+    def __init__(self, value: int, lo: int, hi: int, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.lo, self.hi = int(lo), int(hi)
+        self.setValidator(QIntValidator(self.lo, self.hi, self))
+        self.setProperty("mono", True)
+        self.setValue(value)
+
+    def setValue(self, v: int) -> None:  # noqa: N802
+        self.setText(str(max(self.lo, min(self.hi, int(v)))))
+
+    def value(self) -> int:
+        try:
+            v = int(self.text().strip())
+        except ValueError:
+            return self.lo
+        return max(self.lo, min(self.hi, v))
 
 
 class SourcePicker(QFrame):

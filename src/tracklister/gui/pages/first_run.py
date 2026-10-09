@@ -12,13 +12,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QCheckBox, QFormLayout, QHBoxLayout, QLineEdit, QSpinBox, QAbstractSpinBox,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import QCheckBox, QFormLayout, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 
 from tracklister import config
 from tracklister.engine.credentials import CredentialError
 from tracklister.gui.pages.common import PresetChooser, default_library_root
-from tracklister.gui.widgets import button, card, label, repolish, scroll_page
+from tracklister.gui.widgets import IntField, button, card, label, repolish, scroll_page
 
 SHARE_NOTICE = ("Tracklister descarga en modo honesto: no anuncia en Soulseek carpetas compartidas que no "
                 "tienes. Soulseek funciona porque la gente comparte, así que cuando no uses Tracklister "
@@ -107,12 +106,8 @@ class FirstRunPage(QWidget):
         c4, l4 = card("Red")
         prow = QHBoxLayout()
         prow.addWidget(label("Puerto de escucha"))
-        self.port = QSpinBox()
-        self.port.setRange(1024, 65535)
-        self.port.setValue(int(s.listen_port or config.DEFAULT_LISTEN_PORT))
-        self.port.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.port = IntField(int(s.listen_port or config.DEFAULT_LISTEN_PORT), 1024, 65535)
         self.port.setAccessibleName("Puerto de escucha")
-        self.port.setProperty("mono", True)
         self.port.setFixedWidth(110)
         prow.addWidget(self.port)
         prow.addStretch(1)

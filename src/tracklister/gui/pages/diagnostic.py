@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtWidgets import (QAbstractSpinBox, QCheckBox, QHBoxLayout, QPlainTextEdit, QSpinBox, QWidget)
+from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QPlainTextEdit, QWidget
 
 from tracklister.core.model import TrackRow
 from tracklister.engine.credentials import CredentialError
 from tracklister.gui.pages.common import downloads_folder
-from tracklister.gui.widgets import Banner, SourcePicker, button, label, page_layout
+from tracklister.gui.widgets import Banner, IntField, SourcePicker, button, label, page_layout
 
 
 class DiagnosticPage(QWidget):
@@ -43,11 +43,8 @@ class DiagnosticPage(QWidget):
 
         orow = QHBoxLayout()
         orow.addWidget(label("Pistas que se buscan"))
-        self.max_rows = QSpinBox()
-        self.max_rows.setRange(1, 20)
-        self.max_rows.setValue(5)
-        self.max_rows.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.max_rows.setAccessibleName("Pistas que se buscan")
+        self.max_rows = IntField(5, 1, 20)
+        self.max_rows.setAccessibleName("Pistas que se buscan (1 a 20)")
         self.max_rows.setFixedWidth(64)
         orow.addWidget(self.max_rows)
         orow.addSpacing(16)

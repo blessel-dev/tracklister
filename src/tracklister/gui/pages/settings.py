@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtWidgets import (QAbstractSpinBox, QButtonGroup, QCheckBox, QComboBox, QFormLayout, QGridLayout,
-                               QHBoxLayout, QLineEdit, QRadioButton, QSpinBox, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFormLayout, QGridLayout, QHBoxLayout, QLineEdit,
+                               QRadioButton, QVBoxLayout, QWidget)
 
 from tracklister import config
 from tracklister.engine.credentials import CredentialError
@@ -20,7 +20,7 @@ from tracklister.engine.spec import ENGINE_PINS
 from tracklister.gui.pages.common import PresetChooser, default_library_root
 from tracklister.gui.pages.first_run import PORT_HELP, SHARE_NOTICE
 from tracklister.gui.theme import THEME_LABELS_ES, theme_ids
-from tracklister.gui.widgets import Banner, button, card, label, scroll_page
+from tracklister.gui.widgets import Banner, IntField, button, card, label, scroll_page
 
 ENGINE_LABELS = {"sockseek-3.0.5": "Sockseek 3.0.5 (recomendado)", "sldl-2.6.0": "sldl 2.6.0 (alternativa)"}
 SAMPLERATES = ((None, "Sin límite"), (44100, "44,1 kHz"), (48000, "48 kHz"), (96000, "96 kHz"))
@@ -169,10 +169,7 @@ class SettingsPage(QWidget):
         # Network and engine
         c, cl = card("Red y motor")
         nform = QFormLayout()
-        self.port = QSpinBox()
-        self.port.setRange(1024, 65535)
-        self.port.setValue(int(s.listen_port or config.DEFAULT_LISTEN_PORT))
-        self.port.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.port = IntField(int(s.listen_port or config.DEFAULT_LISTEN_PORT), 1024, 65535)
         self.port.setFixedWidth(110)
         self.port.setAccessibleName("Puerto de escucha")
         self.port.editingFinished.connect(self._save_port)

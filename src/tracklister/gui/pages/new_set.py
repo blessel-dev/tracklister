@@ -28,8 +28,8 @@ from tracklister.gui.theme import Theme, svg_pixmap
 from tracklister.gui.widgets import (Banner, DownloadsWatcher, DropZone, button, card, label, page_layout)
 from tracklister.assets import load_tokens
 
-PASTE_PLACEHOLDER = ("Un enlace de YouTube o SoundCloud, o la tracklist copiada de 1001tracklists, MixesDB "
-                     "o un comentario:\n01. Artista - Título (Remix)\n02. 05:12 Artista - Título")
+PASTE_PLACEHOLDER = ("Enlace de YouTube/SoundCloud, o la tracklist copiada (1001tracklists, MixesDB…)\n"
+                     "01. Artista - Título (Remix)\n02. 05:12 Artista - Título")
 TOP_HEIGHT = 176
 
 

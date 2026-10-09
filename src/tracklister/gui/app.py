@@ -58,7 +58,7 @@ def build_window(services=None, *, app: QApplication | None = None, prompter=Non
     return MainWindow(services, themes, prompter=prompter)
 
 
-def _setup_logging() -> Path | None:
+def _setup_logging() -> logging.Handler | None:
     try:
         logs = app_paths().ensure().logs_dir
         handler = logging.handlers.RotatingFileHandler(logs / "tracklister.log", maxBytes=1_000_000,
@@ -69,7 +69,7 @@ def _setup_logging() -> Path | None:
     root = logging.getLogger("tracklister")
     root.setLevel(logging.INFO)
     root.addHandler(handler)
-    return logs / "tracklister.log"
+    return handler
 
 
 def _install_excepthook(log_file: Path | None) -> None:
@@ -104,23 +104,31 @@ def _parse(argv) -> argparse.Namespace:
 
 def run(argv) -> int:
     args = _parse(argv)
-    log_file = _setup_logging()
-    _install_excepthook(log_file)
+    handler = _setup_logging()
+    previous_hook = sys.excepthook
+    _install_excepthook(Path(handler.baseFilename) if handler is not None else None)
     _set_app_user_model_id()
-    app = create_app(argv)
-    win = build_window(app=app)
-    win.show()
-    win.start_background()
-    if args.screenshot:
-        target = Path(args.screenshot)
+    try:
+        app = create_app(argv)
+        win = build_window(app=app)
+        win.show()
+        win.start_background()
+        if args.screenshot:
+            target = Path(args.screenshot)
 
-        def shoot():
-            target.parent.mkdir(parents=True, exist_ok=True)
-            win.grab().save(str(target))
-            win.close()
-            app.quit()
-        QTimer.singleShot(1500, shoot)
-    elif args.quit_after:
-        QTimer.singleShot(int(args.quit_after), lambda: (win.close(), app.quit()))
-    code = app.exec()
-    return int(code)
+            def shoot():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                win.grab().save(str(target))
+                win.close()
+                app.quit()
+            QTimer.singleShot(1500, shoot)
+        elif args.quit_after:
+            QTimer.singleShot(int(args.quit_after), lambda: (win.close(), app.quit()))
+        code = app.exec()
+        win.deleteLater()
+        return int(code)
+    finally:
+        sys.excepthook = previous_hook
+        if handler is not None:
+            logging.getLogger("tracklister").removeHandler(handler)
+            handler.close()
