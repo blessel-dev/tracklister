@@ -18,7 +18,7 @@ from tracklister.core.layout import is_reserved_subdir
 from tracklister.core.model import TrackRow
 from tracklister.core.textnorm import nfc, norm_key, split_title_version, versions_compatible
 from tracklister.organize.journal import Journal
-from tracklister.organize.naming import pad_width, track_filename
+from tracklister.organize.naming import pad_width, track_filename, win_long
 from tracklister.verify.audioinfo import read_tags
 from tracklister.verify.identity import artist_similarity, parse_name, row_artists, title_similarity
 
@@ -49,7 +49,8 @@ def _audio_files(folder: Path) -> list[Path]:
 
 
 def _file_identity(f: Path) -> tuple[str, str, str | None]:
-    tag_artist, tag_title = read_tags(f)
+    # win_long: a file of an old folder may be past Windows' 260 characters (LongPathsEnabled=0)
+    tag_artist, tag_title = read_tags(Path(win_long(f)))
     name_artist, name_title = parse_name(nfc(f.name), nfc(f.parent.name))
     artist = tag_artist or name_artist
     title_full = tag_title or name_title
@@ -124,11 +125,30 @@ def propose_reorder(folder: Path, rows: list[TrackRow]) -> list[ReorderProposal]
     return out
 
 
+class ReorderError(ValueError):
+    """str(error) is the Spanish message: nothing was renamed."""
+
+
+def _inside(path: Path, folder: Path) -> bool:
+    p, f = Path(os.path.abspath(path)), Path(os.path.abspath(folder))
+    return f in p.parents
+
+
 def apply_reorder(folder: Path, proposals: list[ReorderProposal], journal: Journal) -> str:
     """Rename the proposals with status 'match' (the GUI turns confirmed 'ambiguous' ones into
-    'match'). Two phases through temporary names; never overwrites. Returns the batch id."""
+    'match'). Two phases through temporary names; never overwrites. Returns the batch id.
+
+    Every proposal must belong to THIS folder (its file inside it, its new name directly in it) and
+    the journal must be the folder's own, or nothing is renamed (ReorderError): a preview made for
+    another folder can never rename files whose undo record would then be written somewhere else."""
+    folder = Path(folder)
     todo = [p for p in proposals if p.status == "match" and p.src is not None and p.dst is not None
             and Path(p.src) != Path(p.dst)]
+    foreign = [p for p in todo if not _inside(p.src, folder)
+               or Path(os.path.abspath(p.dst)).parent != Path(os.path.abspath(folder))]
+    if foreign or Path(os.path.abspath(journal.set_dir)) != Path(os.path.abspath(folder)):
+        raise ReorderError(f"La propuesta no es de la carpeta {folder}: vuelve a pulsar «Ver propuesta». "
+                           "No se ha renombrado nada.")
     bid = journal.begin("Reordenar carpeta existente")
     staged = []
     for p in todo:

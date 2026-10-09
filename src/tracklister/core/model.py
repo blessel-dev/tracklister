@@ -238,6 +238,8 @@ class SetDoc:
     passes: list[PassRecord] = field(default_factory=list)
     lossy_approved: list[str] = field(default_factory=list)       # uids allowed to fall back to MP3 320
     duplicate_choices: dict[str, str] = field(default_factory=dict)  # uid -> DuplicateChoice value
+    lossy_asked: list[str] = field(default_factory=list)          # uids already shown in the MP3 question
+    #   (asked once per SET, not once per run; optional: set.json files without it still load)
     preset_snapshot: dict[str, Any] = field(default_factory=dict)
     created_at: str | None = None
     updated_at: str | None = None
@@ -256,6 +258,7 @@ class SetDoc:
             "passes": [p.to_dict() for p in self.passes],
             "lossy_approved": list(self.lossy_approved),
             "duplicate_choices": dict(self.duplicate_choices),
+            "lossy_asked": list(self.lossy_asked),
         }
 
     @classmethod
@@ -270,6 +273,7 @@ class SetDoc:
             passes=[PassRecord.from_dict(p) for p in d.get("passes", [])],
             lossy_approved=list(d.get("lossy_approved") or []),
             duplicate_choices=dict(d.get("duplicate_choices") or {}),
+            lossy_asked=list(d.get("lossy_asked") or []),
             preset_snapshot=dict(d.get("preset_snapshot") or {}),
             created_at=d.get("created_at"), updated_at=d.get("updated_at"),
             app_version=d.get("app_version"),

@@ -105,17 +105,37 @@ def parse_argv(argv: list[str]) -> tuple[dict, str | None]:
     return opts, None
 
 
+KEYED_KEYS = ("title", "artist", "length", "album", "artist-maybe-wrong", "album-track-count")
+
+
+def parse_keyed(text: str) -> dict:
+    """Port of both engines' keyed-string parser (3.x Sockseek.Core/Extractors/String.cs ParseArgs,
+    2.x Extractors/String.cs ParseTrackArg): split on EVERY ',', a piece whose text before its first '='
+    is (trimmed) a key starts a new property, any other piece is glued back to the current value with
+    ','. Values are trimmed. (The app's strings always start with a key, so the unkeyed part is ignored.)"""
+    props: dict = {}
+    key = val = None
+    for piece in text.strip().split(","):
+        if "=" in piece:
+            left, right = piece.split("=", 1)
+            if left.strip() in KEYED_KEYS:
+                if key is not None:
+                    props[key] = val.strip()
+                key, val = left.strip(), right
+                continue
+        if val is not None:
+            val += "," + piece
+    if key is not None:
+        props[key] = val.strip()
+    return props
+
+
 def read_items(opts: dict) -> list[dict]:
     if opts.get("--input-type") == "string":
-        d = {"artist": "", "title": "", "length": None}
-        for part in re.split(r",\s*(?=(?:artist|title|length)=)", opts["positional"] or ""):
-            k, _, v = part.partition("=")
-            k = k.strip()
-            if k == "length":
-                d["length"] = int(v) if v.strip() else None
-            elif k in ("artist", "title"):
-                d[k] = v.strip()
-        return [dict(d, snum=1, line=1)]
+        props = parse_keyed(opts["positional"] or "")
+        length = (props.get("length") or "").strip()
+        return [{"artist": props.get("artist", ""), "title": props.get("title", ""),
+                 "length": int(length) if length else None, "snum": 1, "line": 1}]
     text = Path(opts["positional"]).read_text(encoding="utf-8")
     rows = list(csv.reader(io.StringIO(text)))
     header = rows[0]
@@ -344,8 +364,10 @@ def main(argv: list[str]) -> int:
             else:
                 write_audio(f, it, Path(lp(dst)))
             results[it["snum"]] = {"state": 1, "file": dst, "f": f, "item": it}
+            # 2.x ends its state line with [length/rate+bitrate/size], the size in MB with one decimal
+            mb = os.path.getsize(lp(dst)) / (1024 * 1024)
             log.line(f"{did} succeeded: {q}: {display(f)}" if dialect == V3 else
-                     "Succeeded:".ljust(14) + f" {display(f)}")
+                     "Succeeded:".ljust(14) + f" {display(f)} [{f.get('duration_s') or -1}s/{mb:.1f}MB]")
             done = True
             break
         if not done:

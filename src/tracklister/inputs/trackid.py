@@ -70,13 +70,28 @@ def order_by_pos(items: list, pos_of) -> list:
     return list(items)
 
 
-def gap_row(start: int, end: int) -> TrackRow:
+ESTIMATED_NOTE = "estimado: la pista anterior no tiene hora de fin en el CSV"
+
+
+def gap_row(start: int, end: int, *, estimated: bool = False) -> TrackRow:
+    notes = [f"hueco de {end - start} s sin identificar en trackid.net"]
+    if estimated:
+        notes.append(ESTIMATED_NOTE)
     return TrackRow(pos=0, title=GAP_TITLE, artists=[], artist_display="", ts_start=start, ts_end=end,
                     source=SOURCE, confidence=0.0, is_id=True, status=RowStatus.ID, download=False,
-                    notes=[f"hueco de {end - start} s sin identificar en trackid.net"])
+                    notes=notes)
+
+
+def typical_play_s(spans: list[tuple[int | None, int | None]]) -> int | None:
+    """Median time a track of THIS set plays (End - Start of the rows that have both)."""
+    plays = sorted(e - s for s, e in spans if s is not None and e is not None and e > s)
+    return plays[len(plays) // 2] if plays else None
 
 
 def parse_trackid(t: RawTable, *, gap_threshold_s: int = 90) -> list[TrackRow]:
+    """Gaps longer than the threshold become "ID (hueco)" rows, also before the first track (the set
+    starts at 0:00). A row without an End time is taken to play for the set's typical (median) track
+    time, so the gap after it is still found; that gap row says it is an estimate."""
     idx: dict[str, int] = {}
     for i, h in enumerate(t.headers):
         idx.setdefault(header_key(h), i)
@@ -86,21 +101,29 @@ def parse_trackid(t: RawTable, *, gap_threshold_s: int = 90) -> list[TrackRow]:
         return cells[i].strip() if i is not None and i < len(cells) else ""
 
     items = order_by_pos(t.rows, lambda c: parse_int(cell(c, "pos")))
+    typical = typical_play_s([(parse_hms(cell(c, "start")), parse_hms(cell(c, "end"))) for c in items])
     rows: list[TrackRow] = []
-    prev_end: int | None = None
+    covered: int | None = 0          # the set is accounted for up to here (it starts at 0:00)
+    estimated = False
     for cells in items:
         artist, title, label = nfc(cell(cells, "artist")), nfc(cell(cells, "title")), nfc(cell(cells, "label"))
         if not artist and not title:
             continue
         start, end = parse_hms(cell(cells, "start")), parse_hms(cell(cells, "end"))
-        if prev_end is not None and start is not None and start - prev_end > gap_threshold_s:
-            rows.append(gap_row(prev_end, start))
+        if covered is not None and start is not None and start - covered > gap_threshold_s:
+            rows.append(gap_row(covered, start, estimated=estimated))
         base, version = split_title_version(title)
         row = TrackRow(pos=0, title=base or title, artists=split_artists(artist), artist_display=artist,
                        version=version, label=label or None, ts_start=start, ts_end=end, source=SOURCE,
                        confidence=0.7, raw=raw_line(cells, t.delimiter))
         drop_label_artists(row)
         rows.append(row)
-        # without an End time the next gap cannot be measured
-        prev_end = None if end is None else (end if prev_end is None else max(prev_end, end))
+        if end is not None:
+            if covered is None or end >= covered:
+                covered, estimated = end, False
+        elif start is not None and typical is not None:
+            # no End: assume the set's typical play time, so the next gap is still measured
+            covered, estimated = max(covered or 0, start + typical), True
+        else:
+            covered, estimated = None, False     # nothing to measure the next gap from
     return renumber(rows)

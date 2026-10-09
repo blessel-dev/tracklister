@@ -109,3 +109,59 @@ def test_collect_outputs_without_any_engine_files(tmp_path):
     job = EngineJob(tmp_path, build_preset("lossless").passes[0], False, 49998)
     m = [ManifestItem(1, "u1", 1, "A", "T", None)]
     assert collect_outputs(job, m, D3)[1].engine_state == "unknown"
+
+
+# ---- audit round 2, N1: the peer of each file, never a guess ----------------------------------------------
+
+def _pass_dir(tmp_path, stdout: str, files: dict[int, tuple[str, int]]):
+    work = tmp_path / "p01"
+    for snum, (name, size) in files.items():
+        f = work / "in" / str(snum) / name
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(b"x" * size)
+    (work / "stdout.txt").write_text(stdout, encoding="utf-8")
+    return EngineJob(work, build_preset("lossless").passes[0], False, 49998)
+
+
+def test_n1_sldl2_same_file_name_from_two_peers_is_told_apart_by_size(tmp_path):
+    """2.x lines carry no query: two rows whose Soulseek files share a name used to get the LAST peer
+    both (so --banned-users could ban the wrong user). The size in the display tells them apart."""
+    stdout = ("Searching: A1 - Same Name\nSearching: A2 - Same Name\n"
+              "Initialize: peerX\\..\\Same Name.flac [12s/44.1kHz1258kbps/1.8MB]\n"
+              "Initialize: peerY\\..\\Same Name.flac [13s/44.1kHz1248kbps/1,9MB]\n"
+              "Succeeded:     peerY\\..\\Same Name.flac [13s/44.1kHz1248kbps/1,9MB]\n"
+              "Succeeded:     peerX\\..\\Same Name.flac [12s/44.1kHz1258kbps/1.8MB]\n")
+    job = _pass_dir(tmp_path, stdout, {1: ("Same Name.flac", 1_888_369), 2: ("Same Name.flac", 2_028_828)})
+    m = [ManifestItem(1, "u1", 1, "A1", "Same Name", None), ManifestItem(2, "u2", 2, "A2", "Same Name", None)]
+    out = collect_outputs(job, m, D2)
+    assert (out[1].peer, out[2].peer) == ("peerX", "peerY")
+
+
+def test_n1_sldl2_same_name_and_size_credits_nobody(tmp_path):
+    stdout = ("Succeeded:     peerX\\..\\Same Name.flac [12s/44.1kHz1258kbps/1.8MB]\n"
+              "Succeeded:     peerY\\..\\Same Name.flac [12s/44.1kHz1258kbps/1.8MB]\n")
+    job = _pass_dir(tmp_path, stdout, {1: ("Same Name.flac", 1_888_369), 2: ("Same Name.flac", 1_888_000)})
+    m = [ManifestItem(1, "u1", 1, "A1", "Same Name", None), ManifestItem(2, "u2", 2, "A2", "Same Name", None)]
+    out = collect_outputs(job, m, D2)
+    assert (out[1].peer, out[1].source_path_tail, out[2].peer) == (None, None, None)
+    assert out[1].engine_state == out[2].engine_state == "downloaded"           # the files still count
+
+
+def test_n1_sockseek3_the_query_and_the_succeeded_line_decide(tmp_path):
+    stdout = ("[003] SongJob: downloading: Fjaak - Spirit: peerX\\..\\Music\\Fjaak - Spirit.flac\n"
+              "[004] SongJob: downloading: Kobosil - Spirit: peerZ\\Rips\\Fjaak - Spirit.flac\n"
+              "[003] SongJob: downloading: Fjaak - Spirit: peerY\\..\\Rips\\Fjaak - Spirit.flac\n"
+              "[004] SongJob: succeeded: Kobosil - Spirit: peerZ\\Rips\\Fjaak - Spirit.flac\n"
+              "[003] SongJob: succeeded: Fjaak - Spirit: peerY\\..\\Rips\\Fjaak - Spirit.flac\n")
+    job = _pass_dir(tmp_path, stdout, {1: ("Fjaak - Spirit.flac", 1000), 2: ("Fjaak - Spirit.flac", 1000)})
+    m = [ManifestItem(1, "u1", 1, "Fjaak", "Spirit", None), ManifestItem(2, "u2", 2, "Kobosil", "Spirit", None)]
+    out = collect_outputs(job, m, D3)
+    assert (out[1].peer, out[1].source_path_tail) == ("peerY", "Rips\\Fjaak - Spirit.flac")   # not the 1st try
+    assert out[2].peer == "peerZ"
+    # the same query twice in a pass (a track played twice), files from two users: nobody is credited
+    stdout = ("[003] SongJob: succeeded: Fjaak - Spirit: peerX\\..\\Fjaak - Spirit.flac\n"
+              "[004] SongJob: succeeded: Fjaak - Spirit: peerY\\..\\Fjaak - Spirit.flac\n")
+    job = _pass_dir(tmp_path / "dup", stdout, {1: ("Fjaak - Spirit.flac", 1000), 2: ("Fjaak - Spirit.flac", 1000)})
+    m = [ManifestItem(1, "u1", 1, "Fjaak", "Spirit", None), ManifestItem(2, "u2", 9, "Fjaak", "Spirit", None)]
+    out = collect_outputs(job, m, D3)
+    assert out[1].peer is None and out[2].peer is None

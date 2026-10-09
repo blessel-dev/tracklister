@@ -2,7 +2,7 @@
 
 Estabas dormido, así que en cada pregunta abierta tomé el valor recomendado y lo apunto aquí. Si quieres cambiar alguna, dime la letra y el número (por ejemplo "G.4") y lo ajusto.
 
-Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditoria-actual.md` §5 y fuentes `02-fuentes-tracklists.md` §5. Las secciones A a C responden a esas preguntas. Las demás recogen lo que se decidió al construir cada parte: D (motor), E (entradas y enriquecimiento), G (interfaz), M (marca), N (unión final de todo), P (empaquetado y publicación) y R (arreglos de la auditoría externa).
+Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditoria-actual.md` §5 y fuentes `02-fuentes-tracklists.md` §5. Las secciones A a C responden a esas preguntas. Las demás recogen lo que se decidió al construir cada parte: D (motor), E (entradas y enriquecimiento), G (interfaz), M (marca), N (unión final de todo), P (empaquetado y publicación), R (arreglos de la auditoría externa, ronda 1) y S (ronda 2).
 
 ## A. Preguntas de la auditoría (01 §5)
 
@@ -28,14 +28,14 @@ Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditor
 4. **trackid.net**: importar el CSV (arrastrar y soltar), un botón "Abrir en trackid.net" y vigilar la carpeta Descargas. La vigilancia viene activada y se puede apagar en Ajustes. Solo recoge CSV nuevos con las columnas de trackid. Nunca se usan endpoints privados.
 5. **Servicios de pago** (AudD/ACRCloud): no en la v1.0.
 6. **Enriquecimiento** iTunes, luego Deezer, luego MusicBrainz: activado por defecto, con caché. Solo envía artista y título. MusicBrainz lleva un User-Agent con el nombre, la versión y la URL de la app, y va a 1 petición por segundo como mucho.
-7. **Huecos de trackid de más de 90 s**: se convierten en filas "ID (hueco)", desmarcadas.
+7. **Huecos de trackid de más de 90 s**: se convierten en filas "ID (hueco)", desmarcadas. También antes de la primera pista y después de una fila sin hora de fin (ver S.11).
 8. **Si dos fuentes discrepan**: trackid manda en los nombres; YouTube rellena huecos e IDs. La diferencia queda en "notas".
 9. **Mixcloud**: la v1.0 solo genera el texto para copiar. La publicación por API va en la v1.1.
 10. **Filas "revisar"**: desmarcadas, salvo que el enriquecimiento las confirme.
 
 ## C. Otros valores por defecto del encargo y de la construcción
 
-1. **Lossless**: se pide FLAC/WAV/AIFF. Si una pista solo existe en MP3, se pregunta una vez por set, con una lista de casillas de esas pistas. Solo las marcadas se buscan en MP3 320.
+1. **Lossless**: se pide FLAC/WAV/AIFF. Si una pista solo existe en MP3, se pregunta una vez por set, con una lista de casillas de esas pistas. Solo las marcadas se buscan en MP3 320. Cada pista se pregunta una sola vez en ese set, también si el set se vuelve a descargar más tarde (S.12).
 2. **`.m4a`** queda fuera de Lossless, porque puede ser AAC.
 3. **Filtros del motor** en todas las pasadas: `--strict-title`, `--strict-artist` (con el artista principal) y `--length-tol 3` si se conoce la duración. Sin `--strict-conditions` y sin `fast-search`. "Reintentar fallos" relaja `--strict-artist`.
 4. **Verificación**:
@@ -124,7 +124,7 @@ Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditor
 
 1. **Idioma**: toda la app escribe en español con tildes y eñes (Diagnóstico, Contraseña, Título...), también los motivos de cada pista, el informe del set y el del Diagnóstico (ver N.5). Los nombres de archivo y de carpeta que crea la app por su cuenta (`Diagnostico_<fecha>.txt`, `_dudosos`, `_originales`) van sin tildes.
 2. **Primer inicio**: pide tu cuenta de Soulseek (va al Administrador de credenciales de Windows), la carpeta de la biblioteca (por defecto `Música\Tracklister`), el preset y el puerto (49998), y muestra el aviso de compartir con Nicotine+ y una nota legal con la casilla "Entendido". No prueba el inicio de sesión: desde este portátil no se puede conectar a Soulseek, y en casa la primera descarga o el Diagnóstico dicen claramente si el usuario o la contraseña fallan.
-3. **Pista repetida**: se pregunta cada vez, con "Usar el que ya tengo (copiar a este set)", "Descargar de nuevo en este set" y la casilla "Aplicar a todos los repetidos de este set". Si hay varias copias en la biblioteca, se elige cuál en un desplegable. Si cierras el diálogo sin elegir, no empieza la descarga y no se copia nada. "Aplicar a todos" usa la primera copia de la biblioteca para cada repetida.
+3. **Pista repetida**: se pregunta cada vez, con "Usar el que ya tengo (copiar a este set)", "Descargar de nuevo en este set" y la casilla "Aplicar a todos los repetidos de este set". Si hay varias copias en la biblioteca, se elige cuál en un desplegable. Si cierras el diálogo sin elegir, no empieza la descarga, no se copia nada y no se crea la carpeta del set (S.9). "Aplicar a todos" usa la primera copia de la biblioteca para cada repetida. Solo se ofrecen las copias que vale el formato del set (S.1).
 4. **Lista de MP3**: si faltan pistas en lossless, se pregunta una vez por set con todas marcadas; "No, dejarlas sin descargar" no busca ninguna en MP3.
 5. **Completar datos**: con el ajuste activado (por defecto), se completa solo después de cada importación; el botón "Completar datos" lo repite. Se trabaja sobre una copia de las filas, así que la tabla no se toca mientras tanto.
 6. **Segunda tracklist**: si la tabla ya tiene pistas, al importar otra se pregunta "Reemplazar la tabla" o "Combinar con la actual". "Añadir otra fuente del mismo set" combina un archivo o lo pegado.
@@ -135,7 +135,7 @@ Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditor
 11. **Reordenar carpeta existente**: las coincidencias dudosas empiezan desmarcadas. Antes de renombrar se pide confirmación. "Deshacer" solo deshace un reordenado, nunca una pasada de descarga de un set de Tracklister.
 12. **Diagnóstico**: usa las primeras 5 pistas marcadas de la tabla de Nuevo set (o un archivo), y solo busca, salvo que marques "Descargar también". El informe se guarda además en `%LOCALAPPDATA%\Tracklister\logs\Diagnostico_<fecha>.txt`.
 13. **Ajustes**: los cambios se guardan al momento; la cuenta, solo con "Guardar cuenta". El puerto es un campo de texto y no una rueda numérica, para que la rueda del ratón no lo cambie sin querer.
-14. **Actualizaciones**: se comprueba 1,5 s después de abrir (nunca en el primer inicio), como mucho una vez al día. "Buscar actualizaciones" en Ajustes la fuerza. Solo muestra un aviso con enlace.
+14. **Actualizaciones**: se comprueba 1,5 s después de abrir, como mucho una vez al día. Nunca con la pantalla de primer inicio delante; al terminarla, 1,5 s después, sí (S.10). "Buscar actualizaciones" en Ajustes la fuerza. Solo muestra un aviso con enlace.
 15. **Ventana**: título "Tracklister"; la cabecera muestra "Tracklister by Blessel" con su logo, sobre la textura de hormigón. Si cierras durante una descarga, se pregunta; si sales, se cancela y se guarda lo hecho.
 
 ## M. Marca
@@ -217,4 +217,52 @@ La auditoría de Claude Code y su revisión (`construccion\auditorias\veredicto-
 6. **Un archivo reutilizado conserva su marca** (N8): la biblioteca guarda la marca "posible lossless falso" de cada archivo (un `library.json` antiguo sin ella se sigue leyendo). Al elegir "Usar el que ya tengo", la pista sale como "Ya en biblioteca · posible lossless falso", con un motivo que dice de qué set viene, y el informe del set lo marca. El diálogo de repetidos también lo dice.
 7. **Re-ejecuciones** (N5): al reordenar la tabla, la copia de `_originales` cambia de número junto con su AIFF, en el mismo registro para deshacer. El informe del set lista, sin borrarlos, los archivos de audio de la carpeta, de `_dudosos` y de `_originales` que ya no son de ninguna pista de la tabla (filas borradas o intentos anteriores).
 8. **"Personalizado" con 256 o 192 kbps** (N4): es una elección del propio usuario, fuera de la regla de 320. Lossless, CDJ antiguos y Solo MP3 320 siguen pidiendo MP3 CBR de 320 kbps.
-9. **La contraseña va en la línea de comandos del motor** (N9): los motores solo aceptan la cuenta así (`--user`/`--pass`) o en un archivo de configuración, y Tracklister nunca escribe tu contraseña en un archivo (por eso `--no-config`). Mientras descarga, otro programa de tu propio PC podría verla en la lista de procesos; nunca se escribe en los registros ni en los informes (salen `***`). **Pendiente para la entrega**: explicarlo en `entrega\LEEME.md`, en el punto 6 ("Si algo falla") o en una nota de seguridad.
+9. **La contraseña va en la línea de comandos del motor** (N9): los motores solo aceptan la cuenta así (`--user`/`--pass`) o en un archivo de configuración, y Tracklister nunca escribe tu contraseña en un archivo (por eso `--no-config`). Mientras descarga, otro programa de tu propio PC podría verla en la lista de procesos; nunca se escribe en los registros ni en los informes (salen `***`). Explicado en `entrega\LEEME.md`, «Nota de seguridad: tu contraseña de Soulseek».
+
+## S. Arreglos de la auditoría externa (ronda 2, 9 oct)
+
+La segunda auditoría de Claude Code (`construccion\auditorias\claude-audit-raw-r2.txt`) encontró 4 fallos que bloqueaban (B1-B4) y 14 notas (N1-N14). Entre paréntesis, el número del hallazgo. Todos los arreglos tienen su test, con el motor falso y sin red.
+
+1. **"Usar el que ya tengo" respeta el formato del set** (B1). Antes se ofrecía cualquier copia de la biblioteca: un FLAC en un set «CDJ antiguos» o «Solo MP3 320», o un MP3 en un set «Lossless» sin la pregunta del MP3. Con «Aplicar a todos», además, sin preguntar nada más.
+   - Ahora solo se ofrecen las copias que pasarían la misma comprobación de formato que una descarga de ese set. Se leen las cabeceras del archivo; el archivo entero ya se verificó cuando entró en la biblioteca.
+   - Un FLAC nunca entra en «Solo MP3 320». Un MP3 solo entra en «Lossless» o «CDJ antiguos» si en ese set ya dijiste que sí al MP3 de esa pista. Un MP3 con menos kbps de los que pide el preset no se ofrece.
+   - En «CDJ antiguos», un FLAC de la biblioteca **se convierte a AIFF**, igual que uno descargado: mismo sample rate y bits, tags y carátula, y si pasa de 48 kHz/24 bits baja a 48 kHz/24 bits. La copia del FLAC original va a `_originales\`; el archivo de la biblioteca no se toca. Elegí convertirlo en vez de no ofrecerlo: así te sigue saliendo la pregunta de siempre y no se vuelve a descargar algo que ya tienes.
+   - Si el archivo de la biblioteca ya no vale (ha cambiado) o no se puede convertir (está dañado), esa pista se descarga de nuevo, con el motivo.
+2. **Informe y tracklist con rutas largas** (B2). `Informe - <set>.txt` y `Tracklist - <set>.txt` se escriben ahora con el prefijo de rutas largas, como la música. Con un nombre de set largo (un título de YouTube) pasaban de 260 caracteres y fallaban en un Windows de serie (`LongPathsEnabled=0`): no se escribían, y la biblioteca no se enteraba de las pistas del set. «Reordenar» lee también así las etiquetas de los archivos.
+   - El test (`tests/integration/test_long_paths.py`) ya no depende del registro del PC. Hace que el proceso se comporte como un Windows de serie: `tests/fakes/maxpath.py` rechaza toda ruta de 260 caracteres o más sin el prefijo. Este portátil tiene `LongPathsEnabled=1`; por eso el test anterior pasaba aunque el fallo existiera. Comprobado: con el código anterior, el test nuevo falla justo al escribir el informe.
+   - Límite que queda: los archivos de estado del set (`.tracklister\set.json` y `journal.json`) no llevan el prefijo. Solo fallan si la carpeta del set pasa de unos 220 caracteres. Como el nombre del set se corta a 150, eso solo pasa con una carpeta de biblioteca de más de unos 70 caracteres; con `Música\Tracklister` sobra sitio. Si pasa, sale «No se pudo preparar el set» y no se descarga nada.
+3. **"Reintentar fallos" con «No cumple formato»** (B3). Pasa lo mismo que con `_dudosos` (R.1): el usuario que mandó el archivo que no cumplía (un MP3 VBR o de menos de 320, un FLAC que no se pudo convertir) va en `--banned-users` del reintento, así que llega otra copia en vez de la misma.
+   - Ese usuario sigue vetado para esa pista en los reintentos siguientes, aunque entretanto la pista quede «No encontrada».
+   - Si no se sabe de qué usuario vino, la pista no se vuelve a buscar y el motivo lo dice: «No se ha vuelto a buscar: no se sabe de qué usuario de Soulseek vino el archivo que no cumplía el formato…».
+4. **"Reordenar" aplica la carpeta de la vista previa** (B4). Antes se podían renombrar los archivos de una carpeta y guardar el deshacer en otra.
+   - Si cambias la carpeta después de «Ver propuesta», la propuesta desaparece y hay que pedirla otra vez.
+   - «Aplicar cambios» usa siempre la carpeta de la vista previa: la que nombra la confirmación y la que guarda el deshacer.
+   - Nunca renombra archivos de fuera de esa carpeta.
+5. **El usuario de cada archivo, nunca adivinado** (N1). Antes, si dos pistas de una pasada bajaban archivos con el mismo nombre, las dos se apuntaban al último usuario, y «Reintentar fallos» podía vetar al que no era.
+   - Con Sockseek se usa la búsqueda exacta de la pista y la línea de la descarga terminada.
+   - Las líneas de sldl 2.6.0 no dicen la búsqueda: se usa el nombre del archivo y, si dos coinciden, su tamaño.
+   - Si aun así quedan dos posibles, no se apunta a nadie. Entonces el reintento dice que no sabe el usuario, en vez de vetar a otro.
+6. **Comas en el Diagnóstico** (N2). Los dos motores parten la búsqueda `artist=…, title=…` por cada coma, pero vuelven a unir las comas de un valor: «Earth, Wind & Fire» ya llegaba bien. Solo la rompía una coma seguida de `title=`, `artist=`, `length=`… dentro de un nombre. Esa coma se cambia por un espacio, porque Soulseek busca por palabras; las demás se quedan. Comprobado con una copia del analizador de los motores (`Extractors/String.cs`) en el motor falso.
+7. **yt-dlp** (N4, N5). Se copia primero a `yt-dlp.exe.part` y luego se renombra: una copia cortada nunca deja un exe a medias que la app daría por bueno. `--ignore-config` va también en `--version` y en «Actualizar yt-dlp» (`-U`).
+8. **Ajustes dañados** (N6). Un valor de un tipo que no toca en `settings.json` ya no impide abrir la app: un tema que es una lista, un puerto con letras, un preset desconocido…
+   - Ese ajuste vuelve a su valor de serie y los demás se conservan.
+   - Nuevo set avisa: «Algunos ajustes no eran válidos y han vuelto a su valor de serie. Revísalos en Ajustes.».
+9. **Cerrar la pregunta de una pista repetida no deja nada** (N7). El set no se guarda hasta que respondes todas las preguntas. Si cierras una, no queda carpeta del set, y un set que ya existía se queda exactamente como estaba.
+10. **Aviso de actualización también tras el primer inicio** (N8). Antes, la sesión del primer inicio no comprobaba, y el primer aviso llegaba al abrir la app otra vez. Ahora, al terminar la pantalla de primer inicio, la app comprueba 1,5 s después si hay versión nueva (como mucho una vez al día, como siempre). Cambia lo que decía G.14 («nunca en el primer inicio»): sigue sin comprobar mientras esa pantalla está delante.
+11. **Huecos de trackid** (N9).
+    - Un hueco antes de la primera pista también se convierte en fila "ID (hueco)": el set empieza en 0:00.
+    - Una fila sin hora de fin ya no esconde el hueco siguiente: se cuenta que esa pista sonó la mediana de lo que suenan las pistas de ese mismo set. La fila del hueco dice «estimado: la pista anterior no tiene hora de fin en el CSV». Si ninguna fila tiene hora de fin, no se inventa ningún hueco.
+    - Con el CSV de muestra y el umbral de 90 s no cambia nada: siguen los 4 huecos.
+12. **La pregunta del MP3, una vez por set** (N3). Antes era una vez por descarga, así que «Continuar descarga» podía volver a preguntar por pistas ya respondidas. Ahora el set recuerda qué pistas se preguntaron (`lossy_asked` en `set.json`; los sets anteriores se siguen abriendo). Cerrar la pregunta cancelando la descarga no cuenta como respuesta.
+13. **Versiones en el empaquetado** (N10). El exe se puede construir con una versión previa como `1.0.1rc1`: Windows guarda 1.0.1.0 y el texto completo va en la versión del producto. GitHub Actions comprueba además que `pyproject.toml` dice la misma versión que la app; si no, no publica nada.
+14. **El Firewall pregunta por el motor, no por Tracklister**. El programa que escucha en el puerto es `sockseek.exe` (o `sldl.exe`, el motor alternativo), y el aviso del Firewall de Windows nombra ese archivo. El texto del puerto (primer inicio y Ajustes) y el informe del Diagnóstico ya lo dicen así; antes decían «permite Tracklister». El LEEME ya nombraba el motor.
+
+### Notas de la auditoría que solo se documentan
+
+15. **El Administrador de credenciales no entra en la prueba de humo del exe** (N11). `packaging/smoke_test.py` arranca el exe con el keyring nulo, para no tocar nunca el Administrador de credenciales de este portátil corporativo. El módulo de Windows de keyring sí va dentro del exe (`keyring.backends.Windows` y `win32ctypes.pywin32.win32cred` están en la lista de módulos de la build, `build\pyinstaller\tracklister\PYZ-00.toc`). Lo prueba de verdad el primer inicio en tu PC de casa, cuando «Empezar» guarda la cuenta; si falla, sale «No se pudo guardar la cuenta…» (LEEME, punto 6). **Pendiente de comprobar en casa.**
+16. **Ajustes enseña tu usuario de Soulseek** (N12): «Cuenta guardada: <usuario>», a propósito, para que sepas qué cuenta tienes guardada. La contraseña no se enseña nunca, y el usuario no sale en ningún archivo, informe ni Diagnóstico. **Pendiente de que lo confirmes**; si prefieres que no salga, se cambia por «Cuenta guardada».
+17. **Tildes en la salida del motor** (N13): comprobado en el código de los dos motores fijados, no hace falta cambiar nada.
+    - Los dos fuerzan su salida a UTF-8 al arrancar (`Console.OutputEncoding = System.Text.Encoding.UTF8`: Sockseek 3.0.5 `Sockseek.Cli/Program.cs:25`, sldl 2.6.0 `slsk-batchdl/Program.cs:6`), y Tracklister la lee en UTF-8.
+    - Aunque una línea saliera mal, los archivos y sus nombres salen bien: mandan los archivos del disco y los datos de tu tabla.
+    - `entrega\LEEME.md` ya lo explica en el punto 6 («Letras raras en nombres con tildes o eñes»), así que no lo he tocado.
+18. **Las acciones fijadas de GitHub Actions** (N14). `actions/checkout` v7.0.1 y `actions/setup-python` v7.0.0 van fijadas por commit, pero desde este portátil no se puede comprobar que esos commits existan. Si alguno no existe, la ejecución falla al empezar («Set up job»), antes de construir nada, y no se publica nada. El arreglo sería poner el commit de esa etiqueta, que sale en la página de releases de la acción. Se comprueba en la primera ejecución en GitHub.

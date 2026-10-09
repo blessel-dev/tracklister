@@ -25,7 +25,8 @@ SHARE_NOTICE = ("Tracklister descarga en modo honesto: no anuncia en Soulseek ca
 LEGAL_NOTICE = ("Descarga solo música que tengas derecho a descargar. Tracklister no incluye ninguna cuenta: "
                 "cada persona usa la suya, y eres responsable de lo que descargas y compartes.")
 PORT_HELP = ("Si las descargas no arrancan, abre este puerto TCP en el router hacia este PC y permite "
-             "Tracklister en el Firewall de Windows (redes privadas). Si un amigo usa Tracklister en tu misma "
+             "«sockseek.exe», el motor de descarga de Tracklister («sldl.exe» si usas el alternativo), en el "
+             "Firewall de Windows, en redes privadas. Si un amigo usa Tracklister en tu misma "
              "red, usad puertos distintos.")
 
 

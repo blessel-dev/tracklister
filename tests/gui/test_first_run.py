@@ -69,6 +69,24 @@ def test_submit_saves_account_in_keyring_only(fresh_window, fake_keyring, tmp_pa
     assert all(b.isVisible() for b in w.nav_buttons.values())
 
 
+def test_r2_n8_updates_are_checked_once_the_first_run_is_done(fresh_window, qtbot, services, tmp_path):
+    p = fresh_window.first_run
+    p.user.setText(TEST_USER)
+    p.password.setText(TEST_PASS)
+    p.folder.setText(str(tmp_path / "biblioteca nueva"))
+    p.accept_box.setChecked(True)
+    qtbot.wait(300)
+    assert services.update_calls == []                       # never while the first-run screen is up
+    assert p.submit() is True
+    qtbot.waitUntil(lambda: services.update_calls == [False], timeout=5000)   # but this session checks too
+
+
+def test_port_help_names_the_engine_the_firewall_asks_about():
+    from tracklister.gui.pages.first_run import PORT_HELP
+    assert "«sockseek.exe»" in PORT_HELP and "«sldl.exe»" in PORT_HELP and "Firewall de Windows" in PORT_HELP
+    assert "permite Tracklister" not in PORT_HELP
+
+
 @pytest.mark.parametrize("tid", ["hormigon", "noche"])
 def test_first_run_renders_in_both_themes(fresh_window, tid):
     fresh_window.themes.apply(tid)

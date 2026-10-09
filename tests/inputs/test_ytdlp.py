@@ -122,7 +122,9 @@ def test_version_and_update(exe, tmp_path):
     y = YtDlp(exe, tmp_path, run=run)
     assert y.available() and y.version() == "2026.08.19"
     assert y.update() == (True, "yt-dlp ya estaba al día (2026.08.19).")
-    assert [c[0][1:] for c in run.calls] == [["--version"], ["-U"], ["--version"]]
+    # audit round 2, N5: --ignore-config also for --version and -U (a user's own yt-dlp config never applies)
+    assert [c[0][1:] for c in run.calls] == [["--ignore-config", "--version"], ["--ignore-config", "-U"],
+                                            ["--ignore-config", "--version"]]
     updated = YtDlp(exe, tmp_path, run=FakeRun({"--version": (0, b"2026.09.30\n", b""),
                                                 "-U": (0, b"Updated yt-dlp to stable@2026.09.30\n", b"")}))
     assert updated.update() == (True, "yt-dlp actualizado (2026.09.30).")

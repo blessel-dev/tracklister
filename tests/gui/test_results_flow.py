@@ -104,12 +104,58 @@ def test_apply_to_all_repeated_and_closing_the_question(window, ready_services, 
     prompter.duplicates = [None]                         # the dialog was closed: nothing starts
     assert window.start_download("Todos", rows, []) is False
     assert started == [] and "no iniciada" in window.new_set.banner.message()
+    assert not ready_services.set_dir_for("Todos").exists()          # round 2, N7: and no set folder
     prompter.duplicates = [(DuplicateChoice.REUSE, "first", True)]
     assert window.start_download("Todos", rows, []) is True
+    assert (ready_services.set_dir_for("Todos") / ".tracklister" / "set.json").is_file()
     assert len([c for c in prompter.calls if c[0] == "ask_duplicate"]) == 2   # 1 (closed) + 1 (applied to all)
     mode, choices = started[0]
     assert mode == "run" and [c[1] for c in choices] == [DuplicateChoice.REUSE, DuplicateChoice.REUSE]
     assert all(c[2] is not None for c in choices)
+
+
+def test_r2_n7_closing_the_question_on_an_existing_set_changes_nothing(window, ready_services, prompter, tmp_path,
+                                                                     monkeypatch):
+    _previous_set(ready_services, tmp_path)
+    rows, _ = build_scenario("duplicado_entre_sets", tmp_path / "net-1")
+    existing = ready_services.create_session("Existente", rows, [])         # saved, nothing downloaded yet
+    doc = existing.set_dir / ".tracklister" / "set.json"
+    before = doc.read_bytes()
+    monkeypatch.setattr(window, "_start_worker", lambda mode, creds, choices: None)
+    prompter.duplicates = [None]
+    again, _ = build_scenario("duplicado_entre_sets", tmp_path / "net-2")    # the same table imported again
+    assert window.start_download("Existente", again, []) is False
+    assert doc.read_bytes() == before and window.session is None
+
+
+def test_r2_b1_a_flac_of_the_library_is_not_even_offered_to_an_mp3_set(window, ready_services, prompter, tmp_path,
+                                                                     monkeypatch):
+    _previous_set(ready_services, tmp_path)                 # "Anterior" (Lossless): two FLACs in the library
+    rows, _ = build_scenario("correcto", tmp_path / "net-mp3")
+    ready_services.settings.preset_id = "solo_mp3_320"
+    started = []
+    monkeypatch.setattr(window, "_start_worker", lambda mode, creds, choices: started.append(choices))
+    assert window.start_download("Solo MP3", rows, []) is True
+    assert not [c for c in prompter.calls if c[0] == "ask_duplicate"] and started == [[]]
+
+
+def test_r2_b1_apply_to_all_under_cdj_converts_the_library_flacs(window, qtbot, ready_services, prompter, tmp_path):
+    _previous_set(ready_services, tmp_path)
+    rows, net = build_scenario("correcto", tmp_path / "net-cdj")
+    ready_services.network = net
+    ready_services.settings.preset_id = "cdj_antiguos"
+    prompter.duplicates = [(DuplicateChoice.REUSE, "first", True)]          # "Aplicar a todos"
+    assert window.start_download("CDJ", rows, []) is True
+    _wait_done(qtbot, window)
+    assert len([c for c in prompter.calls if c[0] == "ask_duplicate"]) == 1
+    set_dir = window.session.set_dir
+    assert sorted(p.name for p in set_dir.glob("*.aif*")) == [
+        "01 - Fjaak - Spirit.aiff", "02 - Chris Liebing - Higher Things (FJAAK Remix).aiff"]
+    assert sorted(p.name for p in (set_dir / "_originales").iterdir()) == [
+        "01 - Fjaak - Spirit.flac", "02 - Chris Liebing - Higher Things (FJAAK Remix).flac"]
+    assert not list(set_dir.glob("*.flac"))                                  # no FLAC for the old CDJs
+    m = window.results.model
+    assert {m.state_of(r.uid) for r in m.rows()} == {S.YA_EN_BIBLIOTECA}
 
 
 def test_cancel_keeps_what_is_done_and_offers_continue(window, qtbot, ready_services, tmp_path):

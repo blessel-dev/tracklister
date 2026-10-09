@@ -28,7 +28,7 @@ from typing import Callable, Sequence
 from tracklister import config
 from tracklister.core.model import SourceRef, TrackRow
 from tracklister.core.paths import AppPaths, app_paths
-from tracklister.core.settings import Settings, load_settings, save_settings
+from tracklister.core.settings import Settings, load_settings_checked, save_settings
 from tracklister.engine.credentials import CredentialStore, Credentials
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.runner import EngineRunner
@@ -76,7 +76,13 @@ class Services:
     # ---- settings ---------------------------------------------------------------------------
     def _load_settings(self) -> Settings:
         try:
-            return load_settings(self.paths.settings_file)
+            settings, invalid = load_settings_checked(self.paths.settings_file)
+            if invalid:
+                # a value of the wrong type: only that setting goes back to its default (never a crash)
+                log.warning("settings with invalid values reset to their defaults: %s", ", ".join(invalid))
+                self.settings_warning_es = ("Algunos ajustes no eran válidos y han vuelto a su valor de serie. "
+                                            "Revísalos en Ajustes.")
+            return settings
         except (ValueError, TypeError) as e:
             log.error("settings unreadable: %s", e)
             backup = self.paths.settings_file.with_name("settings-danado.json")
@@ -122,12 +128,14 @@ class Services:
         lib.save()
         return n
 
-    def create_session(self, name: str, rows: list[TrackRow], sources: list[SourceRef]) -> SetSession:
+    def create_session(self, name: str, rows: list[TrackRow], sources: list[SourceRef], *,
+                       persist: bool = True) -> SetSession:
+        """persist=False: nothing of the set is written until session.save() (see SetSession.create)."""
         root = self.library_root()
         if root is None:
             raise ValueError("Elige la carpeta de tu biblioteca en Ajustes.")
         root.mkdir(parents=True, exist_ok=True)
-        return SetSession.create(name, rows, sources, self.settings, root, self.paths)
+        return SetSession.create(name, rows, sources, self.settings, root, self.paths, persist=persist)
 
     def load_session(self, set_dir: Path) -> SetSession:
         return SetSession.load(Path(set_dir), self.settings, self.paths)
@@ -178,12 +186,20 @@ class Services:
             candidates.append(Path(meipass) / YTDLP_EXE)
         for c in candidates:
             if c.is_file():
+                # to a .part file first: an interrupted copy never leaves a half-written yt-dlp.exe that
+                # every later start would take for a good one
+                part = exe.with_name(exe.name + ".part")
                 try:
                     exe.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(c, exe)
+                    shutil.copy2(c, part)
+                    os.replace(part, exe)
                     return exe
                 except OSError as e:
                     log.error("cannot copy yt-dlp: %s", e)
+                    try:
+                        part.unlink(missing_ok=True)
+                    except OSError:
+                        pass
         return None
 
     def ytdlp(self):

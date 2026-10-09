@@ -28,6 +28,7 @@ class ReorderPage(QWidget):
         self.themes = window.themes
         self.rows: list[TrackRow] = []
         self.rows_from = ""
+        self.preview_folder: Path | None = None    # the folder the shown proposals belong to
         lay = page_layout(self, "Reordenar carpeta existente",
                           "Para carpetas bajadas con la herramienta antigua: empareja cada archivo con su fila "
                           "de la tracklist y le pone su número. Primero ves la propuesta; nada se sobrescribe y "
@@ -37,7 +38,7 @@ class ReorderPage(QWidget):
         self.folder = QLineEdit()
         self.folder.setAccessibleName("Carpeta que quieres reordenar")
         self.folder.setPlaceholderText("La carpeta con los archivos sin ordenar")
-        self.folder.textChanged.connect(self._refresh_buttons)
+        self.folder.textChanged.connect(self._on_folder_changed)
         frow.addWidget(self.folder, 1)
         pick = button("Elegir carpeta…")
         self.themes.bind_icon(pick, "carpeta")
@@ -102,6 +103,19 @@ class ReorderPage(QWidget):
         t = self.folder.text().strip()
         return Path(t) if t else None
 
+    def _clear_preview(self) -> None:
+        self.preview_folder = None
+        self.model.set_proposals([])
+        self.summary.setText("")
+
+    def _on_folder_changed(self) -> None:
+        """Another folder in the field: the proposals shown are for the previous one, so they go (a new
+        preview is mandatory before anything is renamed)."""
+        if self.preview_folder is not None and self._folder() != self.preview_folder:
+            self._clear_preview()
+            self.banner.hide()
+        self._refresh_buttons()
+
     def _refresh_buttons(self) -> None:
         f = self._folder()
         ok_folder = f is not None and f.is_dir()
@@ -117,14 +131,15 @@ class ReorderPage(QWidget):
         d = self.window.prompter.pick_folder("Carpeta que quieres reordenar", self.folder.text() or None)
         if d:
             self.folder.setText(str(Path(d)))
-            self.model.set_proposals([])
+            self._clear_preview()
+            self._refresh_buttons()
 
     def set_tracklist(self, rows: list[TrackRow], origin: str) -> None:
         self.rows = [TrackRow.from_dict(r.to_dict()) for r in rows]
         for i, r in enumerate(self.rows, start=1):
             r.pos = i
         self.rows_from = origin
-        self.model.set_proposals([])
+        self._clear_preview()
         self._refresh_buttons()
 
     def use_table(self) -> None:
@@ -159,10 +174,16 @@ class ReorderPage(QWidget):
         self.banner.show_message("Comparando los archivos con la tracklist…", "info", closable=False)
         self.propose_btn.setEnabled(False)
         rows = [TrackRow.from_dict(r.to_dict()) for r in self.rows]
-        self.window.pool.start(lambda t: self.services.propose_reorder(f, rows), on_ok=self._on_proposed,
-                               on_error=self._on_error)
+        self.window.pool.start(lambda t: self.services.propose_reorder(f, rows),
+                               on_ok=lambda proposals, f=f: self._on_proposed(proposals, f), on_error=self._on_error)
 
-    def _on_proposed(self, proposals) -> None:
+    def _on_proposed(self, proposals, folder: Path) -> None:
+        if self._folder() != folder:
+            # the field changed while comparing: this preview is for another folder, never show it
+            self.banner.hide()
+            self._refresh_buttons()
+            return
+        self.preview_folder = folder
         self.model.set_proposals(proposals)
         counts = {k: sum(1 for p in proposals if p.status == k) for k in ("match", "ambiguous", "missing", "extra")}
         self.summary.setText(f"{counts['match']} coinciden · {counts['ambiguous']} dudosas · "
@@ -178,10 +199,11 @@ class ReorderPage(QWidget):
         self._refresh_buttons()
 
     def apply(self) -> None:
-        f = self._folder()
+        # always the PREVIEWED folder (its journal gets the undo record), never whatever the field says now
+        f = self.preview_folder
         chosen = self.model.chosen()
         n = sum(1 for p in chosen if p.status == "match")
-        if f is None or not n:
+        if f is None or self._folder() != f or not n:
             return
         if not self.window.prompter.confirm("Reordenar carpeta",
                                             f"Se renombrarán {n} archivos de {f}. Nada se sobrescribe y puedes "
@@ -189,13 +211,12 @@ class ReorderPage(QWidget):
             return
         self.apply_btn.setEnabled(False)
         self.window.pool.start(lambda t: self.services.apply_reorder(f, chosen),
-                               on_ok=lambda _bid: self._on_applied(n), on_error=self._on_error)
+                               on_ok=lambda _bid, f=f: self._on_applied(n, f), on_error=self._on_error)
 
-    def _on_applied(self, n: int) -> None:
-        self.model.set_proposals([])
-        self.summary.setText("")
+    def _on_applied(self, n: int, folder: Path) -> None:
+        self._clear_preview()
         self.banner.show_message(f"Hecho: {n} archivos renombrados en el orden de la tracklist.", "ok",
-                                 actions=[("Abrir carpeta", lambda: self.services.open_path(self._folder()))])
+                                 actions=[("Abrir carpeta", lambda: self.services.open_path(folder))])
         self._refresh_buttons()
 
     def undo(self) -> None:
@@ -207,5 +228,5 @@ class ReorderPage(QWidget):
             self.banner.show_message("No se pudo deshacer todo: " + " ".join(errors), "warn")
         else:
             self.banner.show_message("Deshecho: los archivos tienen otra vez su nombre anterior.", "ok")
-        self.model.set_proposals([])
+        self._clear_preview()
         self._refresh_buttons()

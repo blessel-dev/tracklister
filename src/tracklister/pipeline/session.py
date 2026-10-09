@@ -6,7 +6,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 One engine process per set and per pass. After each pass every file is verified against its
 row, converted for "CDJ antiguos" when needed, placed with its NN name through the journal, and
 the set document is saved after every row. Lossy (MP3 320) passes only run for the rows the user
-approved (asked at most once per run, before the first lossy pass).
+approved (each row is asked about once per set, before the first lossy pass).
 """
 from __future__ import annotations
 
@@ -40,7 +40,9 @@ from tracklister.organize.finalize import place_verified, rel_to_set, stray_audi
 from tracklister.organize.journal import Journal, same_file_content
 from tracklister.organize.naming import pad_width, safe_component, track_filename, win_long
 from tracklister.pipeline import report as report_mod
+from tracklister.verify.audioinfo import AudioInfo, probe
 from tracklister.verify.convert import to_aiff_pcm
+from tracklister.verify.quality import QualityCheck, check_quality
 from tracklister.verify.verifier import verify_file
 
 log = logging.getLogger("tracklister.pipeline")
@@ -53,6 +55,13 @@ RETRYABLE = (ResultState.NO_ENCONTRADO, ResultState.FALLIDA, ResultState.NO_CUMP
 NOT_RETRIED_ES = (f"No se ha vuelto a buscar: no se sabe de qué usuario de Soulseek vino este archivo, así que "
                   f"volvería el mismo. Revisa el archivo en {DUDOSOS}, o corrige artista, título o versión en "
                   "la tabla de Nuevo set y vuelve a descargar.")
+NOT_RETRIED_FORMAT_ES = ("No se ha vuelto a buscar: no se sabe de qué usuario de Soulseek vino el archivo que no "
+                         "cumplía el formato, así que volvería el mismo. Corrige artista, título o versión en la "
+                         "tabla de Nuevo set y vuelve a descargar.")
+REUSE_LABEL = "Usar el que ya tengo"
+REUSE_CONVERT_FAILED_ES = ("No se pudo convertir a AIFF para CDJ antiguos el archivo de tu biblioteca ({err}): "
+                           "se descarga de nuevo.")
+REUSE_NOT_FIT_ES = "El archivo de tu biblioteca ya no vale para el formato de este set: se descarga de nuevo."
 SAME_FILE_ES = (f"Ha vuelto el mismo archivo que ya estaba en {DUDOSOS} (idéntico byte a byte): por ahora no "
                 "hay en Soulseek otra copia mejor de esta pista.")
 CONVERT_FAILED_ES = ("No se pudo convertir a AIFF para CDJ antiguos ({err}): el archivo está dañado o incompleto. "
@@ -79,6 +88,13 @@ REASON_ES = {
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _write_text(path: Path, text: str) -> None:
+    """A UTF-8 text file in the set folder, also past Windows' 260-character MAX_PATH on a PC whose
+    LongPathsEnabled is 0 (the default): the path goes through win_long()."""
+    with open(win_long(path), "w", encoding="utf-8") as f:
+        f.write(text)
 
 
 @dataclass(frozen=True)
@@ -130,7 +146,9 @@ class SetSession:
     # ---- construction ---------------------------------------------------------------------
     @classmethod
     def create(cls, name: str, rows: list[TrackRow], sources: list[SourceRef], settings: Settings,
-               library_root: Path, paths: AppPaths) -> "SetSession":
+               library_root: Path, paths: AppPaths, *, persist: bool = True) -> "SetSession":
+        """persist=False writes nothing yet (no set folder): the GUI first asks about the tracks already
+        in the library, and only saves when the user answered every question (save())."""
         set_dir = Path(library_root) / safe_component(name)
         preset = build_preset(settings.preset_id, settings.custom_preset)
         doc_path = set_doc_path(set_dir)
@@ -148,7 +166,8 @@ class SetSession:
             doc.results[r.uid].pos = r.pos
         s = cls(set_dir, doc, preset, settings, paths)
         s._refresh_missing_files()
-        s.save()
+        if persist:
+            s.save()
         return s
 
     @classmethod
@@ -199,12 +218,34 @@ class SetSession:
         return row.download and (res.state in MISSING or self._quarantined(res))
 
     # ---- duplicates -----------------------------------------------------------------------
+    def _mp3_allowed(self, row: TrackRow) -> bool:
+        """May this row end up as an MP3 in this set? When MP3 is one of the preset's own formats (Solo MP3
+        320, Personalizado with MP3), or when the user already said yes to MP3 for this row in the
+        once-per-set question (Lossless / CDJ antiguos: MP3 only if there is no lossless, after asking)."""
+        return any("mp3" in p.formats and (not p.lossy or row.uid in self.doc.lossy_approved)
+                   for p in self.preset.passes)
+
+    def library_check(self, row: TrackRow, entry: LibraryEntry) -> tuple[AudioInfo, QualityCheck] | None:
+        """Can this library file go into THIS set? The same format rule as a download with this set's
+        preset, on the file's headers (it was fully verified when it entered the library). None = it
+        cannot (a FLAC in "Solo MP3 320", an MP3 in "Lossless" before the MP3 question, an MP3 under the
+        preset's kbps...). needs_conversion = "CDJ antiguos" turns it into AIFF, like a downloaded FLAC."""
+        try:
+            info = probe(Path(win_long(entry.path)), decode=False)
+        except Exception as e:  # noqa: BLE001 - an unreadable library file is simply not offered
+            log.warning("library file unreadable (%s): not offered", type(e).__name__)
+            return None
+        quality = check_quality(info, self.preset.accept, lossy_allowed=self._mp3_allowed(row))
+        return (info, quality) if quality.ok else None
+
     def find_duplicates(self, library: LibraryIndex) -> list[DuplicateHit]:
+        """Tracks of this set already in the library, each with ONLY the copies its preset accepts."""
         hits = []
         for r in sorted(self.doc.rows, key=lambda x: x.pos):
             if not r.download or not (r.title or "").strip() or self._res(r.uid).state in GOOD:
                 continue
-            entries = library.find(r, exclude_set_id=self.doc.set_id)
+            entries = [e for e in library.find(r, exclude_set_id=self.doc.set_id)
+                       if self.library_check(r, e) is not None]
             if entries:
                 hits.append(DuplicateHit(r, entries))
         return hits
@@ -215,25 +256,84 @@ class SetSession:
         if choice == DuplicateChoice.REUSE:
             if entry is None:
                 raise ValueError("falta el archivo de la biblioteca")
-            row, res = self._row(uid), self._res(uid)
-            src = Path(entry.path)
-            dst = self.set_dir / track_filename(row, src.suffix, self._width())
+            self._reuse(self._row(uid), self._res(uid), entry)
+        self.save()
+
+    def _download_instead(self, row: TrackRow, res: RowResult, reason_es: str) -> None:
+        self.doc.duplicate_choices[row.uid] = str(DuplicateChoice.DOWNLOAD)
+        res.reasons = [reason_es]
+        res.updated_at = _now()
+
+    def _reuse(self, row: TrackRow, res: RowResult, entry: LibraryEntry) -> None:
+        """'Usar el que ya tengo': copy the library file into this set with its own NN name.
+
+        Under "CDJ antiguos" a FLAC (or a WAV/AIFF over 48 kHz/24 bits, AIFF-C, float) becomes AIFF
+        exactly like a download, and a copy of the original goes to _originales; the library file itself
+        is never touched. A file that no longer fits the preset, or cannot be converted, is downloaded
+        again instead (the row stays pending, with the reason)."""
+        check = self.library_check(row, entry)
+        if check is None:
+            self._download_instead(row, res, REUSE_NOT_FIT_ES)
+            return
+        info, quality = check
+        src = Path(entry.path)
+        width = self._width()
+        reasons = [f"Copiado de tu biblioteca: set '{entry.set_name}', pista {entry.pos}."]
+        flags = ["reutilizado"]
+        original_rel = None
+        container, samplerate, bitdepth = info.container, info.samplerate, info.bitdepth
+        if quality.needs_conversion:
+            tmp = self.paths.work_dir / self.doc.set_id[:8] / "reuse"
+            try:
+                tmp.mkdir(parents=True, exist_ok=True)
+                local = tmp / f"{row.uid}{src.suffix.lower()}"
+                shutil.copyfile(win_long(src), win_long(local))      # short path: libsndfile always opens it
+                acc = self.preset.accept
+                conv = to_aiff_pcm(local, tmp / f"{row.uid}.aiff", max_samplerate=acc.max_samplerate or 48000,
+                                   max_bitdepth=acc.max_bitdepth or 24)
+            except Exception as e:  # noqa: BLE001 - a damaged library file: download the track instead
+                log.warning("row %s: library file not converted to AIFF: %s", row.pos, type(e).__name__)
+                shutil.rmtree(win_long(tmp), ignore_errors=True)
+                self._download_instead(row, res, REUSE_CONVERT_FAILED_ES.format(err=type(e).__name__))
+                return
+            bid = self.journal.begin(REUSE_LABEL)
+            try:
+                orig_dst = self.set_dir / ORIGINALES / track_filename(row, src.suffix, width)
+                if os.path.exists(win_long(orig_dst)) and same_file_content(src, orig_dst):
+                    real_orig = orig_dst
+                else:
+                    real_orig = self.journal.copy(bid, src, orig_dst, uid=row.uid)
+                real = self.journal.copy(bid, conv.dst, self.set_dir / track_filename(row, ".aiff", width),
+                                         uid=row.uid)
+            finally:
+                self.journal.commit(bid)
+                shutil.rmtree(win_long(tmp), ignore_errors=True)
+            original_rel = rel_to_set(self.set_dir, real_orig)
+            container, samplerate, bitdepth = "aiff", conv.samplerate, conv.bitdepth
+            flags += ["convertido_aiff"] + [f for f in quality.flags if f in ("reducido_48k_24b", "aiff_c_o_float")]
+            reasons.append(conv.warning_es or f"Convertido a AIFF para CDJ antiguos (mismo sample rate y bits). "
+                                              f"El original está en {ORIGINALES}.")
+        else:
+            dst = self.set_dir / track_filename(row, src.suffix, width)
             if os.path.exists(win_long(dst)) and same_file_content(src, dst):
                 real = dst
             else:
-                bid = self.journal.begin("Usar el que ya tengo")
-                real = self.journal.copy(bid, src, dst, uid=uid)
-                self.journal.commit(bid)
-            res.state, res.doubt, res.file = ResultState.YA_EN_BIBLIOTECA, None, rel_to_set(self.set_dir, real)
-            res.format, res.duration_s = entry.format, entry.duration_s
-            res.reasons = [f"Copiado de tu biblioteca: set '{entry.set_name}', pista {entry.pos}."]
-            carried = [f for f in CARRIED_FLAGS if f in (entry.flags or [])]
-            if "posible_falso_lossless" in carried:
-                res.reasons.append(f"Marca que trae del set '{entry.set_name}': posible lossless falso (sacado de "
-                                   "un MP3). Escúchalo antes de pincharlo.")
-            res.flags = ["reutilizado"] + carried
-            res.updated_at = _now()
-        self.save()
+                bid = self.journal.begin(REUSE_LABEL)
+                try:
+                    real = self.journal.copy(bid, src, dst, uid=row.uid)
+                finally:
+                    self.journal.commit(bid)
+        res.state, res.doubt, res.score = ResultState.YA_EN_BIBLIOTECA, None, None
+        res.file, res.original_file = rel_to_set(self.set_dir, real), original_rel
+        res.format, res.duration_s = container, entry.duration_s
+        res.samplerate, res.bitdepth = samplerate, bitdepth
+        res.bitrate_kbps = info.bitrate_kbps if container == "mp3" else None
+        carried = [f for f in CARRIED_FLAGS if f in (entry.flags or [])]
+        if "posible_falso_lossless" in carried:
+            reasons.append(f"Marca que trae del set '{entry.set_name}': posible lossless falso (sacado de "
+                           "un MP3). Escúchalo antes de pincharlo.")
+        res.reasons, res.flags = reasons, flags + carried
+        res.updated_at = _now()
 
     # ---- what to download -----------------------------------------------------------------
     def pending_rows(self) -> list[TrackRow]:
@@ -266,43 +366,47 @@ class SetSession:
         todo = {r.uid for r in self.pending_rows()}
         self._passes(runner, creds, on_event, cancel, ask_lossy, [(todo, ())], relaxed_mode=False)
 
-    @staticmethod
-    def _peers_to_ban(res: RowResult, own_username: str | None) -> list[str]:
-        """The peers whose files this row already rejected; [] when the peer of the CURRENT file is
-        unknown or cannot be banned (then a retry would only bring the same file back)."""
-        if not bannable_peer(res.peer, own_username):
-            return []
-        return [p for p in dict.fromkeys(res.rejected_peers + [res.peer]) if bannable_peer(p, own_username)]
+    def _rejected(self, res: RowResult) -> bool:
+        """Its last file was rejected: in _dudosos (other song, version or duration) or not in format."""
+        return self._quarantined(res) or res.state == ResultState.NO_CUMPLE_FORMATO
 
     def retry_failed(self, runner: EngineRunner, creds: Credentials, on_event: Callable[[SessionEvent], None],
                      cancel: threading.Event) -> None:
         """'Reintentar fallos': relaxed passes (no --strict-artist) for the rows that are missing.
 
-        A row whose file went to _dudosos (other song, version or duration) gets its own relaxed pass
-        with --banned-users <the peers that gave the rejected files>: otherwise the engine would pick
-        the same first candidate again. Without a known (bannable) peer it is not sent again: it keeps
-        its doubt, with a Spanish reason saying what to do."""
+        A row whose last file was rejected (in _dudosos, or "no cumple formato": an MP3 VBR or under
+        320 kbps, a FLAC that could not be converted...) goes in a relaxed pass with --banned-users <the
+        peers that gave its rejected files>: otherwise the engine would pick the same first candidate and
+        bring the same file back. Those peers stay banned for the row in later retries too, whatever its
+        state. A rejected row whose peer is unknown (or cannot be banned) is not sent again: it keeps its
+        state, with a Spanish reason saying why and what to do."""
         normal: set[str] = set()
-        quarantined: set[str] = set()
+        with_bans: set[str] = set()
         banned: list[str] = []
         for r in self.doc.rows:
             if not (r.download and (r.title or "").strip()):
                 continue
             res = self._res(r.uid)
-            if self._quarantined(res):
-                peers = self._peers_to_ban(res, creds.username)
-                if peers:
-                    quarantined.add(r.uid)
-                    banned += [p for p in peers if p not in banned]
-                elif NOT_RETRIED_ES not in res.reasons:
-                    res.reasons = res.reasons + [NOT_RETRIED_ES]
-                    on_event(SessionEvent("row_state", r.uid, res.state, NOT_RETRIED_ES, 1, 1))
-            elif res.state in RETRYABLE + (ResultState.PENDIENTE, ResultState.EN_CURSO):
+            rejected = self._rejected(res)
+            if not (rejected or res.state in RETRYABLE + (ResultState.PENDIENTE, ResultState.EN_CURSO)):
+                continue
+            if rejected and not bannable_peer(res.peer, creds.username):
+                note = NOT_RETRIED_ES if self._quarantined(res) else NOT_RETRIED_FORMAT_ES
+                if note not in res.reasons:
+                    res.reasons = res.reasons + [note]
+                    on_event(SessionEvent("row_state", r.uid, res.state, note, 1, 1))
+                continue
+            peers = [p for p in dict.fromkeys(res.rejected_peers + ([res.peer] if rejected else []))
+                     if bannable_peer(p, creds.username)]
+            if peers:
+                with_bans.add(r.uid)
+                banned += [p for p in peers if p not in banned]
+            else:
                 normal.add(r.uid)
         self.save()
         groups = [(normal, ())] if normal else []
-        if quarantined:
-            groups.append((quarantined, tuple(banned)))
+        if with_bans:
+            groups.append((with_bans, tuple(banned)))
         self._passes(runner, creds, on_event, cancel, lambda rows: set(), groups, relaxed_mode=True)
 
     def _passes(self, runner, creds, on_event, cancel, ask_lossy, groups: list[tuple[set[str], tuple[str, ...]]],
@@ -325,10 +429,17 @@ class SetSession:
                         cands = [r for r in self.lossy_candidates() if r.uid in uids]
                         if not cands:
                             continue
-                        if not asked and not relaxed_mode:
+                        # asked once per SET: a row already shown in the question (approved or not) is
+                        # never asked about again, also in a later run of the same set
+                        new = [r for r in cands
+                               if r.uid not in self.doc.lossy_approved and r.uid not in self.doc.lossy_asked]
+                        if new and not asked and not relaxed_mode:
                             asked = True
-                            approved = set(ask_lossy(cands) or set())
-                            self.approve_lossy(u for u in approved if u in {c.uid for c in cands})
+                            approved = set(ask_lossy(new) or set())
+                            if cancel.is_set():          # closing the question by cancelling is not an answer
+                                break
+                            self.doc.lossy_asked += [r.uid for r in new if r.uid not in self.doc.lossy_asked]
+                            self.approve_lossy(u for u in approved if u in {c.uid for c in new})
                         rows = [r for r in cands if r.uid in self.doc.lossy_approved]
                     else:
                         rows = [r for r in sorted(self.doc.rows, key=lambda x: x.pos)
@@ -526,7 +637,10 @@ class SetSession:
     @staticmethod
     def _not_in_format(res: RowResult, outcome, reasons_es: list[str], flags: list[str], info,
                        had_quarantined: bool) -> None:
-        """The download does not meet the preset (or could not be converted): it is not placed."""
+        """The download does not meet the preset (or could not be converted): it is not placed. Its peer
+        is remembered, so 'Reintentar fallos' bans it (--banned-users) instead of getting the same file."""
+        if outcome.peer and outcome.peer not in res.rejected_peers:
+            res.rejected_peers = res.rejected_peers + [outcome.peer]
         if had_quarantined:
             res.reasons = res.reasons + list(reasons_es)
             return
@@ -540,8 +654,9 @@ class SetSession:
         sync_names(self.set_dir, self.doc.rows, self.doc.results, self.journal)
         self.save()
         name = safe_component(self.doc.name)
-        (self.set_dir / REPORT_TEMPLATE.format(name=name)).write_text(self.report_text(), encoding="utf-8")
-        (self.set_dir / TRACKLIST_TEMPLATE.format(name=name)).write_text(self.tracklist_text(), encoding="utf-8")
+        # next to the music: a long set name takes these past Windows' 260 characters (win_long)
+        _write_text(self.set_dir / REPORT_TEMPLATE.format(name=name), self.report_text())
+        _write_text(self.set_dir / TRACKLIST_TEMPLATE.format(name=name), self.tracklist_text())
         library.load()
         library.add_from_set(self.set_dir, self.doc)
         library.save()

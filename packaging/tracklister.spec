@@ -62,8 +62,19 @@ def asset_datas() -> list[tuple[str, str]]:
     return out
 
 
+def version_numbers(version: str) -> tuple[int, int, int, int]:
+    """The four numbers of the Windows file version: '1.0.1' -> (1, 0, 1, 0). A pre-release
+    ('1.0.1rc1', '1.1.0-beta.2', '2.0.0.dev3') keeps its release numbers; the full text still goes
+    in FileVersion/ProductVersion."""
+    m = re.match(r"^\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?", version)
+    if not m:
+        raise ValueError(f"versión no válida: {version!r}")
+    major, minor, patch = (int(x) if x else 0 for x in m.groups())
+    return major, minor, patch, 0
+
+
 def version_resource(version: str) -> VSVersionInfo:
-    nums = tuple((list(int(x) for x in version.split(".")[:3]) + [0, 0, 0, 0])[:4])
+    nums = version_numbers(version)
     strings = [
         StringStruct("CompanyName", APP_NAME),
         StringStruct("FileDescription", APP_NAME),

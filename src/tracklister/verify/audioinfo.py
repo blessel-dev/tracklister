@@ -230,7 +230,18 @@ def decoded_duration(path: Path) -> tuple[float | None, int | None, str | None]:
         return None, None, None
 
 
-def probe(path: Path) -> AudioInfo:
+def header_duration(path: Path) -> tuple[float | None, int | None, str | None]:
+    """(seconds, samplerate, subtype) from the header only, without decoding the audio."""
+    try:
+        i = sf.info(str(path))
+        return float(i.duration), int(i.samplerate), str(i.subtype)
+    except (RuntimeError, sf.LibsndfileError, OSError, TypeError, ValueError):
+        return None, None, None
+
+
+def probe(path: Path, *, decode: bool = True) -> AudioInfo:
+    """decode=False reads the headers only and trusts them for the duration (decoded_duration_s is the
+    header duration): for files that were fully verified before, like the library's (fast)."""
     import mutagen
     from mutagen.mp3 import BitrateMode
 
@@ -270,7 +281,7 @@ def probe(path: Path) -> AudioInfo:
             bm = getattr(info, "bitrate_mode", None)
             mode = {BitrateMode.CBR: "cbr", BitrateMode.VBR: "vbr", BitrateMode.ABR: "abr"}.get(bm, "unknown")
     artist, title, album = _tags(mf) if mf is not None else (None, None, None)
-    dec, sr2, subtype = decoded_duration(path)
+    dec, sr2, subtype = decoded_duration(path) if decode else header_duration(path)
     if samplerate is None:
         samplerate = sr2
     if bitdepth is None and subtype in _SUBTYPE_BITS and container in LOSSLESS_CONTAINERS:

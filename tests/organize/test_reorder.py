@@ -8,7 +8,7 @@ import unicodedata
 
 from tracklister.core.model import RowStatus, TrackRow
 from tracklister.organize.journal import Journal
-from tracklister.organize.reorder import apply_reorder, propose_reorder
+from tracklister.organize.reorder import ReorderError, apply_reorder, propose_reorder
 
 
 def _row(pos, artist, title, version=None, **kw):
@@ -153,3 +153,43 @@ def test_reserved_subdirs_are_ignored(tmp_path):
     _make(folder, ["Klint - Gunslingers.wav"])
     by = _by_pos(propose_reorder(folder, [_row(1, "Phara", "Grey Ribbon"), _row(2, "Klint", "Gunslingers")]))
     assert by[1].status == "missing" and by[2].status == "match"
+
+
+def test_r2_b4_proposals_of_another_folder_rename_nothing(tmp_path):
+    """Audit round 2, B4: a preview made for folder A, applied with folder B (or B's journal), would
+    rename A's files and write the undo record in B. apply_reorder refuses it before touching anything."""
+    a, b = tmp_path / "A", tmp_path / "B"
+    _make(a, ["Phara - Grey Ribbon.flac", "Klint - Gunslingers.wav"])
+    _make(b, ["otro.mp3"])
+    rows = [_row(1, "Phara", "Grey Ribbon"), _row(2, "Klint", "Gunslingers")]
+    props = propose_reorder(a, rows)
+    for folder, journal in ((b, Journal(b)), (a, Journal(b)), (b, Journal(a))):
+        try:
+            apply_reorder(folder, props, journal)
+        except ReorderError as e:
+            assert "Ver propuesta" in str(e) and "No se ha renombrado nada" in str(e)
+        else:
+            raise AssertionError("a preview of another folder was applied")
+    assert sorted(p.name for p in a.iterdir() if p.is_file()) == ["Klint - Gunslingers.wav", "Phara - Grey Ribbon.flac"]
+    assert Journal(a).batches() == [] and Journal(b).batches() == []
+    assert not (b / ".tracklister").exists()
+    # a proposal whose file sits outside the folder, or whose new name points elsewhere, is refused too
+    outside = [p for p in props if p.status == "match"]
+    outside[0].src = tmp_path / "Phara - Grey Ribbon.flac"
+    try:
+        apply_reorder(a, props, Journal(a))
+    except ReorderError:
+        pass
+    else:
+        raise AssertionError("a file outside the folder was renamed")
+    props = propose_reorder(a, rows)
+    props[0].dst = b / props[0].dst.name
+    try:
+        apply_reorder(a, props, Journal(a))
+    except ReorderError:
+        pass
+    else:
+        raise AssertionError("a file was renamed into another folder")
+    apply_reorder(a, propose_reorder(a, rows), Journal(a))      # the folder's own preview still works
+    assert sorted(p.name for p in a.iterdir() if p.is_file()) == ["01 - Phara - Grey Ribbon.flac",
+                                                                  "02 - Klint - Gunslingers.wav"]

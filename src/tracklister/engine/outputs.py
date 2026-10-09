@@ -13,6 +13,7 @@ import csv
 import io
 import os
 import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -194,17 +195,37 @@ def parse_playlist_failures(path: Path) -> dict[str, str]:
 
 # ---- stdout: peer and path tail of each download --------------------------------------------
 
+_INFO = re.compile(r"\s+\[([^\]]*)\]\s*$")
+_INFO_MB = re.compile(r"(\d+(?:[.,]\d+)?)MB")
+
+
 def _split_display(path_text: str) -> tuple[str | None, list[str]]:
     """'peer\\..\\Music\\Fjaak\\x.flac [20s/...]' -> ('peer', ['Music','Fjaak','x.flac'])."""
-    s = re.sub(r"\s+\[[^\]]*\]\s*$", "", path_text.strip())
+    s = _INFO.sub("", path_text.strip())
     parts = [x for x in s.replace("/", "\\").split("\\") if x and x != ".."]
     if len(parts) < 2:
         return None, parts
     return parts[0], parts[1:]
 
 
-def _download_lines(dialect: EngineDialect, stdout_path: Path) -> list[tuple[str, str | None, list[str]]]:
-    """(query subject or '', peer, path parts) for every downloading/succeeded line."""
+def _info_mb(path_text: str) -> float | None:
+    """The size in a 2.x display '[25s/44.1kHz1250kbps/3.7MB]' (one decimal; ',' on some Windows)."""
+    m = _INFO.search(path_text.strip())
+    mb = _INFO_MB.search(m.group(1)) if m else None
+    return float(mb.group(1).replace(",", ".")) if mb else None
+
+
+@dataclass(frozen=True)
+class _Seen:
+    """One downloading/succeeded line: who sent which file (and, in 3.x, for which query)."""
+    kind: str
+    query: str               # "" in 2.x: its lines carry no query
+    peer: str | None
+    parts: tuple[str, ...]   # the Soulseek path shown after the peer (2.x: the file name only)
+    size_mb: float | None    # 2.x only
+
+
+def _download_lines(dialect: EngineDialect, stdout_path: Path) -> list[_Seen]:
     p = Path(stdout_path)
     if not p.is_file():
         return []
@@ -223,8 +244,49 @@ def _download_lines(dialect: EngineDialect, stdout_path: Path) -> list[tuple[str
             query, disp = "", ev.subject
         peer, parts = _split_display(disp)
         if parts:
-            out.append((query, peer, parts))
+            out.append(_Seen(ev.kind, query, peer, tuple(parts), _info_mb(disp)))
     return out
+
+
+def _fold(s: str) -> str:
+    return unicodedata.normalize("NFC", s).casefold()
+
+
+def _credit(f: Path, query: str, other_queries: set[str], seen: list[_Seen],
+            dialect: EngineDialect) -> tuple[str | None, str | None]:
+    """(peer, Soulseek path tail) of the downloaded file f, or (None, None) when the engine's lines do
+    not tie ONE peer to it. A wrong guess would make 'Reintentar fallos' ban the wrong user and get the
+    same bad file again, so an ambiguous file is credited to nobody.
+
+    3.x: the lines of this item's query (the full 'Artist - Title' the app sent). 2.x: its lines have
+    no query, so the file name, and the size its display shows when two downloads share a name.
+    A 'succeeded' line beats the 'downloading' ones (the engine may have tried other peers first)."""
+    name = _fold(f.name)
+    if dialect == EngineDialect.SOCKSEEK3:
+        cands = [s for s in seen if _fold(s.query) == _fold(query)]
+        if not cands:   # the engine showed the query differently: the file name, if no other item claims it
+            cands = [s for s in seen if _fold(s.parts[-1]) == name and _fold(s.query) not in other_queries]
+    else:
+        cands = [s for s in seen if _fold(s.parts[-1]) == name]
+    cands = [s for s in cands if s.kind == "succeeded"] or cands
+    if len({s.peer for s in cands}) > 1:
+        by_name = [s for s in cands if _fold(s.parts[-1]) == name]
+        if by_name and len({s.peer for s in by_name}) == 1:
+            cands = by_name
+        else:
+            try:
+                size = os.path.getsize(f) / (1024 * 1024)
+            except OSError:
+                size = None
+            by_size = [s for s in (by_name or cands) if size is not None and s.size_mb is not None
+                       and abs(s.size_mb - size) < 0.051]
+            if not by_size or len({s.peer for s in by_size}) > 1:
+                return None, None
+            cands = by_size
+    if not cands:
+        return None, None
+    last = cands[-1]
+    return last.peer, "\\".join(last.parts[-2:])
 
 
 def _files_in(d: Path) -> list[Path]:
@@ -253,19 +315,15 @@ def collect_outputs(job: EngineJob, manifest: list[ManifestItem], dialect: Engin
         by_query.setdefault((norm_key(r["artist"], drop_original=False), norm_key(r["title"], drop_original=False)), r)
     fails = parse_playlist_failures(job.playlist_path)
     downloads = _download_lines(dialect, job.stdout_path)
+    queries = {it.snum: _fold(query_text(it)) for it in manifest}
     out: dict[int, ItemOutcome] = {}
     for it in manifest:
         files = _files_in(job.out_dir / str(it.snum))
         q = query_text(it)
         if files:
             f = files[0]
-            peer = tail = None
-            hits = [d for d in downloads if d[2][-1].lower() == f.name.lower()]
-            exact = [d for d in hits if d[0].lower() == q.lower()]
-            pick = (exact or hits)
-            if pick:
-                peer = pick[-1][1]
-                tail = "\\".join(pick[-1][2][-2:])
+            others = {v for k, v in queries.items() if k != it.snum}
+            peer, tail = _credit(f, q, others, downloads, dialect)
             out[it.snum] = ItemOutcome(it.snum, f, "downloaded", None, tail, peer)
             continue
         r = by_query.get((norm_key(it.artist, drop_original=False), norm_key(it.title, drop_original=False)))

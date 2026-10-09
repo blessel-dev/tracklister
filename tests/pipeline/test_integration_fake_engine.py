@@ -25,7 +25,7 @@ from tracklister.engine.spec import fake_engine_spec
 from tracklister.library.index import LibraryIndex
 from tracklister.organize.journal import Journal
 from tracklister.pipeline.report import STRAY_TITLE_ES
-from tracklister.pipeline.session import NOT_RETRIED_ES, SAME_FILE_ES, SetSession
+from tracklister.pipeline.session import NOT_RETRIED_ES, NOT_RETRIED_FORMAT_ES, SAME_FILE_ES, SetSession
 
 CREDS = Credentials("usuario-prueba", "clave-prueba")
 
@@ -355,6 +355,7 @@ def test_b1_cdj_flac_that_cannot_be_converted_does_not_meet_format(tmp_path):
     r = _res(s, 1)
     assert r.state == ResultState.NO_CUMPLE_FORMATO and "conversion_fallida" in r.flags and r.file is None
     assert r.reasons[0].startswith("No se pudo convertir a AIFF para CDJ antiguos (LibsndfileError)")
+    assert r.rejected_peers == ["peerA"]                # round 2, B3: 'Reintentar fallos' bans that copy
     assert not [p for p in s.set_dir.rglob("*") if p.is_file() and ".tracklister" not in p.parts]
     assert events[-1].kind == "finished" and not any(e.kind == "error" for e in events)
     _no_row_left_running_and_journal_closed(s)
@@ -486,3 +487,151 @@ def test_n8_reused_file_keeps_its_fake_lossless_mark(tmp_path):
     b.finalize(h.library)
     from_b = [e for e in h.library.entries if e.set_name == "Set B"]
     assert len(from_b) == 1 and from_b[0].flags == ["posible_falso_lossless"]       # a set C keeps it too
+
+
+# ---- external audit, round 2 (claude-audit-raw-r2.txt) ---------------------------------------------
+
+def _finalized(h: Harness, scenario: str, name: str, preset: str | None = None, net_patch=None) -> SetSession:
+    s, runner = h.session(scenario, name=name, preset=preset, net_patch=net_patch)
+    h.run(s, runner)
+    s.finalize(h.library)
+    return s
+
+
+def _cbr_320(net):
+    net["files"][0].update(vbr=False, real_kbps=320)
+
+
+def test_r2_b1_library_files_are_offered_only_when_the_set_preset_accepts_them(tmp_path):
+    h = Harness(tmp_path)
+    _finalized(h, "correcto", "Set A")                                     # Lossless: FLACs in the library
+    m, _ = h.session("duplicado_entre_sets", name="Set MP3", preset="solo_mp3_320")
+    assert m.find_duplicates(h.library) == []                    # a FLAC never goes into a "Solo MP3 320" set
+    mp3 = _finalized(h, "mp3_vbr", "Set MP3 anterior", net_patch=_cbr_320)   # Fjaak - Spirit as an MP3 CBR 320
+    assert _res(mp3, 1).state == ResultState.VERIFICADO
+    lossless, _ = h.session("duplicado_entre_sets", name="Set Lossless", preset="lossless")
+    hits = lossless.find_duplicates(h.library)
+    assert [(x.row.pos, [e.format for e in x.entries]) for x in hits] == [(1, ["flac"])]   # never the MP3...
+    lossless.doc.lossy_approved.append(hits[0].row.uid)          # ...unless MP3 was approved for it in this set
+    assert sorted(e.format for e in lossless.find_duplicates(h.library)[0].entries) == ["flac", "mp3"]
+    m2, _ = h.session("duplicado_entre_sets", name="Set MP3 2", preset="solo_mp3_320")
+    assert [[e.format for e in x.entries] for x in m2.find_duplicates(h.library)] == [["mp3"]]
+
+
+def test_r2_b1_cdj_reuse_converts_the_library_flac_to_aiff(tmp_path):
+    """B1: under "CDJ antiguos" a FLAC of the library becomes AIFF, exactly like a downloaded one: the
+    copy of the original goes to _originales, the library file itself is never touched."""
+    h = Harness(tmp_path)
+    a = _finalized(h, "correcto", "Set A")
+    lib_flac = a.set_dir / "01 - Fjaak - Spirit.flac"
+    before = lib_flac.read_bytes()
+    c, rc = h.session("duplicado_entre_sets", name="Set CDJ", preset="cdj_antiguos")
+    hits = c.find_duplicates(h.library)
+    assert [x.row.pos for x in hits] == [1]
+    c.apply_duplicate_choice(hits[0].row.uid, DuplicateChoice.REUSE, hits[0].entries[0])
+    r = _res(c, 1)
+    assert r.state == ResultState.YA_EN_BIBLIOTECA and r.file == "01 - Fjaak - Spirit.aiff"
+    assert r.original_file == "_originales/01 - Fjaak - Spirit.flac"
+    assert (c.set_dir / r.original_file).read_bytes() == before and lib_flac.read_bytes() == before
+    aiff = c.set_dir / r.file
+    assert aiff.read_bytes()[8:12] == b"AIFF"                               # AIFF PCM, never AIFF-C
+    info = sf.info(str(aiff))
+    assert (info.samplerate, info.subtype) == (44100, "PCM_16")
+    assert (r.format, r.samplerate, r.bitdepth) == ("aiff", 44100, 16)
+    assert str(mutagen.File(str(aiff)).tags["TPE1"]) == "Fjaak"
+    assert r.flags == ["reutilizado", "convertido_aiff"] and any("Convertido a AIFF" in x for x in r.reasons)
+    assert not (h.paths.work_dir / c.doc.set_id[:8] / "reuse").exists()        # no leftovers
+    h.run(c, rc)                                                    # the other track downloads as usual
+    assert _res(c, 1).state == ResultState.YA_EN_BIBLIOTECA
+    assert _res(c, 2).state == ResultState.VERIFICADO and _res(c, 2).file == "02 - Kobosil - Aggression.aiff"
+    c.finalize(h.library)
+    assert {e.pos: e.format for e in h.library.entries if e.set_name == "Set CDJ"} == {1: "aiff", 2: "aiff"}
+    rep = (c.set_dir / "Informe - Set CDJ.txt").read_text(encoding="utf-8")
+    assert "Original: _originales/01 - Fjaak - Spirit.flac" in rep and STRAY_TITLE_ES not in rep
+
+
+def test_r2_b1_a_library_file_that_cannot_be_converted_is_downloaded_again(tmp_path):
+    h = Harness(tmp_path)
+    a = _finalized(h, "correcto", "Set A")
+    lib_flac = a.set_dir / "01 - Fjaak - Spirit.flac"
+    data = lib_flac.read_bytes()
+    lib_flac.write_bytes(data[: int(len(data) * 29.5 / 30)])               # damaged near the end
+    c, rc = h.session("duplicado_entre_sets", name="Set CDJ", preset="cdj_antiguos")
+    hits = c.find_duplicates(h.library)
+    c.apply_duplicate_choice(hits[0].row.uid, DuplicateChoice.REUSE, hits[0].entries[0])
+    r = _res(c, 1)
+    assert r.state == ResultState.PENDIENTE and c.doc.duplicate_choices[r.uid] == "download"
+    assert r.reasons[0].startswith("No se pudo convertir a AIFF para CDJ antiguos el archivo de tu biblioteca")
+    assert not (c.set_dir / "_originales").exists() and not list(c.set_dir.glob("*.aif*"))
+    h.run(c, rc)
+    assert _res(c, 1).state == ResultState.VERIFICADO and _res(c, 1).file == "01 - Fjaak - Spirit.aiff"
+
+
+def test_r2_b3_retry_bans_the_peer_of_a_file_that_did_not_meet_the_format(tmp_path):
+    """B3: an MP3 VBR (Solo MP3 320) is "no cumple formato". 'Reintentar fallos' bans its peer, so the
+    CBR 320 of another user comes instead of the same VBR again."""
+    def plus_cbr(net):
+        net["files"].append(file("peerB", "@@y\\Fjaak\\Fjaak - Spirit.mp3", "Fjaak", "Spirit", 30, fmt="mp3",
+                                 real_kbps=320))
+    h = Harness(tmp_path)
+    s, runner = h.session("mp3_vbr", net_patch=plus_cbr)
+    h.run(s, runner)
+    r = _res(s, 1)
+    assert r.state == ResultState.NO_CUMPLE_FORMATO and "mp3_vbr" in r.flags
+    assert r.peer == "peerA" and r.rejected_peers == ["peerA"]
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    argv = read_json(Path(s.doc.passes[-1].work_dir) / "pass.json")["argv_redacted"]
+    assert argv[argv.index("--banned-users") + 1] == "peerA" and "--strict-artist" not in argv
+    r = _res(s, 1)
+    assert r.state == ResultState.VERIFICADO and r.peer == "peerB" and r.file == "01 - Fjaak - Spirit.mp3"
+
+
+def test_r2_b3_the_ban_stays_when_nothing_better_appears(tmp_path):
+    h = Harness(tmp_path)
+    s, runner = h.session("mp3_vbr")
+    h.run(s, runner)
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    r = _res(s, 1)
+    assert r.state == ResultState.NO_ENCONTRADO and r.rejected_peers == ["peerA"]
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())     # still banned: never the same VBR
+    argv = read_json(Path(s.doc.passes[-1].work_dir) / "pass.json")["argv_redacted"]
+    assert argv[argv.index("--banned-users") + 1] == "peerA"
+    assert _res(s, 1).state == ResultState.NO_ENCONTRADO and not list(s.set_dir.glob("*.mp3"))
+
+
+@pytest.mark.parametrize("peer", [None, "peer,con coma"])
+def test_r2_b3_out_of_format_with_an_unknown_peer_is_not_retried_and_says_why(tmp_path, peer):
+    h = Harness(tmp_path)
+    s, runner = h.session("mp3_vbr")
+    h.run(s, runner)
+    r = _res(s, 1)
+    r.peer, r.rejected_peers = peer, []
+    s.save()
+    before = len(s.doc.passes)
+    events = []
+    for _ in range(2):
+        s.retry_failed(runner, CREDS, events.append, threading.Event())
+    r = _res(s, 1)
+    assert len(s.doc.passes) == before and r.state == ResultState.NO_CUMPLE_FORMATO
+    assert r.reasons.count(NOT_RETRIED_FORMAT_ES) == 1 and NOT_RETRIED_ES not in r.reasons
+    assert "_dudosos" not in NOT_RETRIED_FORMAT_ES and "no cumplía el formato" in NOT_RETRIED_FORMAT_ES
+    assert [e.message_es for e in events if e.kind == "row_state"] == [NOT_RETRIED_FORMAT_ES]
+    assert events[-1].kind == "finished"
+
+
+def test_r2_n3_the_mp3_question_is_asked_once_per_set(tmp_path):
+    h = Harness(tmp_path)
+    s, runner = h.session("sin_resultados")
+    _, asked = h.run(s, runner, approve=lambda rows: set())              # "No, dejarlas sin descargar"
+    assert len(asked) == 1 and s.doc.lossy_asked == asked[0] and s.doc.lossy_approved == []
+    _res(s, 1).state = ResultState.PENDIENTE          # e.g. cancelled: "Continuar descarga" runs it again
+    s.save()
+    _, asked = h.run(s, runner, approve=lambda rows: {r.uid for r in rows})
+    assert asked == [] and [p.name for p in s.doc.passes] == ["lossless", "lossless"]   # it said no: no MP3
+    s2, runner2 = h.session("sin_resultados", name="Otro set")
+    _, asked = h.run(s2, runner2, approve=lambda rows: {r.uid for r in rows})          # yes
+    assert len(asked) == 1
+    _res(s2, 1).state = ResultState.PENDIENTE
+    s2.save()
+    _, asked = h.run(s2, runner2, approve=lambda rows: set())
+    assert asked == [] and [p.name for p in s2.doc.passes] == ["lossless", "mp3_320", "lossless", "mp3_320"]

@@ -5,7 +5,9 @@ from pathlib import Path
 
 from tracklister.core.model import RowStatus
 from tracklister.inputs.tabular import RawTable, read_table
-from tracklister.inputs.trackid import GAP_TITLE, is_trackid_table, parse_hms, parse_int, parse_trackid
+from tracklister.inputs.trackid import (
+    ESTIMATED_NOTE, GAP_TITLE, is_trackid_table, parse_hms, parse_int, parse_trackid,
+)
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "inputs"
 SAMPLE = FIX / "fjaak-techno-dj-set-section-may-2026.csv"
@@ -60,18 +62,38 @@ def test_gap_threshold_is_configurable():
     t = read_table(SAMPLE)
     assert sum(r.is_id for r in parse_trackid(t, gap_threshold_s=200)) == 2
     assert sum(r.is_id for r in parse_trackid(t, gap_threshold_s=600)) == 0
-    assert sum(r.is_id for r in parse_trackid(t, gap_threshold_s=60)) == 5      # + the 77 s one
+    # + the 77 s one between tracks, and the 77 s before the first track (0:00 -> 0:01:17)
+    rows = parse_trackid(t, gap_threshold_s=60)
+    assert sum(r.is_id for r in rows) == 6 and (rows[0].title, rows[0].ts_start, rows[0].ts_end) == (GAP_TITLE, 0, 77)
 
 
-def test_rows_follow_pos_when_shuffled_and_missing_end_stops_gap_detection():
+def test_rows_follow_pos_when_shuffled_and_a_row_without_end_still_finds_the_next_gap():
+    """Audit round 2, N9: a row without an End time used to hide the gap after it. It now plays for the
+    set's typical (median) track time, so the gap is found, marked as an estimate."""
     headers = ["Pos", "Start", "End", "Artist", "Title", "Label"]
     t = _table(headers, [["2", "00:05:00", "00:06:00", "B", "Two", ""],
                          ["1", "00:00:10", "00:01:00", "A", "One", ""],
                          ["3", "00:10:00", "", "C", "Three", ""],
                          ["4", "00:20:00", "00:21:00", "D", "Four", ""]])
     rows = parse_trackid(t)
-    assert [r.title for r in rows] == ["One", "ID (hueco)", "Two", "ID (hueco)", "Three", "Four"]
-    assert [r.pos for r in rows] == [1, 2, 3, 4, 5, 6]
+    assert [r.title for r in rows] == ["One", GAP_TITLE, "Two", GAP_TITLE, "Three", GAP_TITLE, "Four"]
+    assert [r.pos for r in rows] == [1, 2, 3, 4, 5, 6, 7]
+    est = rows[5]                                       # plays measured: 50, 60, 60 s -> median 60 s
+    assert (est.ts_start, est.ts_end) == (660, 1200) and ESTIMATED_NOTE in est.notes
+    assert all(ESTIMATED_NOTE not in g.notes for g in (rows[1], rows[3]))
+    assert all(not g.download and g.is_id for g in (rows[1], rows[3], rows[5]))
+
+
+def test_gap_before_the_first_track_and_rows_without_any_time():
+    headers = ["Pos", "Start", "End", "Artist", "Title", "Label"]
+    rows = parse_trackid(_table(headers, [["1", "00:03:00", "00:05:00", "A", "One", ""],
+                                          ["2", "00:05:00", "00:08:00", "B", "Two", ""]]))
+    assert [(r.title, r.ts_start, r.ts_end) for r in rows][:2] == [(GAP_TITLE, 0, 180), ("One", 180, 300)]
+    assert rows[0].pos == 1 and rows[1].pos == 2 and not rows[0].download
+    # no End anywhere: no typical time to estimate with, so no gap is invented
+    rows = parse_trackid(_table(headers, [["1", "00:00:30", "", "A", "One", ""],
+                                          ["2", "00:30:00", "", "B", "Two", ""]]))
+    assert [r.title for r in rows] == ["One", "Two"]
 
 
 def test_parse_helpers():

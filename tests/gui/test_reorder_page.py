@@ -74,6 +74,34 @@ def test_ambiguous_rows_start_unchecked(window, qtbot, prompter, tmp_path):
     assert (folder / "Fjaak - Spirit.mp3").exists() and (folder / "01 Fjaak - Spirit.mp3").exists()
 
 
+def test_r2_b4_apply_renames_only_the_previewed_folder(window, qtbot, prompter, tmp_path):
+    """Audit round 2, B4: preview folder A, then type folder B in the field: the proposals go, nothing can
+    be applied until a new preview, and a preview that arrives for another folder is never shown."""
+    a = _folder(tmp_path, ["Fjaak - Spirit.mp3"])
+    b = tmp_path / "otra carpeta"
+    b.mkdir()
+    (b / "Fjaak - Spirit.mp3").write_bytes(b"b")
+    window.go("reorder")
+    page = window.reorder
+    _propose(qtbot, page, a, sample_rows()[:1])
+    assert page.preview_folder == a and page.model.checked_count() == 1 and page.apply_btn.isEnabled()
+    page.folder.setText(str(b))
+    assert page.model.rowCount() == 0 and page.preview_folder is None and not page.apply_btn.isEnabled()
+    page.apply()
+    assert (a / "Fjaak - Spirit.mp3").exists() and (b / "Fjaak - Spirit.mp3").exists()
+    assert not [c for c in prompter.calls if c[0] == "confirm"]
+    page.folder.setText(str(a))
+    page._on_proposed(window.services.propose_reorder(b, page.rows), b)     # late answer for B
+    assert page.model.rowCount() == 0 and page.preview_folder is None
+    _propose(qtbot, page, a, sample_rows()[:1])
+    prompter.confirm_answer = True
+    page.apply()
+    qtbot.waitUntil(lambda: page.undo_btn.isEnabled(), timeout=10000)
+    assert str(a) in [c for c in prompter.calls if c[0] == "confirm"][-1][2]
+    assert (a / "01 - Fjaak - Spirit.mp3").exists() and (b / "Fjaak - Spirit.mp3").exists()
+    assert window.services.can_undo_reorder(a) and not window.services.can_undo_reorder(b)
+
+
 def test_tracklist_from_new_set_table(window):
     window.go("reorder")
     page = window.reorder

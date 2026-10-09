@@ -52,8 +52,28 @@ class DiagRow:
     result_es: str | None = None     # only when the user asked to download
 
 
+# Keys of the engines' keyed string (3.x Sockseek.Core/Extractors/String.cs ParseArgs, 2.x
+# slsk-batchdl/Extractors/String.cs ParseTrackArg): case-sensitive, compared after trimming.
+KEYED_KEYS = ("title", "artist", "length", "album", "artist-maybe-wrong", "album-track-count")
+
+
+def keyed_value(value: str) -> str:
+    """A value the engines read back intact from 'artist=..., title=...'.
+
+    Both engines split the whole string on EVERY ',' and glue the pieces of a value back with ','
+    ("Earth, Wind & Fire" survives), except a piece that reads '<key>=...': that one starts a new
+    property ("Hey, title=X" would cut the title and replace it). Such a comma is escaped as a space;
+    every other comma is kept. Soulseek searches by words, so the space changes nothing."""
+    pieces = value.split(",")
+    out = pieces[0]
+    for piece in pieces[1:]:
+        left, eq, _ = piece.partition("=")
+        out += (" " if eq and left.strip() in KEYED_KEYS else ",") + piece
+    return out.strip()
+
+
 def keyed_input(row: TrackRow) -> str:
-    s = f"artist={engine_artist(row)}, title={engine_title(row)}"
+    s = f"artist={keyed_value(engine_artist(row))}, title={keyed_value(engine_title(row))}"
     if row.expected_duration_s:
         s += f", length={int(row.expected_duration_s)}"
     return s

@@ -69,8 +69,9 @@ class YtDlp:
         return self.exe.is_file()
 
     def _call(self, args: list[str], timeout_s: int):
-        return self._run([str(self.exe), *args], capture_output=True, timeout=timeout_s, stdin=subprocess.DEVNULL,
-                         creationflags=CREATE_NO_WINDOW, check=False)
+        # --ignore-config here too (--version, -U): a yt-dlp config the user had from before never applies
+        return self._run([str(self.exe), "--ignore-config", *args], capture_output=True, timeout=timeout_s,
+                         stdin=subprocess.DEVNULL, creationflags=CREATE_NO_WINDOW, check=False)
 
     def version(self) -> str | None:
         if not self.available():

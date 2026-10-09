@@ -5,9 +5,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Download flow (start_download):
 1. the user's own account from Credential Manager (missing -> Ajustes);
-2. SetSession.create (an existing set folder with the same name is merged, not re-downloaded);
+2. SetSession.create (an existing set folder with the same name is merged, not re-downloaded),
+   without writing anything yet;
 3. every track already in the library is asked about, EVERY time, with both options and
-   'Aplicar a todos los repetidos de este set';
+   'Aplicar a todos los repetidos de este set' (only the copies the set's preset accepts are offered);
+   closing a question writes nothing, answering them all saves the set;
 4. a SessionWorker (QThread) applies those choices, runs the passes, asks the lossy checklist once
    and finalizes the folder (names, report, tracklist, library).
 """
@@ -153,6 +155,8 @@ class MainWindow(QMainWindow):
         self.go("new_set")
         self.new_set.start_watching()
         self.settings_page.refresh()
+        # never while the first-run screen is up, but this session checks too once it is done
+        QTimer.singleShot(1500, self.check_updates)
 
     def _warn_missing_account(self) -> None:
         try:
@@ -213,7 +217,8 @@ class MainWindow(QMainWindow):
         if creds is None:
             return False
         try:
-            session = self.services.create_session(name, rows, sources)
+            # nothing is written yet: closing a repeated-track question leaves no set folder behind
+            session = self.services.create_session(name, rows, sources, persist=False)
         except Exception as e:  # noqa: BLE001
             log.exception("create_session")
             self.prompter.error("No se pudo preparar el set", error_text(e))
@@ -240,6 +245,12 @@ class MainWindow(QMainWindow):
             choices.append((hit.row.uid, choice, entry))
             if apply_all:
                 all_choice = choice
+        try:
+            session.save()
+        except Exception as e:  # noqa: BLE001
+            log.exception("save session")
+            self.prompter.error("No se pudo preparar el set", error_text(e))
+            return False
         self.session = session
         self.results.show_session(session, running=True)
         self.go("results")

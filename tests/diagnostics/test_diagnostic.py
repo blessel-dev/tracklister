@@ -68,6 +68,44 @@ def test_no_results_explains_the_network(tmp_path):
     text = build_report(diag, app_version="1.0.0", engine_id="fake", windows_version="W", listen_port=50000,
                         redactor=Redactor(secrets=[CREDS.username]))
     assert "Abre el puerto TCP 50000" in text and "Firewall" in text
+    # the program that listens, and that the Windows Firewall asks about, is the engine
+    assert "Permite «sockseek.exe» (el motor de descarga de Tracklister)" in text
+    assert "Permite Tracklister" not in text
+    text = build_report(diag, app_version="1.0.0", engine_id="sldl-2.6.0", windows_version="W", listen_port=50000,
+                        redactor=Redactor(secrets=[CREDS.username]))
+    assert "Permite «sldl.exe»" in text
+
+
+def test_r2_n2_keyed_strings_survive_commas(tmp_path):
+    """Audit round 2, N2. Both engines split the keyed string on every ',' and glue a value back with
+    ','; only a piece that reads '<key>=' starts a new property (tests/fakes/fake_engine.parse_keyed is
+    a port of that parser). Such commas are escaped as a space, every other comma is kept."""
+    from tests.fakes.fake_engine import parse_keyed
+    from tests.fakes.scenarios import row
+    cases = [row(1, "Earth, Wind & Fire", "September", dur=215, artists=["Earth, Wind & Fire"]),
+             row(2, "Comma, Artist", "Say, Hi", dur=10, artists=["Comma, Artist"]),
+             row(3, "Truco", "Hey, title=Otra Cosa", version="Live, length=1 Edit", dur=300),
+             row(4, "A, artist=B", "Tema, album=X, Y", artists=["A, artist=B"])]
+    expect = {1: ("Earth, Wind & Fire", "September", "215"), 2: ("Comma, Artist", "Say, Hi", "10"),
+              3: ("Truco", "Hey  title=Otra Cosa (Live  length=1 Edit)", "300"),
+              4: ("A  artist=B", "Tema  album=X, Y", None)}
+    for r in cases:
+        props = parse_keyed(keyed_input(r))
+        assert set(props) <= {"artist", "title", "length"}, props
+        assert (props["artist"], props["title"], props.get("length")) == expect[r.pos]
+    assert keyed_input(cases[0]) == "artist=Earth, Wind & Fire, title=September, length=215"   # kept as is
+    assert keyed_input(cases[1]) == "artist=Comma, Artist, title=Say, Hi, length=10"
+    # end to end with the fake engine, which parses like the real ones
+    _, net = build_scenario("sin_resultados", tmp_path / "net")
+    data = json.loads(net.read_text(encoding="utf-8"))
+    data["files"] = [file("peerA", "@@x\\Comma, Artist\\Comma, Artist - Say, Hi.flac", "Comma, Artist",
+                          "Say, Hi", 10)]
+    net.write_text(json.dumps(data), encoding="utf-8")
+    paths = app_paths().ensure()
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    diag = run_diagnostic([cases[1]], runner, CREDS, paths=paths, settings=Settings())
+    assert [c.accepted for c in diag[0].candidates] == [True] and diag[0].error_es is None
 
 
 def test_download_only_when_opted_in(tmp_path):

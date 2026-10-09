@@ -177,8 +177,10 @@ class SessionWorker(QThread):
                     res = self.session.doc.results.get(uid)
                     snap = RowResult.from_dict(res.to_dict()) if res is not None else None
                     from tracklister.pipeline.session import SessionEvent
+                    # a copy that no longer fits the set's format is downloaded instead: say so
+                    msg = snap.reasons[0] if snap is not None and snap.reasons else "Copiado de tu biblioteca"
                     self.session_event.emit(SessionEvent("row_state", uid, snap.state if snap else None,
-                                                         "Copiado de tu biblioteca", 1, 1), snap)
+                                                         msg, 1, 1), snap)
             runner = self.runner_factory()
             if self.mode == "retry":
                 self.session.retry_failed(runner, self.creds, self._on_event, self.cancel)

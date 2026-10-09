@@ -4,8 +4,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
     python packaging/ci_prepare.py --tag v1.0.0 --owner <repository owner> [--repo tracklister]
 
-- The tag must be exactly "v" + tracklister.__version__. Otherwise the job stops: an exe that
-  reports another version would make the in-app update notice wrong forever.
+- The tag must be exactly "v" + tracklister.__version__, and pyproject.toml must say the same
+  version. Otherwise the job stops: an exe that reports another version would make the in-app
+  update notice wrong forever. Pre-releases ("v1.0.1rc1") follow the same rule.
 - GITHUB_OWNER (src/tracklister/config.py) is the single constant that points the update check
   and the MusicBrainz User-Agent at the published repo. If it is still the placeholder, this
   script fills it in with the repository owner for THIS build only (the runner's checkout; nothing
@@ -18,11 +19,13 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 CONFIG = REPO / "src" / "tracklister" / "config.py"
 INIT = REPO / "src" / "tracklister" / "__init__.py"
+PYPROJECT = REPO / "pyproject.toml"
 PLACEHOLDER = "OWNER_PLACEHOLDER"           # the value of GITHUB_OWNER until the repo is published
 _OWNER_LINE = re.compile(r'^(GITHUB_OWNER\s*=\s*)"([^"]*)"', re.MULTILINE)
 _REPO_LINE = re.compile(r'^GITHUB_REPO\s*=\s*"([^"]*)"', re.MULTILINE)
@@ -34,6 +37,23 @@ def app_version(init: Path = INIT) -> str:
     if not m:
         raise ValueError(f"no __version__ in {init}")
     return m.group(1)
+
+
+def pyproject_version(path: Path | None = None) -> str:
+    with open(path or PYPROJECT, "rb") as f:
+        data = tomllib.load(f)
+    try:
+        return str(data["project"]["version"])
+    except (KeyError, TypeError) as e:
+        raise ValueError("no hay [project] version en pyproject.toml") from e
+
+
+def check_versions(app: str, pyproject: str) -> str | None:
+    """Error message, or None when pyproject.toml and the app say the same version."""
+    if app != pyproject:
+        return (f"La versión de pyproject.toml ({pyproject}) no coincide con la de la app ({app}, "
+                "src/tracklister/__init__.py). Pon la misma en los dos.")
+    return None
 
 
 def check_tag(tag: str, version: str) -> str | None:
@@ -78,7 +98,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--repo", default=None, help="the repository name (github.event.repository.name)")
     ap.add_argument("--placeholder", default=PLACEHOLDER, help="the placeholder value of GITHUB_OWNER")
     a = ap.parse_args(argv)
-    error = check_tag(a.tag, app_version())
+    try:
+        error = check_versions(app_version(), pyproject_version()) or check_tag(a.tag, app_version())
+    except ValueError as e:
+        error = str(e)
     if error:
         print(f"::error::{error}")
         return 1

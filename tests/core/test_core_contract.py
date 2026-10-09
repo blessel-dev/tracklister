@@ -24,6 +24,12 @@ def test_new_optional_fields_load_from_old_files():
     assert r.rejected_peers == [] and r.peer == "peerA"
     back = RowResult.from_dict(RowResult(uid="u2", pos=2, rejected_peers=["a", "b"]).to_dict())
     assert back.rejected_peers == ["a", "b"]
+    # round 2 (N3): set.json files without lossy_asked still load; the field round-trips
+    old = SetDoc(set_id="s", name="n", preset_id="lossless").to_dict()
+    del old["lossy_asked"]
+    assert SetDoc.from_dict(old).lossy_asked == []
+    doc = SetDoc(set_id="s", name="n", preset_id="lossless", lossy_asked=["u1"])
+    assert SetDoc.from_dict(doc.to_dict()).lossy_asked == ["u1"]
 
 
 def test_setdoc_roundtrip(tmp_path):

@@ -137,6 +137,42 @@ def test_tag_must_be_v_plus_the_app_version():
     assert ci.check_tag(f"v{__version__}", __version__) is None
     for tag in ("v9.9.9", __version__, f"V{__version__}", f"v{__version__}-rc1"):
         assert tag in ci.check_tag(tag, __version__)
+    assert ci.check_tag("v1.0.1rc1", "1.0.1rc1") is None                  # a pre-release follows the same rule
+
+
+def test_r2_n10_pyproject_must_say_the_same_version(tmp_path, monkeypatch, capsys):
+    assert ci.pyproject_version() == __version__                            # the real files agree today
+    assert ci.check_versions("1.0.0", "1.0.0") is None
+    msg = ci.check_versions("1.0.1", "1.0.0")
+    assert "pyproject.toml (1.0.0)" in msg and "(1.0.1" in msg
+    other = tmp_path / "pyproject.toml"
+    other.write_text('[project]\nname = "tracklister"\nversion = "9.9.9"\n', encoding="utf-8")
+    monkeypatch.setattr(ci, "PYPROJECT", other)
+    assert ci.main(["--tag", f"v{__version__}", "--owner", "dj-amigo"]) == 1
+    assert "::error::" in capsys.readouterr().out and ci.CONFIG.read_text(encoding="utf-8").count("dj-amigo") == 0
+
+
+def _spec_function(name: str):
+    """A function of packaging/tracklister.spec (which only PyInstaller can run as a whole)."""
+    import ast
+    import re as re_mod
+    tree = ast.parse((REPO / "packaging" / "tracklister.spec").read_text(encoding="utf-8"))
+    node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
+    ns = {"re": re_mod}
+    exec(compile(ast.Module(body=[node], type_ignores=[]), "tracklister.spec", "exec"), ns)  # noqa: S102
+    return ns[name]
+
+
+def test_r2_n10_the_spec_accepts_pre_release_versions():
+    version_numbers = _spec_function("version_numbers")
+    assert version_numbers(__version__) == tuple(int(x) for x in __version__.split(".")) + (0,)
+    assert version_numbers("1.0.1rc1") == (1, 0, 1, 0)
+    assert version_numbers("1.1.0-beta.2") == (1, 1, 0, 0)
+    assert version_numbers("2.0.0.dev3") == (2, 0, 0, 0) and version_numbers("3") == (3, 0, 0, 0)
+    with pytest.raises(ValueError):
+        version_numbers("versión")
+    src = (REPO / "packaging" / "tracklister.spec").read_text(encoding="utf-8")
+    assert "nums = version_numbers(version)" in src and "int(x) for x in version.split" not in src
 
 
 def test_placeholder_owner_is_filled_in_for_the_build_only():
