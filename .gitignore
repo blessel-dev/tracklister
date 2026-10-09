@@ -32,10 +32,12 @@ descargas/
 downloads/
 Descargas/
 
-# Engine binaries are downloaded and SHA-256-verified at build time, never committed
+# Engine and yt-dlp binaries are downloaded and SHA-256-verified at build time, never committed
 third_party/engines/bin/
+third_party/yt-dlp/bin/
 *.exe
+*.part
 
-# Local scratch
+# Local scratch: never committed, and packaging/build.py refuses a bundle that contains it
 .tmp/
 *.tmp
