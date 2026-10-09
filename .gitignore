@@ -22,7 +22,10 @@ sldl.conf
 sockseek.conf
 settings.json
 library.json
-credentials*
+# Only credential files at the repo root or any credentials*.json: a pattern like `credentials*`
+# would also hide new source files such as src/tracklister/engine/credentials.py
+/credentials*
+credentials*.json
 *.secret
 .env
 descargas/
