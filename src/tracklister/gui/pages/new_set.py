@@ -271,8 +271,13 @@ class NewSetPage(QWidget):
 
     # ---- importing -----------------------------------------------------------------------------
     def _on_dropped(self, src: str) -> None:
-        p = Path(src)
-        self.import_source(p if not src.startswith(("http://", "https://")) and p.exists() else src)
+        is_file = False
+        if not src.startswith(("http://", "https://")) and "\n" not in src and len(src) < 1024:
+            try:
+                is_file = Path(src).is_file()
+            except (OSError, ValueError):
+                is_file = False
+        self.import_source(Path(src) if is_file else src)
 
     def open_file(self) -> None:
         if self._busy:
@@ -327,6 +332,16 @@ class NewSetPage(QWidget):
         self._set_busy(False)
         self.banner.show_message(f"No se pudo leer la tracklist. {msg}", "error")
 
+    def _link_actions(self, kind: str, links: list[str]) -> list:
+        """'Abrir en trackid.net' / 'Abrir la página' / 'Abrir la tracklist enlazada' buttons."""
+        if kind == "trackid_url":
+            url = links[0] if links else config.TRACKID_URL
+            return [("Abrir en trackid.net", lambda: self.services.open_url(url))]
+        if not links:
+            return []
+        text = "Abrir la página" if kind == "pegar_texto_url" else "Abrir la tracklist enlazada"
+        return [(text, lambda url=links[0]: self.services.open_url(url))]
+
     def _on_imported(self, result, mode: str | None) -> None:
         self._set_busy(False)
         self.last_result = result
@@ -334,9 +349,10 @@ class NewSetPage(QWidget):
         msg = getattr(result, "message_es", "") or ""
         warnings = list(getattr(result, "warnings_es", None) or [])
         kind = str(getattr(result, "kind", "") or "")
+        actions = self._link_actions(kind, list(getattr(result, "links", None) or []))
         if not rows:
-            actions = [("Abrir en trackid.net", lambda: self.services.open_url(config.TRACKID_URL))] \
-                if kind == "trackid_url" else []
+            if mode != "merge" and getattr(result, "candidates", None):
+                self._show_candidates(result)        # doubtful lists: let the user pick one
             self.banner.show_message(msg or "No he encontrado ninguna pista ahí.", "warn", actions=actions)
             return
         if mode is None and self.model.rowCount():
@@ -363,27 +379,22 @@ class NewSetPage(QWidget):
         text = " ".join(x for x in [msg] + warnings if x)
         if mode == "merge":
             text = f"Fuentes combinadas: {len(rows)} pistas. " + text
-        self.banner.show_message(text or f"{len(rows)} pistas.", "warn" if warnings else "ok")
+        self.banner.show_message(text or f"{len(rows)} pistas.", "warn" if warnings else "ok", actions=actions)
         if self.services.settings.enrichment_enabled:
             self.enrich()
 
     def _show_candidates(self, result) -> None:
+        """YouTube/SoundCloud: 'Comentario de @x · 22 pistas con tiempos · 11 likes', switchable."""
         cands = list(getattr(result, "candidates", None) or []) if result is not None else []
+        chosen = getattr(result, "chosen", None) if result is not None else None
         self.cand_box.clear()
-        if len(cands) < 2:
+        if len(cands) < 2 and not (cands and chosen is None):
             self.cand_row.hide()
             return
         for c in cands:
-            bits = [str(getattr(c, "label_es", "?")), f"{getattr(c, 'n_rows', '?')} pistas"]
-            if getattr(c, "has_times", False):
-                bits.append("con tiempos")
-            likes = getattr(c, "likes", None)
-            if likes:
-                bits.append(f"{likes} likes")
-            self.cand_box.addItem(" · ".join(bits))
-        chosen = getattr(result, "chosen", None)
-        if isinstance(chosen, int) and 0 <= chosen < len(cands):
-            self.cand_box.setCurrentIndex(chosen)
+            self.cand_box.addItem(str(getattr(c, "label_es", "?")))
+        self.cand_box.setPlaceholderText("Elige una tracklist")
+        self.cand_box.setCurrentIndex(chosen if isinstance(chosen, int) and 0 <= chosen < len(cands) else -1)
         switchable = all(getattr(c, "rows", None) for c in cands)
         self.cand_box.setEnabled(switchable)
         self.cand_hint.setText("" if switchable else
@@ -392,9 +403,17 @@ class NewSetPage(QWidget):
 
     def _on_candidate(self, i: int) -> None:
         cands = list(getattr(self.last_result, "candidates", None) or [])
-        if 0 <= i < len(cands) and getattr(cands[i], "rows", None):
-            self.model.set_rows(_copy_rows(cands[i].rows))
-            self.banner.show_message(f"Usando: {cands[i].label_es}.", "ok")
+        if not (0 <= i < len(cands)) or not getattr(cands[i], "rows", None):
+            return
+        c = cands[i]
+        self.model.set_rows(_copy_rows(c.rows))
+        ref = getattr(c, "source_ref", None)
+        if ref is not None:
+            self.sources = [ref]
+        if not self.name.text().strip():
+            self.name.setText(str(getattr(self.last_result, "suggested_name", None) or
+                                  f"Set {datetime.now():%Y-%m-%d %H%M}"))
+        self.banner.show_message(f"Usando: {c.label_es}.", "ok")
 
     # ---- enrichment ------------------------------------------------------------------------------
     def enrich(self) -> None:

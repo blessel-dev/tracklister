@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Callable, Iterable
 
-from PySide6.QtCore import QFileSystemWatcher, QMimeData, QObject, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QFileSystemWatcher, QMimeData, QObject, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QIntValidator, QPainter, QPixmap
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy,
                                QVBoxLayout, QWidget)
@@ -100,9 +100,18 @@ class Header(QWidget):
         lay.addLayout(self.nav)
         themes.bind(self, Header._apply_theme)
 
+    def event(self, e) -> bool:  # noqa: D401 - Qt override
+        # moving to a screen with another scale: pick the matching lockup again
+        if e.type() == QEvent.Type.DevicePixelRatioChange and getattr(self, "_theme", None) is not None:
+            self._apply_theme(self._theme)
+        return super().event(e)
+
     def _apply_theme(self, theme: Theme) -> None:
-        pm = QPixmap(str(asset_path(theme.files["lockup_2x"])))
-        pm.setDevicePixelRatio(2.0)
+        # the brand renders the lockup at 1x and 2x: use the one that matches the screen, never rescale text
+        self._theme = theme
+        hi = self.devicePixelRatioF() > 1.25
+        pm = QPixmap(str(asset_path(theme.files["lockup_2x" if hi else "lockup"])))
+        pm.setDevicePixelRatio(2.0 if hi else 1.0)
         self.lockup.setPixmap(pm)
         self.lockup.setFixedSize(pm.deviceIndependentSize().toSize())
         self._texture = QPixmap(str(asset_path(theme.files["header_texture"])))
@@ -111,6 +120,7 @@ class Header(QWidget):
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         r = self.rect()
         if self._texture is not None and not self._texture.isNull():
             tw, th = self._texture.width(), self._texture.height()
@@ -175,7 +185,8 @@ class Banner(QFrame):
                 item.widget().deleteLater()
         for text_, fn in actions:
             b = button(text_)
-            b.clicked.connect(fn)
+            # clicked(bool) must not reach fn: its default arguments (lambda url=...) would get False
+            b.clicked.connect(lambda _checked=False, fn=fn: fn())
             self.actions.addWidget(b)
         self.close_btn.setVisible(closable)
         self._apply_theme(self.themes.theme)

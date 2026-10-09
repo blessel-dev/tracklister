@@ -11,7 +11,7 @@ from PySide6.QtCore import QMimeData, Qt, QUrl
 
 from tests.gui.fakes import FakeCandidate, fake_import, sample_rows
 from tracklister import config
-from tracklister.core.model import RowStatus, TrackRow
+from tracklister.core.model import RowStatus, SourceRef, TrackRow
 from tracklister.gui.widgets import source_from_mime
 
 pytestmark = pytest.mark.gui
@@ -164,16 +164,19 @@ def test_add_other_source_merges(window, qtbot, prompter, ready_services, tmp_pa
 def test_youtube_candidates(window, qtbot, ready_services):
     page = window.new_set
     alt = [TrackRow(pos=1, title="Otra", artists=["X"], artist_display="X")]
-    cands = [FakeCandidate("Comentario de @travo1001", 22, True, 11, rows=sample_rows()),
-             FakeCandidate("Descripción del vídeo", 1, False, None, rows=alt)]
+    alt_ref = SourceRef("youtube", "https://www.youtube.com/watch?v=x", "youtube_description (1 pistas)")
+    cands = [FakeCandidate("Comentario de @travo1001 · 22 pistas con tiempos · 11 likes", 22, True, 11,
+                           rows=sample_rows()),
+             FakeCandidate("Descripción · 1 pista sin tiempos", 1, False, 0, rows=alt, source_ref=alt_ref)]
     ready_services.imports = [fake_import(kind="youtube", candidates=cands, chosen=0)]
     page.import_source("https://www.youtube.com/watch?v=x")
     _wait_rows(qtbot, page, 4)
     assert page.cand_row.isVisible() and page.cand_box.count() == 2
-    assert page.cand_box.itemText(0) == "Comentario de @travo1001 · 22 pistas · con tiempos · 11 likes"
-    assert page.cand_box.isEnabled()
+    assert page.cand_box.itemText(0) == "Comentario de @travo1001 · 22 pistas con tiempos · 11 likes"
+    assert page.cand_box.isEnabled() and page.cand_box.currentIndex() == 0
     page._on_candidate(1)
     assert page.model.rowCount() == 1 and page.model.row_at(0).title == "Otra"
+    assert page.sources == [alt_ref]
     # candidates without rows are shown but cannot be switched
     ready_services.imports = [fake_import(kind="youtube", candidates=[FakeCandidate("A", 3), FakeCandidate("B", 2)],
                                           chosen=1)]
@@ -182,6 +185,25 @@ def test_youtube_candidates(window, qtbot, ready_services):
     _wait_rows(qtbot, page, 4)
     assert page.cand_box.currentIndex() == 1 and not page.cand_box.isEnabled()
     assert "pégala" in page.cand_hint.text()
+
+
+def test_doubtful_lists_and_linked_tracklist(window, qtbot, ready_services):
+    """No clear tracklist: the doubtful ones are offered in the list, plus the linked page."""
+    page = window.new_set
+    cands = [FakeCandidate("Comentario de @a · 5 pistas sin tiempos", 5, False, 2, rows=sample_rows())]
+    ready_services.imports = [fake_import([], kind="youtube", candidates=cands, chosen=None,
+                                          message_es="No he encontrado una tracklist clara.",
+                                          suggested_name="Boiler Room",
+                                          links=["https://www.1001tracklists.com/tracklist/x"])]
+    page.import_source("https://www.youtube.com/watch?v=z")
+    qtbot.waitUntil(lambda: not page._busy, timeout=5000)
+    assert page.model.rowCount() == 0 and page.cand_row.isVisible() and page.cand_box.currentIndex() == -1
+    btn = page.banner.actions.itemAt(0).widget()
+    assert btn.text() == "Abrir la tracklist enlazada"
+    btn.click()
+    assert ready_services.opened_urls[-1] == "https://www.1001tracklists.com/tracklist/x"
+    page._on_candidate(0)
+    assert page.model.rowCount() == 4 and page.name.text() == "Boiler Room"
 
 
 def test_enrichment_runs_after_import(window, qtbot, ready_services):

@@ -117,12 +117,12 @@ def test_update_notice_with_link(window, qtbot, ready_services):
     qtbot.wait(50)
     assert not window.update_holder.isVisible()                      # nothing new: no notice
     ready_services.update_info = FakeUpdate("1.0.1", "https://github.com/x/tracklister/releases/tag/v1.0.1",
-                                            "Tracklister 1.0.1")
+                                            "Tracklister 1.0.1 ya está disponible")
     window.go("settings")
     window.settings_page.update_btn.click()
     qtbot.waitUntil(lambda: window.update_holder.isVisible(), timeout=5000)
     assert ready_services.update_calls[-1] is True                   # 'Buscar actualizaciones' forces it
-    assert "Tracklister 1.0.1" in window.update_banner.message()
+    assert window.update_banner.message().startswith("Tracklister 1.0.1 ya está disponible.")
     window.update_banner.actions.itemAt(0).widget().click()
     assert ready_services.opened_urls[-1].endswith("/v1.0.1")
     window.update_banner.close_btn.click()

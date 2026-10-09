@@ -26,6 +26,7 @@ class FakeCandidate:
     has_times: bool = True
     likes: int | None = None
     rows: list | None = None
+    source_ref: SourceRef | None = None
 
 
 @dataclass
@@ -38,6 +39,7 @@ class FakeImport:
     candidates: list = field(default_factory=list)
     chosen: int | None = None
     suggested_name: str | None = None
+    links: list = field(default_factory=list)
 
 
 @dataclass

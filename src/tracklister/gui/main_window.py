@@ -172,9 +172,9 @@ class MainWindow(QMainWindow):
         if not info:
             return
         self.update_info = info
-        name = getattr(info, "name_es", None) or f"Tracklister {getattr(info, 'latest', '')}"
+        name = getattr(info, "name_es", None) or f"Tracklister {getattr(info, 'latest', '')} ya está disponible"
         url = getattr(info, "url", None) or config.project_url()
-        self.update_banner.show_message(f"Hay una versión nueva: {name}. Se descarga desde su página de GitHub.",
+        self.update_banner.show_message(f"{name}. Se descarga desde su página de GitHub; no se instala nada solo.",
                                         "info", actions=[("Ver la novedad", lambda: self.services.open_url(url))])
         self.update_holder.show()
 
