@@ -22,6 +22,29 @@ def test_library_key():
     assert library_key("Sigur R\u00f3s", "Gla\u00f0ur", None) == "sigur ros|gladur|original"
 
 
+def test_r4_v_three_versions_three_keys(tmp_path):
+    """Audit round 4, second review, B2: 'Spirit (Kai Remix) (Radio Edit)' was keyed 'radio edit', so «Usar
+    el que ya tengo» offered the ORIGINAL's radio edit for it. Now the key keeps every version group."""
+    keys = {v: library_key("Fjaak", "Spirit", v) for v in ("Kai Remix - Radio Edit", "Radio Edit", "Kai Remix")}
+    assert len(set(keys.values())) == 3 and keys["Kai Remix - Radio Edit"] == "fjaak|spirit|kai remix radio edit"
+    assert library_key("Fjaak", "Spirit", "(Kai Remix) [Radio Edit]") == keys["Kai Remix - Radio Edit"]
+    assert library_key("Fjaak", "Spirit", "Kai Remix (Extended Mix)") == keys["Kai Remix"]
+    assert library_key("Fjaak", "Spirit", "Original Mix - Extended Mix").endswith("|original")
+    d = tmp_path / "lib" / "Set R"
+    d.mkdir(parents=True)
+    rows = [_row(1, "Fjaak", "Spirit", "Radio Edit"), _row(2, "Fjaak", "Spirit", "Kai Remix")]
+    for r in rows:
+        (d / f"0{r.pos} - Fjaak - Spirit ({r.version}).flac").write_bytes(b"x")
+    doc = SetDoc(set_id="rrrr", name="Set R", preset_id="lossless", rows=rows, results={
+        r.uid: RowResult(r.uid, r.pos, ResultState.VERIFICADO, file=f"0{r.pos} - Fjaak - Spirit ({r.version}).flac")
+        for r in rows})
+    lib = LibraryIndex(tmp_path / "library.json")
+    assert lib.add_from_set(d, doc) == 2
+    assert lib.find(_row(5, "Fjaak", "Spirit", "Kai Remix - Radio Edit")) == []
+    assert [e.pos for e in lib.find(_row(5, "Fjaak", "Spirit", "Radio Edit"))] == [1]
+    assert [e.pos for e in lib.find(_row(5, "Fjaak", "Spirit", "Kai Remix"))] == [2]
+
+
 def _set(tmp_path, name="Set A", set_id="aaaa1111"):
     d = tmp_path / "lib" / name
     d.mkdir(parents=True)

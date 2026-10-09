@@ -159,6 +159,22 @@ def test_r4_b2_diagnostic_rejects_a_title_with_a_word_more_or_less(want, got, du
     assert ok and score >= 80, why
 
 
+@pytest.mark.parametrize("dur", [30, None])
+def test_r4_v_diagnostic_rejects_the_originals_radio_edit_for_the_remixs_radio_edit(dur):
+    """Audit round 4, second review, B2: the Diagnostico judges versions group by group too."""
+    from tests.fakes.scenarios import row
+    from tracklister.core.textnorm import split_title_version
+    fmt = build_preset("lossless").passes[0]
+    base, version = split_title_version("Spirit (Kai Remix) (Radio Edit)")
+    r = row(1, "Fjaak", base, version, dur=30)
+    assert keyed_input(r) == "artist=Fjaak, title=Spirit (Kai Remix), length=30"
+    for wrong in ("Spirit (Radio Edit)", "Spirit (Kai Remix)", "Spirit"):
+        score, ok, why = judge_candidate(r, fmt, f"@@x\\Fjaak\\Fjaak - {wrong}.flac", dur, None)
+        assert not ok and score < 50 and "otra versión" in why, (wrong, why)
+    score, ok, why = judge_candidate(r, fmt, "@@x\\Fjaak\\Fjaak - Spirit (Kai Remix) (Radio Edit).flac", dur, None)
+    assert ok and score >= 80, why
+
+
 def test_download_only_when_opted_in(tmp_path):
     rows, runner, paths = _setup(tmp_path)
     diag = run_diagnostic(rows, runner, CREDS, download=True, max_rows=1, paths=paths, settings=Settings())

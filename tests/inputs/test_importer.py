@@ -145,6 +145,78 @@ def test_r4_b3_a_pasted_remix_or_live_keeps_its_version(tmp_path, line, version)
         assert row_key(r) != library_key("Fjaak", "Spirit", None)
 
 
+def _every_input(tmp_path, title: str, mix: str | None = None) -> dict[str, object]:
+    """The same track through each import path: own CSV (',' and ';'), own XLSX, trackid.net CSV, pasted
+    text. A Mix column only exists in the own tables."""
+    from tests.inputs.fixturegen import write_xlsx
+    head, cells = ["Artista", "Título"] + (["Mix"] if mix else []), ["Fjaak", title] + ([mix] if mix else [])
+    tables = {}
+    for name, sep in (("coma.csv", ","), ("puntoycoma.csv", ";")):
+        p = tmp_path / name
+        p.write_text(sep.join(head) + "\n" + sep.join(f'"{c}"' for c in cells) + "\n", encoding="utf-8")
+        tables[name] = p
+    tables["tabla.xlsx"] = tmp_path / "tabla.xlsx"
+    write_xlsx(tables["tabla.xlsx"], [head, cells])
+    if mix is None:
+        trackid = tmp_path / "trackid.csv"
+        trackid.write_text(f'Pos,Start,End,Artist,Title,Label\n1,00:00:00,00:05:00,Fjaak,"{title}",Drumcode\n',
+                           encoding="utf-8")
+        tables["trackid.csv"] = trackid
+        tables["texto"] = f"Fjaak - {title}"
+    return tables
+
+
+@pytest.mark.parametrize("title,mix", [("Spirit (Kai Remix) (Extended)", None), ("Spirit (Kai Remix) [Extended]", None),
+                                       ("Spirit (Kai Remix)", "Extended Mix")])
+def test_r4_v_b1_an_own_table_keeps_the_remix_behind_a_bare_extended_or_a_mix_column(tmp_path, title, mix):
+    """Audit round 4, second review, B1: an own CSV/XLSX with Title 'Spirit (Kai Remix) (Extended)' (or
+    '[Extended]', or the Mix column 'Extended Mix') lost the remix: engine title 'Spirit (Extended)', library
+    key 'original', and the original extended was VERIFICADO. Every path now gives the Kai Remix."""
+    from tracklister.engine.csvwriter import engine_title
+    from tracklister.library.index import row_key
+    for name, source in _every_input(tmp_path, title, mix).items():
+        res = import_source(source)
+        (r,) = res.rows
+        assert (r.title, r.version) == ("Spirit", "Kai Remix"), name
+        assert engine_title(r) == "Spirit (Kai Remix)" and row_key(r) == "fjaak|spirit|kai remix", name
+        assert row_key(r) != "fjaak|spirit|original" and r.download, name
+    for name, source in _every_input(tmp_path, "Song (Extended)").items():      # unchanged
+        assert import_source(source).rows[0].version == "Extended", name
+    for name, source in _every_input(tmp_path, "The Red House (Original)").items():
+        (r,) = import_source(source).rows
+        assert (r.title, r.version, row_key(r)) == ("The Red House", None, "fjaak|the red house|original"), name
+
+
+@pytest.mark.parametrize("title,version", [
+    ("Spirit (Kai Remix) (Radio Edit)", "Kai Remix - Radio Edit"),
+    ("Spirit (Radio Edit) (Kai Remix)", "Radio Edit - Kai Remix"),
+    ("Spirit (Kai Remix - Radio Edit)", "Kai Remix - Radio Edit"),
+    ("Spirit (Kai Remix) (Edit)", "Kai Remix - Edit"),
+    ("Spirit (Kai Remix) (Live)", "Kai Remix - Live"),
+    ("Spirit (Kai Remix) (Instrumental)", "Kai Remix - Instrumental"),
+    ("Spirit (Kai Remix) (Remastered)", "Kai Remix - Remastered"),
+    ("Spirit (Kai Remix) (2011 Remaster)", "Kai Remix - 2011 Remaster"),
+    ("Spirit (feat. Jo) Extended Mix [Kai Remix]", "Kai Remix"),
+    ("Spirit (feat. Jo) Extended Mix (Kai Remix)", "Kai Remix"),
+    ("Spirit (feat. Jo) Kai Remix (Radio Edit)", "Kai Remix - Radio Edit"),
+])
+def test_r4_v_b2_b3_every_input_keeps_the_remixer_and_its_other_group(tmp_path, title, version):
+    """B2: '(Kai Remix) (Radio Edit)' kept only 'Radio Edit' in every path (in pasted text the remixer went
+    to the notes), so the original's radio edit was searched with 'Spirit (Radio Edit)' and verified. B3:
+    the version after a feat group hid the remix in a table. Now every path gives the same version, and
+    the engine is asked for the remix ('Spirit (Kai Remix)')."""
+    from tracklister.engine.csvwriter import engine_title
+    from tracklister.library.index import library_key, row_key
+    for name, source in _every_input(tmp_path, title).items():
+        (r,) = import_source(source).rows
+        assert (r.title, r.version) == ("Spirit", version), name
+        assert "Kai Remix" not in r.notes and r.label in (None, "Drumcode"), name
+        assert engine_title(r) == "Spirit (Kai Remix)", name
+        assert row_key(r) not in (library_key("Fjaak", "Spirit", "Radio Edit"), library_key("Fjaak", "Spirit", None)), name
+        if "feat" in title and name != "trackid.csv":
+            assert r.feat == "Jo", name
+
+
 def test_review_rows_count_in_message():
     res = import_source(FIX / "una-columna.csv")
     assert res.message_es == "una-columna.csv: 3 pistas, 1 por revisar. Revisa la tabla antes de descargar."

@@ -13,8 +13,8 @@ from tracklister.core.model import (
 from tracklister.core.paths import app_paths
 from tracklister.core.settings import Settings, load_settings, save_settings
 from tracklister.core.textnorm import (
-    classify_version, nfc, norm_key, remixer_of, split_artists, split_title_version,
-    versions_compatible,
+    classify_version, merge_versions, nfc, norm_key, remixer_of, split_artists, split_title_version,
+    version_groups, versions_compatible,
 )
 
 
@@ -77,7 +77,7 @@ def test_split_title_version(title, base, version):
     ("Spirit - Kai Remix (Extended Mix)", "Kai Remix", VersionKind.REMIX),
     ("Spirit (Live at Awakenings)", "Live at Awakenings", VersionKind.LIVE),
     ("Spirit (Live)", "Live", VersionKind.LIVE),
-    ("Spirit (Kai Remix) (Radio Edit)", "Radio Edit", VersionKind.RADIO_EDIT),
+    ("Spirit (Kai Remix) (Radio Edit)", "Kai Remix - Radio Edit", VersionKind.RADIO_EDIT),
     ("Spirit (Extended Mix) [Drumcode]", "Extended Mix", VersionKind.EXTENDED),
     ("Spirit (Original Mix) (Extended Mix)", "Extended Mix", VersionKind.EXTENDED),
     ("Spirit (Original Mix)", "Original Mix", VersionKind.ORIGINAL),
@@ -85,10 +85,84 @@ def test_split_title_version(title, base, version):
 ])
 def test_r4_b3_no_version_group_is_lost(title, version, kind):
     """Audit round 4, B3: only the rightmost group with a version word was kept, so 'Spirit (Kai Remix)
-    (Extended Mix)' was the extended ORIGINAL, and '(Live ...)' had no version word at all. Now the
-    rightmost group that is not original/extended wins; labels are still dropped."""
+    (Extended Mix)' was the extended ORIGINAL, and '(Live ...)' had no version word at all. Now every
+    group that is not original/extended is kept (merge_versions; the radio edit of the Kai Remix keeps
+    its remixer since the second review of round 4); labels are still dropped."""
     assert split_title_version(title) == ("Spirit", version)
     assert classify_version(version) == kind
+
+
+@pytest.mark.parametrize("title,version", [
+    ("Spirit (Kai Remix) (Radio Edit)", "Kai Remix - Radio Edit"),
+    ("Spirit (Radio Edit) (Kai Remix)", "Radio Edit - Kai Remix"),
+    ("Spirit - Kai Remix (Radio Edit)", "Kai Remix - Radio Edit"),
+    ("Spirit (Kai Remix - Radio Edit)", "Kai Remix - Radio Edit"),
+    ("Spirit (Kai Remix) (Edit)", "Kai Remix - Edit"),
+    ("Spirit (Kai Remix) (Live)", "Kai Remix - Live"),
+    ("Spirit (Kai Remix) (Instrumental)", "Kai Remix - Instrumental"),
+    ("Spirit (Kai Remix) (Remastered)", "Kai Remix - Remastered"),
+    ("Spirit (Kai Remix) (2011 Remaster)", "Kai Remix - 2011 Remaster"),
+    ("Spirit (feat. Jo) Kai Remix (Radio Edit)", "Kai Remix - Radio Edit"),
+])
+def test_r4_v_a_remix_keeps_its_remixer_behind_another_group(title, version):
+    """Audit round 4, second review, B2: '(Kai Remix) (Radio Edit)' kept only 'Radio Edit' (and the same
+    with Edit, Live, Instrumental, Remastered), so the ORIGINAL's radio edit was VERIFICADO and offered
+    from the library. Now the version keeps every group, in written order, joined with ' - '."""
+    assert split_title_version(title) == ("Spirit", version)
+
+
+@pytest.mark.parametrize("title,version", [
+    ("Spirit (Kai Remix)", "Kai Remix"), ("Spirit (Kai Remix) (Extended Mix)", "Kai Remix"),
+    ("Spirit (Extended Mix) (Kai Remix)", "Kai Remix"), ("Spirit (Kai Remix) [Drumcode]", "Kai Remix"),
+    ("Spirit (Kai Remix) (Extended)", "Kai Remix"), ("Spirit (Kai Remix) [Extended]", "Kai Remix"),
+    ("Spirit (Kai Remix) - Extended Mix", "Kai Remix"),
+    ("Spirit (feat. Jo) Extended Mix (Kai Remix)", "Kai Remix"), ("Spirit (feat. Jo) Extended Mix [Kai Remix]", "Kai Remix"),
+    ("Spirit (Original Mix)", "Original Mix"), ("Spirit (Extended Mix)", "Extended Mix"),
+    ("Spirit (Extended)", "Extended"), ("Spirit (Radio Edit)", "Radio Edit"),
+    ("Spirit (Live at Awakenings)", "Live at Awakenings"), ("Spirit (Original)", None),
+])
+def test_r4_v_one_remix_or_the_original_is_unchanged(title, version):
+    """The original/extended groups still give way to any other group, and a single group is as before."""
+    assert split_title_version(title) == ("Spirit", version)
+
+
+def test_r4_v_merge_versions_is_the_one_rule():
+    assert merge_versions(["Kai Remix", "Extended Mix"]) == "Kai Remix"
+    assert merge_versions(["Original Mix", "Extended Mix"]) == "Extended Mix"
+    assert merge_versions(["Kai Remix", "Radio Edit"]) == "Kai Remix - Radio Edit"
+    assert merge_versions(["(Kai Remix) [Radio Edit]"]) == "Kai Remix - Radio Edit"
+    assert merge_versions(["Kai Remix", "kai remix"]) == "Kai Remix"             # no repeats
+    assert merge_versions(["Remix", "Kai Remix"]) == "Kai Remix"                 # a group inside another
+    assert merge_versions([None, ""]) is None and merge_versions([]) is None
+    for v in ("Kai Remix - Radio Edit", "Extended Mix", "Radio Edit - Kai Remix", "Live at Awakenings"):
+        assert merge_versions([merge_versions([v])]) == merge_versions([v]) == v
+    assert version_groups("Kai Remix - Radio Edit") == version_groups("(Kai Remix) [Radio Edit]") == [
+        "Kai Remix", "Radio Edit"]
+
+
+ROW = "Kai Remix - Radio Edit"
+
+
+@pytest.mark.parametrize("wanted,got,ok", [
+    (ROW, ROW, True), (ROW, "(Kai Remix) [Radio Edit]", True), (ROW, "Radio Edit - Kai Remix", True),
+    (ROW, "Radio Edit", False), (ROW, "Kai Remix", False), (ROW, "Edit", False), (ROW, None, False),
+    (ROW, "Original Mix", False), (ROW, "Other Remix - Radio Edit", False), (ROW, "Kai Remix - Edit", False),
+    ("Radio Edit", ROW, False), ("Radio Edit", "Radio Edit", True), ("Radio Edit", "Radio Mix", True),
+    ("Radio Edit", "Kai Remix Radio Edit", False), ("Radio Edit", "Kai Radio Edit", False),
+    ("Kai Remix", ROW, False), ("Kai Remix", "Kai Remix (Extended Mix)", True), ("Kai Remix", "Kai Remix", True),
+    ("Kai Remix", "Kai Remix Edit", False), ("Kai Remix", "Kai Edit", False),
+    ("FJAAK Remix", "Fjaak Remix", True), ("Kai Remix", "Kai Van Dongen Remix", True),
+    ("Kai Remix - Edit", "(Kai Remix) (Edit)", True), ("Kai Remix - Edit", "Edit", False),
+    ("Kai Remix - Edit", "Kai Remix", False), ("Edit", "Kai Remix - Edit", False),
+    ("Kai Remix - Live", "Kai Remix (Live)", True), ("Kai Remix - Live", "Live", False),
+    ("Kai Remix - Instrumental", "Kai Remix [Instrumental]", True), ("Kai Remix - Instrumental", "Instrumental", False),
+    ("Kai Remix - Remastered", "(Kai Remix) (Remastered)", True), ("Kai Remix - Remastered", "Remastered", False),
+    ("Kai Remix - Remastered", "Kai Remix", False), ("Live", "Kai Remix - Live", False),
+    (None, "Kai Remix - Radio Edit", False), (None, "Extended Mix", True),
+])
+def test_r4_v_versions_are_compared_group_by_group(wanted, got, ok):
+    """Every wanted group needs its own partner of the same kind in the file, and the other way round."""
+    assert versions_compatible(wanted, got)[0] is ok, versions_compatible(wanted, got)
 
 
 def test_version_rules():

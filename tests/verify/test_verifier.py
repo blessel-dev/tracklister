@@ -229,6 +229,30 @@ def test_r4_b3_the_extended_mix_of_the_wanted_remix_is_still_verified(tmp_path, 
         assert p.state == ResultState.VERIFICADO, (plain, p.reasons_es)
 
 
+@pytest.mark.parametrize("by", ["tags", "nombre"])
+@pytest.mark.parametrize("other", ["Radio Edit", "Edit", "Remastered"])
+def test_r4_v_a_remix_with_another_group_never_takes_the_original_or_the_plain_remix(tmp_path, by, other):
+    """Audit round 4, second review, B2: the row 'Spirit (Kai Remix) (Radio Edit)' kept only 'Radio Edit',
+    and versions_compatible compared just the kind, so the ORIGINAL's radio edit was VERIFICADO. Now the
+    row needs both groups: the original's radio edit and the full Kai Remix are another version."""
+    from tracklister.core.textnorm import split_title_version
+    base, version = split_title_version(f"Spirit (Kai Remix) ({other})")
+    row = _row(title=base, version=version, dur=None)
+    for wrong in (f"Spirit ({other})", "Spirit (Kai Remix)", "Spirit (Kai Remix) (Extended Mix)", "Spirit"):
+        tags = {"artist": "Fjaak", "title": wrong} if by == "tags" else None
+        v = _v(tmp_path, f"Fjaak - {wrong}.flac", row=row, tags=tags)
+        assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.VERSION, (wrong, v.reasons_es)
+        assert v.score <= 49 and any(r.startswith("Otra versión: se pedía") for r in v.reasons_es), v.reasons_es
+    for good in (f"Spirit (Kai Remix) ({other})", f"Spirit (Kai Remix - {other})"):
+        tags = {"artist": "Fjaak", "title": good} if by == "tags" else None
+        v = _v(tmp_path, f"Fjaak - {good}.flac", row=row, tags=tags)
+        assert v.state == ResultState.VERIFICADO and v.score == 95, (good, v.reasons_es)
+    plain = _row(title="Spirit", version=other, dur=None)          # and the plain one never takes the remix's
+    tags = {"artist": "Fjaak", "title": f"Spirit (Kai Remix) ({other})"} if by == "tags" else None
+    v = _v(tmp_path, f"Fjaak - Spirit (Kai Remix) ({other}).flac", row=plain, tags=tags)
+    assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.VERSION, v.reasons_es
+
+
 @pytest.mark.parametrize("accept", [LOSSLESS, CDJ], ids=["lossless", "cdj_antiguos"])
 @pytest.mark.parametrize("fmt", ["wav", "aiff"])
 @pytest.mark.parametrize("bits", [16, 24])

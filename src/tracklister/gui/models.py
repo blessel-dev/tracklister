@@ -17,7 +17,7 @@ from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from PySide6.QtGui import QColor
 
 from tracklister.core.model import DoubtKind, ResultState, RowResult, RowStatus, TrackIds, TrackRow
-from tracklister.core.textnorm import nfc, norm_key, split_artists, split_title_version
+from tracklister.core.textnorm import merge_versions, nfc, norm_key, split_artists, split_title_version
 from tracklister.gui.theme import Theme, mono_font, state_icon, state_label_es
 from tracklister.library.index import row_key
 
@@ -291,7 +291,7 @@ class TrackTableModel(QAbstractTableModel):
             if not r.title:
                 r.download = False
         elif key == "version":
-            r.version = text or None
+            r.version = merge_versions([text])      # the shared rule: '(Kai Remix) (Radio Edit)' -> 'Kai Remix - Radio Edit'
         elif key == "label":
             r.label = text or None
         if key in ("artist", "title", "version") and r.enrich_source and row_key(r) != track_before:

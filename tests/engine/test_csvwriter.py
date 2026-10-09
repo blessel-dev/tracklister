@@ -43,6 +43,29 @@ def test_csv_shape_and_manifest(tmp_path):
     assert {x.uid for x in m} == {r.uid for r in rows}
 
 
+@pytest.mark.parametrize("version,title", [
+    ("Kai Remix - Radio Edit", "Spirit (Kai Remix)"), ("Radio Edit - Kai Remix", "Spirit (Kai Remix)"),
+    ("Kai Remix - Edit", "Spirit (Kai Remix)"), ("Kai Remix - Live", "Spirit (Kai Remix)"),
+    ("Kai Remix - Instrumental", "Spirit (Kai Remix)"), ("Kai Remix - Remastered", "Spirit (Kai Remix)"),
+    ("(Kai Remix) (Radio Edit)", "Spirit (Kai Remix)"), ("Kai Remix (Extended Mix)", "Spirit (Kai Remix)"),
+    ("Live - Radio Edit", "Spirit (Radio Edit)"),
+    # one group: as always
+    ("Kai Remix", "Spirit (Kai Remix)"), ("Radio Edit", "Spirit (Radio Edit)"), ("Extended Mix", "Spirit (Extended Mix)"),
+    ("Original Mix", "Spirit"), (None, "Spirit"), ("Live at Awakenings", "Spirit (Live at Awakenings)"),
+])
+def test_r4_v_engine_title_asks_for_the_remixer_of_a_version_with_several_groups(tmp_path, version, title):
+    """Audit round 4, second review, B2: the row 'Spirit (Kai Remix) (Radio Edit)' was searched as 'Spirit
+    (Radio Edit)': --strict-title (a literal part of the file name) let the ORIGINAL's radio edit through and
+    refused 'Spirit (Kai Remix) (Radio Edit)'. Now the engine is asked for the remix; the verification and
+    --length-tol tell its edits apart."""
+    from tracklister.engine.csvwriter import engine_title
+    row = _row(1, "Fjaak", "Spirit", version)
+    assert engine_title(row) == title
+    p = tmp_path / "input.csv"
+    (item,) = write_engine_csv([row], p)
+    assert item.title == title and p.read_text(encoding="utf-8").splitlines()[1] == f'"Fjaak","{title}",""'
+
+
 def test_csv_refuses_empty_title_and_unchecked_rows(tmp_path):
     with pytest.raises(ValueError):
         write_engine_csv([_row(1, "Artist", "  ")], tmp_path / "a.csv")

@@ -112,6 +112,27 @@ def test_editing_cells(window):
     assert m.setData(m.index(0, 0), Qt.CheckState.Unchecked, CHECK) and not r0.download
 
 
+@pytest.mark.parametrize("text,version", [
+    ("Spirit (Kai Remix) (Extended)", "Kai Remix"), ("Spirit (Kai Remix) [Extended]", "Kai Remix"),
+    ("Spirit (Kai Remix) (Radio Edit)", "Kai Remix - Radio Edit"), ("Spirit (Kai Remix - Radio Edit)", "Kai Remix - Radio Edit"),
+    ("Spirit (Radio Edit) (Kai Remix)", "Radio Edit - Kai Remix"), ("Spirit (Kai Remix) (Edit)", "Kai Remix - Edit"),
+    ("Spirit (Kai Remix) (Remastered)", "Kai Remix - Remastered"),
+    ("Spirit (feat. Jo) Extended Mix (Kai Remix)", "Kai Remix"),
+    ("Spirit (feat. Jo) Kai Remix (Radio Edit)", "Kai Remix - Radio Edit")])
+def test_r4_v_the_table_editor_keeps_every_version_group(window, text, version):
+    """Audit round 4, second review (B1-B3): the editor gives the same version as every import path."""
+    from tracklister.engine.csvwriter import engine_title
+    page = window.new_set
+    page.set_rows(sample_rows(), name="X")
+    m = page.model
+    assert m.setData(m.index(0, m.column_of("title")), text)
+    r0 = m.row_at(0)
+    assert (r0.title, r0.version) == ("Spirit", version) and engine_title(r0) == "Spirit (Kai Remix)"
+    assert m.setData(m.index(0, m.column_of("version")), "(Kai Remix) [Radio Edit]")
+    assert r0.version == "Kai Remix - Radio Edit"           # typed in the Version column: the same rule
+    assert m.setData(m.index(0, m.column_of("version")), "Kai Remix (Extended Mix)") and r0.version == "Kai Remix"
+
+
 def test_r4_editing_the_track_of_an_enriched_row_forgets_its_store_data(window):
     """Audit round 4 (with B1): a row corrected to another track kept the old track's duration and ids,
     so it was searched with the wrong length. Now they are cleared ('Descargar' completes them again);

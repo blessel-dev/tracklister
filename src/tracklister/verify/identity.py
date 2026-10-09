@@ -17,7 +17,8 @@ from rapidfuzz import fuzz
 
 from tracklister.core.model import TrackRow, VersionKind
 from tracklister.core.textnorm import (
-    VERSION_KW, classify_version, nfc, norm_key, split_artists, split_title_version, versions_compatible,
+    VERSION_KW, classify_version, nfc, norm_key, split_artists, split_title_version, version_is_original,
+    versions_compatible,
 )
 from tracklister.verify.audioinfo import AudioInfo
 
@@ -25,7 +26,6 @@ from tracklister.verify.audioinfo import AudioInfo
 _LEADING_NUM = re.compile(r"^\s*\(?\d{1,3}\)?\s*[.\-_)]+\s*(?=\S)|^\s*\(\d{1,3}\)\s+(?=\S)")
 _SCENE_GROUP = re.compile(r"(?<=[A-Za-z0-9)\]])-([A-Za-z0-9]{2,8})$")
 _DASH = re.compile(r"\s+[-\u2013\u2014]\s+")
-_FULL = (VersionKind.ORIGINAL, VersionKind.EXTENDED)
 # A title with other numbers ("Dust 1" / "Dust 2", "Untitled 1" / "Untitled 2", "A1" / "B2") is another
 # track, however close the rest of the text is: its score is capped well below every acceptance threshold.
 NUMBER_MISMATCH_MAX = 50.0
@@ -264,11 +264,10 @@ def row_artists(row: TrackRow) -> list[str]:
 
 
 def _version_ok(wanted: str | None, got_versions: list[str]) -> tuple[bool, str]:
-    wk = classify_version(wanted)
     if not got_versions:
         return versions_compatible(wanted, None)
     results = [versions_compatible(wanted, v) for v in got_versions]
-    if wk in _FULL:
+    if version_is_original(wanted):
         bad = [r for r in results if not r[0]]
         return (False, bad[0][1]) if bad else results[0]
     good = [r for r in results if r[0]]

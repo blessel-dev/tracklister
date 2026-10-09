@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import unicodedata
 
+import pytest
+
 from tracklister.core.model import RowStatus, TrackRow
 from tracklister.inputs.clean import clean_row, clean_rows, renumber
 
@@ -43,8 +45,11 @@ def test_version_split():
     assert (r.title, r.version) == ("Song", "Y Remix")
     r = clean_row(_row("X", "Movement (Part 2)"))           # same base title as the verifier computes
     assert r.title == "Movement" and "quitado del título: (Part 2)" in r.notes
-    kept = clean_row(_row("Truncate", "Dust 1 (Kai Van Dongen Remix)", version="Other Remix"))
-    assert kept.version == "Other Remix" and kept.title == "Dust 1"
+    # a version the row already has (a table's Mix column) is one more group: none hides the other
+    both = clean_row(_row("Truncate", "Dust 1 (Kai Van Dongen Remix)", version="Other Remix"))
+    assert both.version == "Kai Van Dongen Remix - Other Remix" and both.title == "Dust 1"
+    same = clean_row(_row("Truncate", "Dust 1 (Kai Van Dongen Remix)", version="Kai Van Dongen Remix"))
+    assert same.version == "Kai Van Dongen Remix"
 
 
 def test_nfc_and_typographic_quotes():
@@ -80,10 +85,50 @@ def test_duplicates_inside_the_set_are_noted_and_pos_renumbered():
     assert rows[2].download                                      # noted, not unchecked
 
 
+@pytest.mark.parametrize("title,mix,version", [
+    ("Spirit (Kai Remix) (Extended)", None, "Kai Remix"),
+    ("Spirit (Kai Remix) [Extended]", None, "Kai Remix"),
+    ("Spirit (Kai Remix)", "Extended Mix", "Kai Remix"),
+    ("Spirit (Extended)", "Kai Remix", "Kai Remix"),
+    ("Spirit (Kai Remix) (Radio Edit)", None, "Kai Remix - Radio Edit"),
+    ("Spirit (Kai Remix)", "Radio Edit", "Kai Remix - Radio Edit"),
+    ("Spirit", "(Kai Remix) (Radio Edit)", "Kai Remix - Radio Edit"),
+    ("Spirit (Kai Remix) (Radio Edit)", "Radio Edit", "Kai Remix - Radio Edit"),
+])
+def test_r4_v_b1_no_version_group_of_a_table_row_is_lost(title, mix, version):
+    """Audit round 4, second review, B1: a bare '(Extended)' (or a Mix column) set the version first, and
+    the 'Kai Remix' of the title was thrown away without a note: the original extended was searched,
+    verified and offered from the library. Now they are all groups of one version (core merge_versions)."""
+    r = clean_row(_row("Fjaak", title, version=mix))
+    assert (r.title, r.version) == ("Spirit", version) and r.notes == []
+
+
+@pytest.mark.parametrize("title,version", [
+    ("Spirit (feat. Jo) Extended Mix [Kai Remix]", "Kai Remix"),
+    ("Spirit (feat. Jo) Extended Mix (Kai Remix)", "Kai Remix"),
+    ("Spirit (feat. Jo) Kai Remix (Radio Edit)", "Kai Remix - Radio Edit"),
+    ("Spirit (feat. Jo) Kai Remix", "Kai Remix"),
+])
+def test_r4_v_b3_the_version_after_a_feat_group_never_hides_the_remix(title, version):
+    """B3: 'Title (feat. X) Extended Mix (Kai Remix)' took 'Extended Mix' first and dropped the remix."""
+    r = clean_row(_row("Fjaak", title))
+    assert (r.title, r.feat, r.version) == ("Spirit", "Jo", version)
+    dub = clean_row(_row("Bongoloverz", "Power Of Music (feat. An-Tonic) Bongoloverz Dub"))
+    assert (dub.title, dub.feat, dub.version) == ("Power Of Music", "An-Tonic", "Bongoloverz Dub")
+
+
+def test_r4_v_duplicates_tell_the_three_versions_apart():
+    rows = clean_rows([_row("Fjaak", "Spirit (Kai Remix) (Radio Edit)"), _row("Fjaak", "Spirit (Radio Edit)"),
+                       _row("Fjaak", "Spirit (Kai Remix)"), _row("Fjaak", "Spirit (Kai Remix - Radio Edit)")])
+    assert [r.notes for r in rows] == [[], [], [], ["repetida (fila 1)"]]
+
+
 def test_clean_rows_is_idempotent_and_does_not_mutate_input():
     src = [_row("Roll Dann, Laster Records", "The Red House (Original)", label="LASTER RECORDS"),
            _row("Funk Tribu ft. LUCY DYE", "All Of It"), _row("Phara", "Grey Ribbon"),
-           _row("Phara", "Grey Ribbon"), _row("X", "Movement (Part 2)"), _row("", "Solo título")]
+           _row("Phara", "Grey Ribbon"), _row("X", "Movement (Part 2)"), _row("", "Solo título"),
+           _row("Fjaak", "Spirit (Kai Remix) (Extended)"), _row("Fjaak", "Spirit (Kai Remix)", version="Radio Edit"),
+           _row("Fjaak", "Spirit (feat. Jo) Extended Mix (Kai Remix)"), _row("Fjaak", "Spirit (Radio Edit) (Kai Remix)")]
     before = [r.to_dict() for r in src]
     once = clean_rows(src)
     twice = clean_rows(once)

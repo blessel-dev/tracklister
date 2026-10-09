@@ -22,7 +22,7 @@ import re
 from dataclasses import asdict, dataclass, field
 
 from tracklister.core.model import RowStatus, TrackRow
-from tracklister.core.textnorm import VERSION_KW, norm_key, pick_version, split_artists
+from tracklister.core.textnorm import VERSION_KW, is_version_group, merge_versions, norm_key, split_artists, version_groups
 
 # ---------------------------------------------------------------- model
 
@@ -121,12 +121,10 @@ def _clean_title(row: ParsedLine, title: str) -> None:
         core, groups = tail.group(1).strip(), tail.group(2)
         if core and VERSION_KW.search(core):
             row.feat = row.feat or m.group(2).strip()
-            if not row.version:
-                after_feat = core
-            else:
-                row.notes.append(core)
+            after_feat = core
             t = m.group(1).rstrip() + groups
-    versions: list[str] = []      # version groups, right to left: pick_version() chooses (round 4, B3)
+    # version groups, right to left: core.textnorm.merge_versions keeps them all (round 4, second review)
+    versions: list[str] = []
     while True:  # trailing (...) or [...] groups
         m = re.search(r"\s*([\(\[])\s*([^()\[\]]*?)\s*[\)\]]\s*$", t)
         if not m or m.start() == 0:
@@ -145,26 +143,36 @@ def _clean_title(row: ParsedLine, title: str) -> None:
                 row.label = rest
         elif BPM_NOTE.match(inner):
             row.notes.append(inner)
-        elif VERSION_KW.search(inner) and not row.version:
+        elif is_version_group(inner):
             versions.append(inner)
         elif not row.label:
             row.label = inner
         else:
             row.notes.append(inner)
-    if after_feat:                # 'Title (feat. X) Y Dub (Z)': left of the trailing groups
-        versions.append(after_feat)
-    if versions:
-        row.version = pick_version(versions)
-        row.notes += [v for v in reversed(versions) if v != row.version]
+    # written order: 'Title Original Mix (feat. X) Y Dub (Z) [W]' -> Original Mix, Y Dub, Z, W
+    written = ([after_feat] if after_feat else []) + versions[::-1]
     m = re.search(r"\s+(?:feat\.?|ft\.?|featuring)\s+(.+)$", t, re.I)
     if m:
         row.feat = row.feat or m.group(1).strip()
         t = t[:m.start()]
     m = re.search(r"\s+((?:original|extended|radio|club|dub|vocal|instrumental)\s+(?:mix|edit|version))$", t, re.I)
-    if m and not row.version:
-        row.version = m.group(1)
+    if m:
+        written.insert(0, m.group(1))
         t = t[:m.start()]
+    if written:
+        _set_version(row, written)
     row.title = t.strip(" -,;\"'\u201c\u201d\u2018\u2019")
+
+
+def _set_version(row: ParsedLine, groups: list[str]) -> None:
+    """row.version from its groups with the shared rule; the original/extended groups it leaves out go
+    to the notes (the remixer never does: it is in the version, audit round 4, second review)."""
+    row.version = merge_versions([row.version] + groups)
+    kept = {norm_key(g, drop_original=False) for g in version_groups(row.version)}
+    for g in groups:
+        for part in version_groups(g):
+            if norm_key(part, drop_original=False) not in kept and part not in row.notes:
+                row.notes.append(part)
 
 
 def _set_artist(row: ParsedLine, a: str) -> None:
@@ -233,8 +241,8 @@ def parse_track(s: str, has_ts: bool) -> ParsedLine | None:
     for e in extra:
         if norm_key(e) == norm_key(row.artist):
             continue
-        if VERSION_KW.search(e) and not row.version:
-            row.version = e.strip()
+        if is_version_group(e):          # 'A - T (Kai Remix) - Radio Edit': one more group, never the label
+            _set_version(row, [e.strip()])
         elif not row.label:
             row.label = e.strip()
         row.notes.append("3+ partes: revisar")

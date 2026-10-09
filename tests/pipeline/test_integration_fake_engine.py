@@ -1013,3 +1013,83 @@ def test_r4_b1_only_rows_matched_by_artist_title_and_version_inherit():
     assert by_pos[3] not in {r.uid for r in old_rows} and by_pos[5] not in {r.uid for r in old_rows}
     assert len(set(by_pos.values())) == 5
     assert set(doc.results) == {old_rows[0].uid, old_rows[1].uid, old_rows[3].uid}
+
+
+# ---- external audit, round 4, second review (veredicto-r4.json, iteration 2) ------------------------
+
+def _pass_titles(s: SetSession) -> list[str]:
+    return [i["title"] for i in read_json(Path(s.doc.passes[-1].work_dir) / "pass.json")["items"]]
+
+
+@pytest.mark.parametrize("cells", ['Fjaak;"Spirit (Kai Remix) (Extended)"', 'Fjaak;"Spirit (Kai Remix) [Extended]"',
+                                   'Fjaak;"Spirit (Kai Remix)";Extended Mix'])
+def test_r4_v_b1_an_own_table_with_a_bare_extended_gets_the_remix_never_the_original(tmp_path, cells):
+    """Second review of round 4, B1: an own CSV with Title 'Spirit (Kai Remix) (Extended)' (or '[Extended]',
+    or a Mix column 'Extended Mix') was the ORIGINAL extended: «Usar el que ya tengo» offered a previous
+    set's original extended, the engine was asked for 'Spirit (Extended)' and that file was VERIFICADO.
+    Now the row is the Kai Remix: nothing is offered, the engine is asked for 'Spirit (Kai Remix)', and
+    the Kai Remix's extended mix is verified."""
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    from tracklister.inputs.importer import import_source
+    h = Harness(tmp_path)
+    original = fake_file("peerA", "@@x\\Fjaak\\Fjaak - Spirit (Extended).flac", "Fjaak", "Spirit (Extended)", 30)
+    remix = fake_file("peerB", "@@y\\Fjaak\\Fjaak - Spirit (Kai Remix) (Extended Mix).flac", "Fjaak",
+                      "Spirit (Kai Remix) (Extended Mix)", 30)
+    net = _network(h, "v-b1", [original, remix])
+    prev, runner0 = _set_with(h, "Set anterior", [fake_row(1, "Fjaak", "Spirit", "Extended")], net)
+    h.run(prev, runner0)
+    prev.finalize(h.library)
+    assert _res(prev, 1).state == ResultState.VERIFICADO and _res(prev, 1).peer == "peerA"
+    table = tmp_path / "tabla.csv"
+    head = "Artista;Título;Mix" if cells.count(";") == 2 else "Artista;Título"
+    table.write_text(f"{head}\n{cells}\n", encoding="utf-8")
+    rows = import_source(table).rows
+    assert [(r.title, r.version) for r in rows] == [("Spirit", "Kai Remix")]
+    s, runner = _set_with(h, "Set B1 tabla", rows, net)
+    assert s.find_duplicates(h.library) == []
+    h.run(s, runner)
+    assert _pass_titles(s) == ["Spirit (Kai Remix)"]
+    r = _res(s, 1)
+    assert r.state == ResultState.VERIFICADO and r.peer == "peerB", r.reasons
+    assert r.file == "01 - Fjaak - Spirit (Kai Remix).flac" and "peerA" not in r.rejected_peers
+
+
+def test_r4_v_b2_the_radio_edit_of_a_remix_never_takes_the_originals_radio_edit(tmp_path):
+    """Second review of round 4, B2: the pasted line 'Fjaak - Spirit (Kai Remix) (Radio Edit)' was the
+    plain radio edit: the engine was asked for 'Spirit (Radio Edit)', the ORIGINAL's radio edit came first
+    and was VERIFICADO, and «Usar el que ya tengo» offered it from a previous set. Now the engine is asked
+    for 'Spirit (Kai Remix)' (the original's radio edit never passes --strict-title), the full Kai Remix
+    goes to _dudosos as another version, the next «Reintentar fallos» bans its user and gets the Kai
+    Remix's radio edit, named with both groups."""
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    from tracklister.inputs.importer import import_source
+    h = Harness(tmp_path)
+    radio = fake_file("peerA", "@@x\\Fjaak\\Fjaak - Spirit (Radio Edit).flac", "Fjaak", "Spirit (Radio Edit)", 30)
+    full = fake_file("peerB", "@@y\\Fjaak\\Fjaak - Spirit (Kai Remix).flac", "Fjaak", "Spirit (Kai Remix)", 30)
+    good = fake_file("peerC", "@@z\\Fjaak\\Fjaak - Spirit (Kai Remix) (Radio Edit).flac", "Fjaak",
+                     "Spirit (Kai Remix) (Radio Edit)", 30)
+    prev, runner0 = _set_with(h, "Set anterior", [fake_row(1, "Fjaak", "Spirit", "Radio Edit")],
+                              _network(h, "v-b2-prev", [radio]))
+    h.run(prev, runner0)
+    prev.finalize(h.library)
+    assert _res(prev, 1).state == ResultState.VERIFICADO and _res(prev, 1).peer == "peerA"
+    rows = import_source("Fjaak - Spirit (Kai Remix) (Radio Edit)").rows
+    assert [(r.title, r.version, r.notes) for r in rows] == [("Spirit", "Kai Remix - Radio Edit", [])]
+    s, runner = _set_with(h, "Set B2", rows, _network(h, "v-b2", [radio, full, good]))
+    assert s.find_duplicates(h.library) == []
+    h.run(s, runner)
+    assert _pass_titles(s) == ["Spirit (Kai Remix)"]
+    r = _res(s, 1)
+    assert r.state == ResultState.DUDOSO and r.doubt == DoubtKind.VERSION and r.score <= 49, r.reasons
+    assert r.peer == "peerB" and r.file == "_dudosos/01 - Fjaak - Spirit (Kai Remix - Radio Edit).flac"
+    assert any(x.startswith("Otra versión: se pedía 'Kai Remix - Radio Edit'") for x in r.reasons), r.reasons
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    argv = read_json(Path(s.doc.passes[-1].work_dir) / "pass.json")["argv_redacted"]
+    assert argv[argv.index("--banned-users") + 1] == "peerB"
+    r = _res(s, 1)
+    assert r.state == ResultState.VERIFICADO and r.peer == "peerC", r.reasons
+    assert r.file == "01 - Fjaak - Spirit (Kai Remix - Radio Edit).flac" and "peerA" not in r.rejected_peers
+    s.finalize(h.library)
+    assert _tag_title(s.set_dir / r.file) == "Spirit (Kai Remix) (Radio Edit)"       # peerC's file, not peerA's
+    again = SetSession.load(s.set_dir, Settings(preset_id="lossless", library_root=str(h.lib_root)), h.paths)
+    assert again.pending_rows() == []                         # a re-run keeps it: idempotent

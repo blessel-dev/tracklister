@@ -202,6 +202,24 @@ def test_r4_b2_a_title_with_a_word_more_or_less_is_never_proposed(tmp_path, want
     assert by[1].status == "match" and by[1].src.name == f"Amelie Lens - {want}.mp3"
 
 
+def test_r4_v_the_originals_radio_edit_is_never_proposed_for_the_remixs_radio_edit(tmp_path):
+    """Audit round 4, second review, B2: the row 'Spirit (Kai Remix) (Radio Edit)' was a plain radio edit,
+    so the original's radio edit was a full match. Now it (and the full remix) stay as they are."""
+    from tracklister.core.textnorm import split_title_version
+    folder = tmp_path / "s"
+    _make(folder, ["Fjaak - Spirit (Radio Edit).mp3", "Fjaak - Spirit (Kai Remix).mp3"])
+    base, version = split_title_version("Spirit (Kai Remix) (Radio Edit)")
+    rows = [_row(1, "Fjaak", base, version)]
+    props = propose_reorder(folder, rows)
+    assert _by_pos(props)[1].status == "missing"
+    assert {p.src.name for p in props if p.status == "extra"} == {"Fjaak - Spirit (Radio Edit).mp3",
+                                                                   "Fjaak - Spirit (Kai Remix).mp3"}
+    _make(folder, ["Fjaak - Spirit (Kai Remix) (Radio Edit).mp3"])
+    by = _by_pos(propose_reorder(folder, rows))
+    assert by[1].status == "match" and by[1].src.name == "Fjaak - Spirit (Kai Remix) (Radio Edit).mp3"
+    assert by[1].dst.name == "01 - Fjaak - Spirit (Kai Remix - Radio Edit).mp3"
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])

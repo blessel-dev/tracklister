@@ -20,14 +20,16 @@ import copy
 import re
 
 from tracklister.core.model import RowStatus, TrackRow, VersionKind
-from tracklister.core.textnorm import classify_version, nfc, norm_key, split_artists, split_title_version
+from tracklister.core.textnorm import (
+    classify_version, is_version_group, merge_versions, nfc, norm_key, split_artists, split_title_version,
+    version_is_original,
+)
 from tracklister.inputs.tlparse import FEAT_KW, FEAT_THEN_VERSION, TRAILING_GROUPS, VERSION_KW, is_id_text
 
 DUP_NOTE = "repetida (fila {pos})"
 _DUP_PREFIX = "repetida (fila "
 _FEAT_TAIL = re.compile(r"\s*[\(\[]?\s*\b(?:feat\.?|ft\.?|featuring)\s+([^()\[\]]+?)\s*[\)\]]?\s*$", re.I)
 _TRAILING_GROUP = re.compile(r"\s*[\(\[]\s*([^()\[\]]*?)\s*[\)\]]\s*$")
-_EXTENDED_GROUP = re.compile(r"\s*[\(\[]\s*(extended)\s*[\)\]]\s*$", re.I)
 _LABEL_SUFFIX = re.compile(r"\s+(?:records|recordings|rec|music|label|digital|records ltd)$")
 
 
@@ -78,20 +80,20 @@ def _split_feat_from_artist(row: TrackRow) -> None:
 
 def _split_title(row: TrackRow) -> None:
     """Base title and version apart, with core.textnorm.split_title_version (the same rule the
-    verifier applies to file tags). Feat values are kept; other dropped groups go to the notes."""
-    m = FEAT_THEN_VERSION.match(row.title)             # "Title (feat. X) Y Dub"
+    verifier applies to file tags). Every version group of the title counts: the text after a feat
+    group, the bracket groups, a bare '(Extended)'; and the version the row already has (a table's
+    Version/Mix column) is one more group on their right. core.textnorm.merge_versions joins them, so
+    none hides another: 'Spirit (Kai Remix) (Extended)' and 'Spirit (Kai Remix)' with Mix 'Extended Mix'
+    are the Kai Remix (audit round 4, second review, B1-B3). Feat values are kept; other dropped groups
+    go to the notes."""
+    t = row.title
+    m = FEAT_THEN_VERSION.match(t)                      # "Title (feat. X) Y Dub": keep the feat
     if m:
         tail = TRAILING_GROUPS.match(m.group(3))
-        core, groups = tail.group(1).strip(), tail.group(2)
-        if core and VERSION_KW.search(core):
+        if tail.group(1).strip() and VERSION_KW.search(tail.group(1)):
             row.feat = row.feat or m.group(2).strip()
-            row.version = row.version or core
-            row.title = m.group(1).rstrip() + groups
-    m = _EXTENDED_GROUP.search(row.title)               # "(Extended)" alone is a version too
-    if m and m.start() > 0:
-        row.version = row.version or "Extended"
-        row.title = row.title[:m.start()]
-    t, dropped = row.title, []
+            t = m.group(1).rstrip() + tail.group(2)
+    dropped = []
     while True:
         g = _TRAILING_GROUP.search(t)
         if not g or g.start() == 0:
@@ -100,7 +102,7 @@ def _split_title(row: TrackRow) -> None:
         fm = FEAT_KW.match(inner)
         if fm:
             row.feat = row.feat or fm.group(1).strip()
-        elif inner and not VERSION_KW.search(inner) and classify_version(inner) != VersionKind.ORIGINAL \
+        elif inner and not is_version_group(inner) and classify_version(inner) != VersionKind.ORIGINAL \
                 and norm_key(inner) != norm_key(row.label):
             dropped.append(inner)
     m = re.search(r"\s+(?:feat\.?|ft\.?|featuring)\s+(.+)$", t, re.I)
@@ -109,8 +111,7 @@ def _split_title(row: TrackRow) -> None:
     base, version = split_title_version(row.title)
     if base:
         row.title = base
-        if row.version is None and version:
-            row.version = version
+        row.version = merge_versions([version, row.version])
         for d in reversed(dropped):
             row.notes.append(f"quitado del título: ({d})")
 
@@ -154,8 +155,8 @@ def clean_row(row: TrackRow) -> TrackRow:
 
 
 def duplicate_key(row: TrackRow) -> str:
-    kind = classify_version(row.version)
-    version = "original" if kind in (VersionKind.ORIGINAL, VersionKind.EXTENDED) else norm_key(row.version)
+    """Artist, base title and version: 'Kai Remix', 'Radio Edit' and 'Kai Remix - Radio Edit' are three tracks."""
+    version = "original" if version_is_original(row.version) else norm_key(merge_versions([row.version]))
     return f"{norm_key(row.search_artist)}|{norm_key(row.title)}|{version}"
 
 

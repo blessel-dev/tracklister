@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Sequence
 
 from tracklister.core.model import TrackRow, VersionKind
-from tracklister.core.textnorm import classify_version, nfc
+from tracklister.core.textnorm import classify_version, merge_versions, nfc, remixer_of, version_groups
 
 HEADER = ("Artist", "Title", "Length")
 
@@ -45,10 +45,22 @@ def _clean(s: str) -> str:
 
 
 def engine_title(row: TrackRow) -> str:
-    """title_with_version, except an ORIGINAL version (or none) sends the base title."""
-    if not row.version or classify_version(row.version) == VersionKind.ORIGINAL:
+    """The text --strict-title must find in the file name (as is, brackets included).
+
+    - No version, or an ORIGINAL one: the base title.
+    - One version group (or only original/extended ones): title_with_version, as always.
+    - Several groups (audit round 4, second review): the base title with the first group that names a
+      remixer ('Spirit (Kai Remix)' for 'Kai Remix - Radio Edit'), else with the rightmost group. The
+      engine then demands the remixer and lets its edits through; the verification and --length-tol
+      tell them apart. 'Spirit (Radio Edit)' would have let the original's radio edit through instead."""
+    version = merge_versions([row.version])
+    if not version or classify_version(version) == VersionKind.ORIGINAL:
         return _clean(row.title)
-    return _clean(row.title_with_version)
+    groups = version_groups(version)
+    if len(groups) > 1:
+        named = [g for g in groups if remixer_of(g)]
+        version = named[0] if named else groups[-1]
+    return _clean(f"{row.title} ({version})")
 
 
 def engine_artist(row: TrackRow) -> str:

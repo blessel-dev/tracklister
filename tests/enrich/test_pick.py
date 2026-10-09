@@ -62,6 +62,27 @@ def test_r4_b3_a_store_remix_or_live_behind_another_group_is_never_the_original(
     assert pick_best(row, [good]).accepted
 
 
+def test_r4_v_the_radio_edit_of_a_remix_never_takes_the_originals_radio_edit():
+    """Audit round 4, second review, B2: the row 'Spirit (Kai Remix) (Radio Edit)' was a plain radio edit,
+    so a store's radio edit of the ORIGINAL was 'compatible' and gave its duration to --length-tol."""
+    from tracklister.core.model import TrackIds
+    from tracklister.enrich.providers import make_candidate
+    row = _row("Fjaak", "Spirit", "Kai Remix - Radio Edit")
+    def cand(title, dur):
+        return make_candidate("itunes", "Fjaak", title, dur, TrackIds(), None)
+    for wrong in ("Spirit (Radio Edit)", "Spirit (Kai Remix)", "Spirit (Kai Remix) [Extended Mix]", "Spirit"):
+        p = pick_best(row, [cand(wrong, 200.0)])
+        assert not p.accepted and not p.version_ok, wrong
+    p = pick_best(row, [cand("Spirit (Radio Edit)", 200.0), cand("Spirit (Kai Remix)", 400.0),
+                        cand("Spirit (Kai Remix) [Radio Edit]", 215.0)])
+    assert p.accepted and p.candidate.duration_s == 215
+    for v, other in (("Kai Remix - Edit", "Spirit (Edit)"), ("Kai Remix - Remastered", "Spirit (Remastered)")):
+        assert not pick_best(_row("Fjaak", "Spirit", v), [cand(other, 200.0)]).accepted, v
+    # and the other way round: a plain radio edit row never takes the remix's radio edit
+    assert not pick_best(_row("Fjaak", "Spirit", "Radio Edit"), [cand("Spirit (Kai Remix) (Radio Edit)", 215.0)]).accepted
+    assert pick_best(_row("Fjaak", "Spirit", "Radio Edit"), [cand("Spirit (Radio Edit)", 200.0)]).accepted
+
+
 def test_thresholds():
     row = _row("ANFS", "Caballero")
     p = pick_best(row, [_c("Nicolas Grandfils", "Les trois caballeros", None, 305, "deezer")])

@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass
 
 from tracklister.core.model import RowStatus, TrackRow
-from tracklister.core.textnorm import nfc, split_artists, strip_accents
+from tracklister.core.textnorm import merge_versions, nfc, split_artists, strip_accents
 from tracklister.inputs.tabular import RawTable
 from tracklister.inputs.tlparse import is_id_text, needs_review, parse_line
 from tracklister.inputs.trackid import order_by_pos, parse_hms, parse_int, raw_line
@@ -148,7 +148,8 @@ def rows_from_table(t: RawTable, m: ColumnMapping, source: str = "tabla") -> lis
                             notes=["sin título"] if not title else [])]
         for r in new:
             r.raw = raw
-            r.version = r.version or version
+            # the Version/Mix column is one more version group, right of the title's (round 4, 2nd review)
+            r.version = merge_versions([r.version, version])
             r.label = r.label or label
             if r.ts_start is None:
                 r.ts_start = start

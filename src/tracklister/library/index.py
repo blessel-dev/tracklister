@@ -16,9 +16,9 @@ from pathlib import Path
 from tracklister.core.jsonio import read_json, write_json
 from tracklister.core.layout import set_doc_path
 from tracklister.core.model import (
-    LIBRARY_SCHEMA, DoubtKind, LibraryEntry, ResultState, SetDoc, TrackRow, VersionKind,
+    LIBRARY_SCHEMA, DoubtKind, LibraryEntry, ResultState, SetDoc, TrackRow,
 )
-from tracklister.core.textnorm import classify_version, norm_key, split_artists
+from tracklister.core.textnorm import classify_version, merge_versions, norm_key, split_artists, version_is_original
 from tracklister.organize.naming import win_long
 
 DURATION_TOL_S = 3.0
@@ -28,10 +28,11 @@ CARRIED_FLAGS = ("posible_falso_lossless",)
 
 
 def library_key(artist: str, title: str, version: str | None) -> str:
+    """'Kai Remix', 'Radio Edit' and 'Kai Remix - Radio Edit' are three keys (audit round 4, second
+    review); 'Original Mix', 'Extended Mix' and none are one ('original')."""
     parts = split_artists(artist)
     primary = parts[0] if parts else (artist or "")
-    kind = classify_version(version)
-    v = "original" if kind in (VersionKind.ORIGINAL, VersionKind.EXTENDED) else norm_key(version, drop_original=False)
+    v = "original" if version_is_original(version) else norm_key(merge_versions([version]), drop_original=False)
     return f"{norm_key(primary)}|{norm_key(title)}|{v}"
 
 
