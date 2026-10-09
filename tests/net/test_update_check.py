@@ -35,8 +35,10 @@ def test_fixtures_match_the_api_url(owner):
         assert fixture_path(GH / case, req).is_file(), case
 
 
-def test_placeholder_owner_sends_nothing(tmp_path):
-    assert config.GITHUB_OWNER == "OWNER_PLACEHOLDER" and not owner_configured()
+def test_placeholder_owner_sends_nothing(tmp_path, monkeypatch):
+    # Set explicitly: GITHUB_OWNER is filled in at publish time (and by the release workflow).
+    monkeypatch.setattr(config, "GITHUB_OWNER", "OWNER_PLACEHOLDER")
+    assert not owner_configured()
 
     def boom(req):
         raise AssertionError("no request may be sent while the owner is a placeholder")

@@ -174,8 +174,9 @@ def test_update_notice_with_link_once_a_day(qtbot, open_window, monkeypatch, tmp
     assert again is not None and again.latest == "1.0.1" and len(rt.calls) == 1
 
 
-def test_no_update_request_while_the_owner_is_a_placeholder(qtbot, open_window, tmp_path):
-    assert config.GITHUB_OWNER == "OWNER_PLACEHOLDER"
+def test_no_update_request_while_the_owner_is_a_placeholder(qtbot, open_window, monkeypatch, tmp_path):
+    # Set explicitly: GITHUB_OWNER is filled in at publish time (and by the release workflow).
+    monkeypatch.setattr(config, "GITHUB_OWNER", "OWNER_PLACEHOLDER")
     http, rt = replay("github", "newer")
     w = open_window(make_services(tmp_path, http=http))
     w.check_updates()

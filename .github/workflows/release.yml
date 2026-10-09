@@ -1,0 +1,93 @@
+# Build Tracklister.exe on Windows and publish a GitHub Release when a version tag is pushed.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Publish from the home PC:   git tag v1.0.0   then   git push origin v1.0.0
+# - The tag must be "v" + __version__ (src/tracklister/__init__.py); otherwise the job stops.
+# - The GitHub owner lives in ONE place: GITHUB_OWNER in src/tracklister/config.py. While it is
+#   still the placeholder below, packaging/ci_prepare.py fills it in with this repository's owner
+#   for this build only (nothing is committed) and leaves a warning on the run.
+# - Everything is offline-tested first (fake engine, no network); the real engines and yt-dlp are
+#   only downloaded and checked against their pinned SHA-256, never run.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  OWNER_PLACEHOLDER: OWNER_PLACEHOLDER    # value of GITHUB_OWNER until the repo is published
+  PYTHONUTF8: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  release:
+    name: Build, test and publish (Windows x64)
+    runs-on: windows-2025
+    timeout-minutes: 60
+    permissions:
+      contents: write                     # create the Release and upload its files
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Check the tag and the GitHub owner
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: python packaging\ci_prepare.py --tag "$env:GITHUB_REF_NAME" --owner "$env:GITHUB_REPOSITORY_OWNER" --repo "$env:REPO_NAME" --placeholder "$env:OWNER_PLACEHOLDER"
+
+      - name: Create the venv from the exact pins
+        run: |
+          python -m venv .venv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\.venv\Scripts\python.exe -m pip install --no-input -r requirements-dev.lock.txt
+
+      - name: Fetch the pinned engines (SHA-256 verified)
+        run: .\.venv\Scripts\python.exe tools\fetch_engine.py
+
+      - name: Fetch the pinned yt-dlp (SHA-256 verified)
+        run: .\.venv\Scripts\python.exe packaging\fetch_ytdlp.py
+
+      - name: Run the tests (offline, fake engine)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: .\.venv\Scripts\python.exe -m pytest -q
+
+      - name: Build the app and the release files
+        run: .\.venv\Scripts\python.exe packaging\build.py --zip --no-identity-scan
+
+      - name: Smoke-test the exe without Python on PATH
+        run: .\.venv\Scripts\python.exe packaging\smoke_test.py --offscreen --screenshot dist\smoke\first-run.png
+
+      - name: Publish the GitHub Release (files + SHA256SUMS.txt)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $files = @(Get-ChildItem dist\release -File | ForEach-Object { $_.FullName })
+          if ($files.Count -lt 4) { Write-Output "::error::dist\release is incomplete"; exit 1 }
+          gh release view $env:TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:TAG @files --repo $env:GITHUB_REPOSITORY --clobber
+          } else {
+            gh release create $env:TAG @files --repo $env:GITHUB_REPOSITORY --verify-tag `
+              --title "Tracklister $($env:TAG.TrimStart('v'))" --notes-file dist\release-notes.md
+          }
+          exit $LASTEXITCODE
