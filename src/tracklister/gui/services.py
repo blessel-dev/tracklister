@@ -3,7 +3,9 @@
 Owner: GUI step.
 SPDX-License-Identifier: GPL-3.0-or-later
 
-- No widgets here. Tests replace this class with tests/gui/fakes.FakeServices.
+- No widgets here. GUI unit tests replace this class with tests/gui/fakes.FakeServices; the
+  integration tests (tests/integration) use THIS class with the fake engine and an HttpClient
+  over recorded answers (`Services(http=...)`), so nothing leaves the machine.
 - inputs/enrich/net are imported lazily inside the methods, through their frozen interface
   (plan.md section 6), so the window still opens if one of them fails to import.
 - The Soulseek account only travels through engine.credentials (Windows Credential Manager).
@@ -62,12 +64,14 @@ def unavailable_import(source, error: Exception | None = None) -> SimpleNamespac
 
 
 class Services:
-    def __init__(self, paths: AppPaths | None = None, *, bundle: Path | None = None):
+    def __init__(self, paths: AppPaths | None = None, *, bundle: Path | None = None, http=None):
         self.paths = (paths or app_paths()).ensure()
         self.bundle = bundle if bundle is not None else bundled_dir()
         self.settings_warning_es: str | None = None
         self.settings = self._load_settings()
         self.credentials = CredentialStore()
+        self._http = http                    # net.http.HttpClient; tests pass one with a replay transport
+        self._http_lock = threading.Lock()
 
     # ---- settings ---------------------------------------------------------------------------
     def _load_settings(self) -> Settings:
@@ -202,20 +206,28 @@ class Services:
             return False, "No se encuentra yt-dlp. Vuelve a descomprimir Tracklister completo."
         return y.update()
 
+    def http(self):
+        """ONE HTTP client for the whole window (live transport), so the per-host spacing
+        (MusicBrainz at most 1 request per second, iTunes about 20 per minute) also holds across
+        successive imports, 'Completar datos' and the update check."""
+        with self._http_lock:
+            if self._http is None:
+                from tracklister.net.http import HttpClient, requests_transport
+                self._http = HttpClient(requests_transport())
+            return self._http
+
     def enrich(self, rows: list[TrackRow], on_progress: Callable[[int, int], None] | None = None,
                cancel: threading.Event | None = None) -> list:
         from tracklister.enrich.enricher import Enricher
-        from tracklister.net.http import HttpClient, requests_transport
-        http = HttpClient(requests_transport())
-        return Enricher(http, self.paths.enrich_cache_file).enrich(rows, on_progress=on_progress, cancel=cancel)
+        return Enricher(self.http(), self.paths.enrich_cache_file).enrich(rows, on_progress=on_progress,
+                                                                         cancel=cancel)
 
     def check_for_update(self, force: bool = False):
         try:
-            from tracklister.net.http import HttpClient, requests_transport
             from tracklister.net.update_check import check_for_update
+            http = self.http()
         except ImportError:
             return None
-        http = HttpClient(requests_transport())
         return check_for_update(http, current=config.APP_VERSION, state_path=self.paths.update_state_file,
                                 now=time.time(), force=force)
 
