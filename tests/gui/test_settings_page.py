@@ -33,6 +33,38 @@ def test_theme_selector_applies_live_and_persists(window, app):
     assert window.themes.theme.id == "hormigon" and _saved().theme == "hormigon"
 
 
+def test_fresh_settings_show_hormigon(window, app):
+    """User-confirmed default (DECISIONES M.1): a settings file without a theme opens in Hormigón."""
+    assert load_tokens()["default_theme"] == "hormigon"
+    assert _saved().theme is None
+    assert window.themes.theme.id == "hormigon" and not window.themes.theme.is_dark
+    assert load_tokens()["themes"]["hormigon"]["colors"]["bg"] in app.styleSheet()
+    window.go("settings")
+    sp = window.settings_page
+    assert sp.theme_buttons["hormigon"].isChecked() and not sp.theme_buttons["noche"].isChecked()
+
+
+def test_noche_persists_after_a_restart(window, app, qtbot, prompter, tmp_path):
+    from tests.gui.conftest import _make_window
+    from tests.gui.fakes import FakeServices
+    window.go("settings")
+    window.settings_page.theme_buttons["noche"].setChecked(True)
+    assert window.themes.theme.id == "noche" and _saved().theme == "noche"
+    window.close()
+    # "restart": new services read the settings file again, new window
+    again = FakeServices(library_root=tmp_path / "biblioteca")
+    assert again.settings.theme == "noche"
+    w2 = _make_window(qtbot, app, again, prompter)
+    try:
+        assert w2.themes.theme.id == "noche" and w2.themes.theme.is_dark
+        assert load_tokens()["themes"]["noche"]["colors"]["bg"] in app.styleSheet()
+        w2.go("settings")
+        assert w2.settings_page.theme_buttons["noche"].isChecked()
+    finally:
+        w2.pool.cancel_all()
+        w2.pool.wait_all(10000)
+
+
 def test_presets_and_custom_options(window):
     window.go("settings")
     sp = window.settings_page

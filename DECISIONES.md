@@ -58,7 +58,7 @@ Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditor
 11. **Aviso de actualización**: una vez al día como mucho, contra `releases/latest`. Solo muestra un aviso con enlace; no instala nada.
 12. **"Copiar tracklist"**: una línea por pista, `01. 00:00 Artista - Titulo (Version) [Sello]`. Sin tiempo conocido, se omite.
 13. **Informe por set**: `Informe - <set>.txt`, en español, junto a la música.
-14. **Tema por defecto, icono y logo**: tema Hormigón, icono con el monograma "T" y logo sin la marca "OR". Las alternativas ya están hechas; ver M.1 a M.3.
+14. **Tema por defecto, icono y logo**: tema Hormigón, icono con el monograma "T" y logo sin la marca "OR". Confirmados por ti el 9 oct; ver M.1 a M.3.
 15. **Entorno**:
     - Python 3.13.2, el único instalado en el portátil;
     - PySide6-Essentials 6.12.0 en lugar del PySide6 completo, que es más pesado;
@@ -138,11 +138,14 @@ Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditor
 14. **Actualizaciones**: se comprueba 1,5 s después de abrir (nunca en el primer inicio), como mucho una vez al día. "Buscar actualizaciones" en Ajustes la fuerza. Solo muestra un aviso con enlace.
 15. **Ventana**: título "Tracklister"; la cabecera muestra "Tracklister by Blessel" con su logo, sobre la textura de hormigón. Si cierras durante una descarga, se pregunta; si sales, se cancela y se guarda lo hecho.
 
-## M. Marca (pendiente de que la confirmes)
+## M. Marca
 
-1. **Tema por defecto**: Hormigón (`tokens.json` → `default_theme`). Noche está disponible en Ajustes. Para elegir, mira `construccion\capturas\00-vista-general.png`.
-2. **Icono de la app**: monograma "T" (Inter Bold, proporciones medidas), tinta sobre el gris del logo. Alternativa guardada: ranuras verticales (`assets/icon/alt/tracklister-alt.ico`).
-3. **Logo Blessel**: por defecto sin la marca "OR"; la versión con "OR" está en `assets/logo/alt/`.
+Los puntos 1 a 3 están **confirmados por ti** (9 oct, 07:25). El resto sigue pendiente de que lo confirmes.
+
+1. **Tema por defecto: Hormigón (confirmado)**, el gris, porque va más con el branding de Blessel (`tokens.json` → `default_theme`). Un archivo de ajustes nuevo abre en Hormigón.
+   - **El selector de tema de Ajustes se queda (confirmado)**: cada usuario puede elegir Noche; se aplica al momento y se guarda para el siguiente arranque. Lo comprueban `tests/gui/test_settings_page.py::test_fresh_settings_show_hormigon` y `::test_noche_persists_after_a_restart`.
+2. **Icono de la app: monograma "T" (confirmado)** (Inter Bold, proporciones medidas), tinta sobre el gris del logo. La alternativa con ranuras verticales se queda guardada en `assets/icon/alt/tracklister-alt.ico`, sin usar.
+3. **Logo Blessel: sin la marca "OR" (confirmado)**; la versión con "OR" se queda guardada en `assets/logo/alt/`, sin usar.
 4. **Acento único**: el azul gris de la lámpara de su portada de Mixcloud (Hormigón `#294654`, Noche `#5691ac`). El verde `#c8f542` de MavelPoint no se usa: es el tema de la plataforma, no su color.
 5. **Colores de estado** con contraste de texto (4,5:1 o más sobre fondo y superficies; 3:1 o más sobre la selección); siempre con icono propio y etiqueta, nunca solo color.
 6. **Fuentes incluidas**: Inter 4.1 (interfaz y títulos) y JetBrains Mono 2.304 (tiempos y datos), OFL 1.1, con sus licencias en `assets/fonts/`.
