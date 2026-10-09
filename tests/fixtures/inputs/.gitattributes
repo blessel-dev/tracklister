@@ -1,0 +1,2 @@
+# Encoding/BOM/line-ending fixtures: keep the bytes exactly as generated (no CRLF conversion).
+* -text

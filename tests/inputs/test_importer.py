@@ -1,0 +1,131 @@
+"""import_source: every input kind, Spanish messages, never an exception for user input."""
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from tracklister.core.model import RowStatus
+from tracklister.inputs.detect import InputKind
+from tracklister.inputs.importer import ImportResult, import_source
+from tracklister.inputs.trackid import GAP_TITLE
+
+FIX = Path(__file__).resolve().parents[1] / "fixtures" / "inputs"
+SAMPLE = FIX / "fjaak-techno-dj-set-section-may-2026.csv"
+VARIANTS = ("fjaak-coma-utf8-bom.csv", "fjaak-coma-cp1252.csv", "fjaak-puntoycoma-cp1252.csv",
+            "fjaak-puntoycoma-utf8-bom.csv", "fjaak-puntoycoma-utf8.csv", "fjaak-tab-utf16.txt", "fjaak.xlsx")
+
+
+def _names(res: ImportResult) -> list[tuple]:
+    return [(r.pos, r.artist_display, r.title, r.version, r.label, r.ts_start, r.ts_end, r.is_id, r.download)
+            for r in res.rows]
+
+
+def test_trackid_csv():
+    res = import_source(SAMPLE)
+    assert res.kind == InputKind.TRACKID_CSV
+    assert len(res.rows) == 21 and sum(r.title == GAP_TITLE for r in res.rows) == 4
+    assert res.message_es == ("trackid.net: 17 pistas, 4 filas ID (sin descargar). "
+                              "Revisa la tabla antes de descargar.")
+    assert res.suggested_name == "fjaak-techno-dj-set-section-may-2026"
+    (src,) = res.sources
+    assert (src.kind, src.ref, src.detail) == ("trackid_csv", SAMPLE.name, "trackid.net CSV (17 pistas, 4 huecos)")
+    assert "\\" not in src.ref and "/" not in src.ref                 # file name only, no folders
+    assert src.imported_at
+    assert res.rows[3].artist_display == "Roll Dann"
+    assert res.warnings_es == [] and res.candidates == [] and res.chosen is None
+
+
+@pytest.mark.parametrize("name", VARIANTS)
+def test_every_encoding_and_delimiter_gives_the_same_rows(name):
+    res = import_source(FIX / name)
+    assert res.kind == InputKind.TRACKID_CSV
+    assert _names(res) == _names(import_source(SAMPLE))
+
+
+def test_own_tables():
+    res = import_source(FIX / "pos-incompleto.csv")
+    assert res.kind == InputKind.TABLE and [r.pos for r in res.rows] == [1, 2, 3]
+    assert res.message_es == "pos-incompleto.csv: 3 pistas. Revisa la tabla antes de descargar."
+    res = import_source(FIX / "titulo-vacio.csv")
+    assert "2 filas ID (sin descargar)" in res.message_es
+    assert [r.download for r in res.rows] == [True, False, False, True]
+    res = import_source(FIX / "nfd.csv")
+    assert [r.title for r in res.rows] == ["Cuerpo Sólido", "Wise Saying"]
+    assert res.rows[1].artist_display == "Rødhåd"
+    res = import_source(FIX / "apostrofo.csv")
+    assert res.rows[0].title == "I'm Still Here"
+    res = import_source(FIX / "MAYUSCULAS.CSV")
+    assert [r.title for r in res.rows] == ["Grey Ribbon", "Glaður Og Reifur"]
+    assert len(import_source(FIX / "mas-de-99.csv").rows) == 120
+
+
+def test_headerless_table_warns():
+    res = import_source(FIX / "sin-cabecera.csv")
+    assert [(r.artist_display, r.title) for r in res.rows] == [("Phara", "Grey Ribbon"), ("Klint", "Gunslingers")]
+    assert any("No encontré los nombres de las columnas" in w for w in res.warnings_es)
+
+
+def test_duplicate_warning(tmp_path):
+    p = tmp_path / "dup.csv"
+    p.write_text("Artist,Title\nPhara,Grey Ribbon\nKlint,Gunslingers\nPhara,Grey Ribbon\n", encoding="utf-8")
+    res = import_source(p)
+    assert res.rows[2].notes == ["repetida (fila 1)"]
+    assert res.warnings_es == ["La fila 3 (Phara - Grey Ribbon) está repetida (fila 1)."]
+
+
+def test_text_file_and_pasted_text():
+    res = import_source(FIX / "tracklist.txt")
+    assert res.kind == InputKind.TEXT and len(res.rows) == 3
+    assert res.message_es == "tracklist.txt: 2 pistas, 1 fila ID (sin descargar)."
+    res = import_source("0:00 Phara - Grey Ribbon\n\n5:10 Klint - Gunslingers\nqué set!")
+    assert res.kind == InputKind.TEXT
+    assert [(r.artist_display, r.title, r.ts_start, r.ts_end) for r in res.rows] == [
+        ("Phara", "Grey Ribbon", 0, 310), ("Klint", "Gunslingers", 310, None)]
+    assert res.message_es == "Texto: 2 pistas (2 con tiempo)."
+    assert res.sources[0].ref == "texto" and res.suggested_name is None
+    empty = import_source("hola, ¿alguien sabe la tracklist?")
+    assert empty.rows == [] and empty.sources == [] and "No he encontrado pistas" in empty.message_es
+
+
+def test_problems_become_messages(tmp_path):
+    xls = tmp_path / "lista.xls"
+    xls.write_bytes(b"\xd0\xcf\x11\xe0" + b"\0" * 60)
+    res = import_source(xls)
+    assert res.kind == InputKind.XLS_UNSUPPORTED and res.rows == []
+    assert "Guarda el archivo como .xlsx o .csv" in res.message_es
+    assert "No encuentro el archivo set.csv" in import_source(tmp_path / "set.csv").message_es
+    assert "es una carpeta" in import_source(tmp_path).message_es
+    bad = tmp_path / "raro.csv"
+    bad.write_bytes(bytes(range(256)) * 4)
+    res = import_source(bad)                                       # never raises
+    assert isinstance(res, ImportResult)
+    pdf = tmp_path / "set.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    assert ".pdf" in import_source(pdf).message_es
+
+
+def test_links_that_cannot_be_read_automatically():
+    res = import_source("https://trackid.net/audiostreams/fjaak-techno-dj-set-section-may-2026")
+    assert res.kind == InputKind.TRACKID_URL and res.rows == []
+    assert "pulsa Export" in res.message_es
+    assert res.links == ["https://trackid.net/audiostreams/fjaak-techno-dj-set-section-may-2026"]
+    res = import_source("https://www.1001tracklists.com/tracklist/2abc/x.html")
+    assert res.kind == InputKind.PASTE_ONLY_URL and "1001tracklists" in res.message_es and "pégala" in res.message_es
+    assert "MixesDB" in import_source("https://www.mixesdb.com/w/2022-x").message_es
+    res = import_source("https://www.mixcloud.com/blessel/chapter-i/")
+    assert res.kind == InputKind.OTHER_URL and res.rows == []
+
+
+def test_youtube_without_ytdlp_explains_what_to_do():
+    res = import_source("https://www.youtube.com/watch?v=mD9ELt_Pvp4", ytdlp=None)
+    assert res.kind == InputKind.YOUTUBE and res.rows == []
+    assert "yt-dlp no está disponible" in res.message_es and "YouTube" in res.message_es
+    res = import_source("https://soundcloud.com/a/b", ytdlp=None)
+    assert "SoundCloud" in res.message_es
+
+
+def test_review_rows_count_in_message():
+    res = import_source(FIX / "una-columna.csv")
+    assert res.message_es == "una-columna.csv: 3 pistas, 1 por revisar. Revisa la tabla antes de descargar."
+    assert res.rows[2].status == RowStatus.REVISAR
