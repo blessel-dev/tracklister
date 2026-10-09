@@ -384,3 +384,10 @@ La segunda auditoría de la ronda 4 (`construccion\auditorias\claude-audit-raw-r
    - **N14.** La carpeta de la biblioteca del primer inicio admite una ruta relativa.
    - **N15.** Al cerrar durante una descarga, la ventana se cierra después de 30 s aunque el proceso siga.
    - **N16.** U.8 y T.4 siguen igual. La parte de U.8 N1 que pedía el mismo tipo de versión ya está en V.3, y lo de «Kaiser Remix» sigue pendiente.
+
+## W. Entrega (9 oct)
+1. **Exe de la HEAD final.** `packaging\build.py --zip` y `packaging\smoke_test.py --offscreen` sobre `9191dd6`, los dos con código 0. El zip de `entrega\` es el mismo archivo que `dist\release\Tracklister-1.0.0-win64.zip`.
+2. **`SHA256SUMS.txt` de la entrega** lleva la huella de los dos zips (`Tracklister-1.0.0-win64.zip` y `tracklister-repo.zip`), con el formato de `sha256sum`. `LEEME.md` no va en él: es un texto que se puede retocar.
+3. **`tracklister-repo.zip`** es la carpeta del repo con `.git`, sin `.venv`, `build`, `dist`, `.tmp`, `entrega` ni `__pycache__` (todos ignorados por git y regenerables). Dentro, `git status` sale limpio.
+4. **`LEEME.md`**: solo cambia la lista de archivos de la carpeta (ahora son cuatro, con `SHA256SUMS.txt`) y que el `Get-FileHash` del punto 4 vale también para comprobar la copia.
+5. **Capturas** regeneradas sobre la HEAD final con `tools\screenshots.py`, con el texto nuevo del Firewall («permite «sockseek.exe», el motor de descarga…»). Las páginas `00-vista-general-N.png` miden como mucho 1248×1346 px. La captura del exe (`capturas\exe\`) es la del smoke test de esta build.
