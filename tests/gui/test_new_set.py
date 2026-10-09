@@ -112,6 +112,30 @@ def test_editing_cells(window):
     assert m.setData(m.index(0, 0), Qt.CheckState.Unchecked, CHECK) and not r0.download
 
 
+def test_r4_editing_the_track_of_an_enriched_row_forgets_its_store_data(window):
+    """Audit round 4 (with B1): a row corrected to another track kept the old track's duration and ids,
+    so it was searched with the wrong length. Now they are cleared ('Descargar' completes them again);
+    a case-only edit, the label or the start keep them, and a duration typed by the user stays."""
+    from tracklister.core.model import TrackIds
+    page = window.new_set
+    page.set_rows(sample_rows(), name="X")
+    m = page.model
+    r0, r1 = m.row_at(0), m.row_at(1)
+    for r in (r0, r1):
+        r.expected_duration_s, r.ids, r.enrich_source = 637, TrackIds(isrc="X1"), "itunes"
+    for key, value in (("title", "SPIRIT"), ("label", "Otro sello"), ("start", "0:10")):
+        assert m.setData(m.index(0, m.column_of(key)), value)
+        assert (r0.expected_duration_s, r0.ids.isrc, r0.enrich_source) == (637, "X1", "itunes"), key
+    assert m.setData(m.index(0, m.column_of("title")), "Some Chords")
+    assert (r0.expected_duration_s, r0.ids, r0.enrich_source) == (None, TrackIds(), None)
+    assert m.setData(m.index(1, m.column_of("version")), "Kai Remix")
+    assert (r1.expected_duration_s, r1.enrich_source) == (None, None)
+    typed = m.row_at(3)
+    assert m.setData(m.index(3, m.column_of("duration")), "6:00") and typed.enrich_source is None
+    assert m.setData(m.index(3, m.column_of("title")), "Mercy")
+    assert typed.expected_duration_s == 360                     # typed by the user: never cleared (E.23)
+
+
 def test_move_and_remove_keep_row_index_numbering(window):
     page = window.new_set
     page.set_rows(sample_rows(), name="X")

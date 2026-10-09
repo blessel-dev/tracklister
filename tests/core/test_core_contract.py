@@ -71,6 +71,26 @@ def test_split_title_version(title, base, version):
     assert split_title_version(title) == (base, version)
 
 
+@pytest.mark.parametrize("title,version,kind", [
+    ("Spirit (Kai Remix) (Extended Mix)", "Kai Remix", VersionKind.REMIX),
+    ("Spirit (Extended Mix) (Kai Remix)", "Kai Remix", VersionKind.REMIX),
+    ("Spirit - Kai Remix (Extended Mix)", "Kai Remix", VersionKind.REMIX),
+    ("Spirit (Live at Awakenings)", "Live at Awakenings", VersionKind.LIVE),
+    ("Spirit (Live)", "Live", VersionKind.LIVE),
+    ("Spirit (Kai Remix) (Radio Edit)", "Radio Edit", VersionKind.RADIO_EDIT),
+    ("Spirit (Extended Mix) [Drumcode]", "Extended Mix", VersionKind.EXTENDED),
+    ("Spirit (Original Mix) (Extended Mix)", "Extended Mix", VersionKind.EXTENDED),
+    ("Spirit (Original Mix)", "Original Mix", VersionKind.ORIGINAL),
+    ("Spirit [Drumcode]", None, VersionKind.ORIGINAL),
+])
+def test_r4_b3_no_version_group_is_lost(title, version, kind):
+    """Audit round 4, B3: only the rightmost group with a version word was kept, so 'Spirit (Kai Remix)
+    (Extended Mix)' was the extended ORIGINAL, and '(Live ...)' had no version word at all. Now the
+    rightmost group that is not original/extended wins; labels are still dropped."""
+    assert split_title_version(title) == ("Spirit", version)
+    assert classify_version(version) == kind
+
+
 def test_version_rules():
     assert classify_version(None) == VersionKind.ORIGINAL
     assert classify_version("Extended Mix") == VersionKind.EXTENDED

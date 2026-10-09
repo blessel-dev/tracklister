@@ -12,6 +12,9 @@ from tracklister.verify.audioinfo import LOSSLESS_CONTAINERS, AudioInfo
 
 _LABEL = {"flac": "FLAC", "wav": "WAV", "aiff": "AIFF", "mp3": "MP3", "m4a": "M4A/AAC", "ogg": "OGG",
           "opus": "Opus", "unknown": "desconocido"}
+# The only codecs of a WAV or AIFF that are lossless (libsndfile subtypes). Anything else inside one of
+# them (u-law, A-law, IMA/MS ADPCM, GSM 6.10, G.721, an MP3...) is lossy: audit round 4, B6.
+PCM_SUBTYPES = frozenset({"PCM_S8", "PCM_U8", "PCM_16", "PCM_24", "PCM_32", "FLOAT", "DOUBLE"})
 
 
 @dataclass(frozen=True)
@@ -69,6 +72,10 @@ def check_quality(info: AudioInfo, accept: AcceptRule, *, lossy_allowed: bool) -
     if c not in accept.containers and c not in accept.convert_to_aiff:
         return QualityCheck(False, False, reasons + [f"Formato {_LABEL[c]} no permitido en este preset."],
                             flags + ["formato_no_permitido"])
+    if c in ("wav", "aiff") and info.subtype not in PCM_SUBTYPES:
+        return QualityCheck(False, False, reasons + [
+            f"{_LABEL[c]} con un códec con pérdida ({info.subtype or 'desconocido'}): no es lossless."],
+            flags + ["codec_con_perdida"])
     needs = c in accept.convert_to_aiff
     over_sr = bool(accept.max_samplerate and (info.samplerate or 0) > accept.max_samplerate)
     over_bd = bool(accept.max_bitdepth and (info.bitdepth or 0) > accept.max_bitdepth)

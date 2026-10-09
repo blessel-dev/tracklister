@@ -18,7 +18,7 @@ _QUOTES = str.maketrans({"\u2019": "'", "\u2018": "'", "\u00b4": "'", "`": "'",
 
 VERSION_KW = re.compile(
     r"\b(remix|rmx|mix|edit|dub|version|rework|re-?edit|vip|bootleg|flip|reprise|instrumental|"
-    r"acapella|a cappella|remaster(?:ed)?|interpretation|reshape|tool|jam|cut)\b", re.I)
+    r"acapella|a cappella|remaster(?:ed)?|interpretation|reshape|tool|jam|cut|live)\b", re.I)
 _ORIGINAL = re.compile(r"^(?:original|original mix|original version|extended|extended mix|"
                        r"extended version|club mix)$", re.I)
 _REMIX_WORDS = re.compile(r"\b(remix|rmx|rework|re-?edit|reshape|interpretation|bootleg|flip|vip|remake)\b", re.I)
@@ -58,29 +58,42 @@ def split_artists(a: str | None) -> list[str]:
     return [p.strip(" .") for p in parts if p and p.strip(" .")]
 
 
+def pick_version(groups: list[str]) -> str | None:
+    """The version among a title's version groups, given from right to left: the rightmost one that is
+    not the original or extended mix, so a remix, a live, a radio edit or a dub is never lost behind an
+    '(Extended Mix)': 'Spirit (Kai Remix) (Extended Mix)' is the Kai Remix (audit round 4, B3). When every
+    group is original or extended, the rightmost one."""
+    for g in groups:
+        if classify_version(g) not in (VersionKind.ORIGINAL, VersionKind.EXTENDED):
+            return g
+    return groups[0] if groups else None
+
+
 def split_title_version(title: str | None) -> tuple[str, str | None]:
     """'Higher Things (FJAAK Remix) [Label]' -> ('Higher Things', 'FJAAK Remix').
 
     Only trailing bracket groups that contain a version keyword count as the version;
     other trailing groups (labels, feat.) are dropped from the base title. Also handles
-    a trailing ' - Xyz Remix' and bare 'Original Mix' suffixes. The returned version keeps
-    its original text (e.g. 'Original Mix'); use classify_version() to interpret it.
+    a trailing ' - Xyz Remix' and bare 'Original Mix' suffixes. With several version groups,
+    pick_version() chooses ('(Kai Remix) (Extended Mix)' -> 'Kai Remix'). The returned version
+    keeps its original text (e.g. 'Original Mix'); use classify_version() to interpret it.
     """
     t = nfc(title)
-    version: str | None = None
+    groups: list[str] = []              # version groups, right to left
     while True:
         m = re.search(r"\s*([\(\[])\s*([^()\[\]]*?)\s*[\)\]]\s*$", t)
         if not m or m.start() == 0:
             break
         inner = m.group(2).strip()
         t = t[:m.start()].rstrip()
-        if inner and version is None and VERSION_KW.search(inner) and not re.match(r"(?i)feat|ft\b", inner):
-            version = inner
+        if inner and VERSION_KW.search(inner) and not re.match(r"(?i)feat|ft\b", inner):
+            groups.append(inner)
     m = re.search(r"\s+[-\u2013\u2014]\s+([^-\u2013\u2014]*\b(?:remix|rmx|edit|mix|dub|version|rework)\b[^-]*)$",
                   t, re.I)
-    if m and version is None:
-        version = m.group(1).strip()
+    if m:                               # ' - Kai Remix' is one more group, left of the brackets
+        groups.append(m.group(1).strip())
         t = t[:m.start()]
+    version = pick_version(groups)
     m = re.search(r"\s+((?:original|extended|radio|club|dub|vocal|instrumental)\s+(?:mix|edit|version))$", t, re.I)
     if m and version is None:
         version = m.group(1)

@@ -25,7 +25,7 @@ from tracklister.core.jsonio import read_json, write_json
 from tracklister.core.layout import DUDOSOS, ORIGINALES, REPORT_TEMPLATE, TRACKLIST_TEMPLATE, set_doc_path
 from tracklister.core.model import (
     QUARANTINE_DOUBTS, DuplicateChoice, LibraryEntry, PassRecord, ResultState, RowResult, SetDoc, SourceRef,
-    TrackRow,
+    TrackRow, new_uid,
 )
 from tracklister.core.paths import AppPaths
 from tracklister.core.settings import Settings
@@ -115,12 +115,19 @@ class DuplicateHit:
 
 
 def _merge_rows(old: SetDoc, rows: list[TrackRow]) -> None:
-    """Re-run: carry the old uid (and so the old results) over to the same track in the new table."""
+    """Re-run: carry the old uid (and so the old results) over to the same track in the new table.
+
+    Only a row matched by row_key (artist, title and version) inherits an old uid and its result. A row
+    edited in the Nuevo set table keeps the uid it had there, which is the old row's: it gets a new one,
+    so the old result and its file never pass for the corrected track (audit round 4, B1). In the end
+    every uid is unique (a repeated one goes to the lower row)."""
     by_key_pos = {(row_key(r), r.pos): r for r in old.rows}
     by_key: dict[str, list[TrackRow]] = {}
     for r in old.rows:
         by_key.setdefault(row_key(r), []).append(r)
+    old_uids = {r.uid for r in old.rows}
     used: set[str] = set()
+    unmatched: list[TrackRow] = []
     for r in rows:
         k = row_key(r)
         cand = by_key_pos.get((k, r.pos))
@@ -129,6 +136,13 @@ def _merge_rows(old: SetDoc, rows: list[TrackRow]) -> None:
         if cand is not None and (r.title or "").strip():
             r.uid = cand.uid
             used.add(cand.uid)
+        else:
+            unmatched.append(r)
+    seen = set(used)
+    for r in unmatched:                 # table order: of two rows with one uid, the lower gets a new one
+        if r.uid in old_uids or r.uid in seen:
+            r.uid = new_uid()
+        seen.add(r.uid)
     keep = {r.uid for r in rows}
     old.results = {u: res for u, res in old.results.items() if u in keep}
     old.rows = list(rows)

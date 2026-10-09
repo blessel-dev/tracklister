@@ -5,6 +5,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -77,3 +78,40 @@ def test_r3_n2_a_copy_that_fails_leaves_no_half_file_and_discard_reverts_the_bat
     assert j.discard(bid) == []
     assert not (s / "_originales").exists() and a.exists() and b.exists()   # sources untouched
     assert j.batches() == [] and Journal(s).batches() == []
+
+
+# ---- external audit, round 4 (claude-audit-raw-r4-1.txt) ---------------------------------------------
+
+def test_r4_b5_mkdir_on_a_drive_that_is_gone_fails_at_once(tmp_path, monkeypatch):
+    """B5: the parent of 'Q:\\' is 'Q:\\' itself, so walking up to the first existing folder never ended
+    when the library drive (a USB or network disk) was unplugged: the run hung and Cancelar could not
+    stop it. Now it is a FileNotFoundError (an OSError) straight away, and nothing is recorded."""
+    import tracklister.organize.journal as journal_mod
+    from tests.fakes.gone_drive import unplug_drive
+
+    s = tmp_path / "set"
+    s.mkdir()
+    j = Journal(s)
+    bid = j.begin("Pasada 1: lossless")
+    calls = unplug_drive(monkeypatch, journal_mod)
+    for gone in (Path("Q:/Sets/S/_dudosos"), Path("//servidor/recurso/Sets/S"), s / "_dudosos"):
+        with pytest.raises(FileNotFoundError) as e:
+            j.mkdir(bid, gone)
+        assert e.value.strerror == journal_mod.DRIVE_GONE_ES and e.value.filename == str(gone)
+    assert calls["isdir"] < 100
+    with pytest.raises(FileNotFoundError):
+        j.move(bid, tmp_path / "a.flac", Path("Q:/Sets/S/01 - X.flac"))
+    assert j.batches()[0]["ops"] == []                       # nothing recorded
+
+
+def test_r4_b5_mkdir_still_creates_and_records_the_missing_levels(tmp_path):
+    s = tmp_path / "set"
+    s.mkdir()
+    j = Journal(s)
+    bid = j.begin("x")
+    j.mkdir(bid, s / "_dudosos")
+    j.mkdir(bid, s / "_originales" / "dentro")
+    assert (s / "_dudosos").is_dir() and (s / "_originales" / "dentro").is_dir()
+    ops = j.batches()[0]["ops"]
+    assert [(o["op"], Path(o["dst"]).relative_to(s).as_posix()) for o in ops] == [
+        ("mkdir", "_dudosos"), ("mkdir", "_originales"), ("mkdir", "_originales/dentro")]

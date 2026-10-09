@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
+
 from tests.fakes.synth import make_track
 from tracklister.core.settings import CustomPreset
 from tracklister.engine.presets import build_preset
@@ -92,3 +94,41 @@ def test_unreadable(tmp_path):
     p.write_bytes(b"garbage" * 20)
     q = check_quality(probe(p), LOSSLESS, lossy_allowed=False)
     assert not q.ok and "ilegible" in q.flags
+
+
+# ---- external audit, round 4 (claude-audit-raw-r4-1.txt) ---------------------------------------------
+
+# (libsndfile cannot write an MP3 inside a WAV; one it cannot read is already "ilegible")
+LOSSY_CODECS = [("wav", "IMA_ADPCM", 2), ("wav", "MS_ADPCM", 2), ("wav", "ULAW", 2), ("wav", "ALAW", 2),
+                ("wav", "GSM610", 1), ("wav", "G721_32", 1),
+                ("aiff", "ULAW", 2), ("aiff", "ALAW", 2), ("aiff", "IMA_ADPCM", 2), ("aiff", "GSM610", 1)]
+
+
+@pytest.mark.parametrize("preset", ["lossless", "cdj_antiguos"])
+@pytest.mark.parametrize("fmt,subtype,channels", LOSSY_CODECS)
+def test_r4_b6_a_wav_or_aiff_with_a_lossy_codec_is_not_lossless(tmp_path, fmt, subtype, channels, preset):
+    """B6: only the container was checked, so a WAV or AIFF holding u-law, ADPCM, GSM... (or an MP3) passed
+    as lossless, and "CDJ antiguos" placed it untouched (4 or 8 bits are not over 24)."""
+    p = make_track(tmp_path / f"x.{fmt}", fmt=fmt, seconds=3, subtype=subtype, channels=channels)
+    info = probe(p)
+    assert (info.container, info.subtype) == (fmt, subtype)
+    q = check_quality(info, build_preset(preset).accept, lossy_allowed=False)
+    assert not q.ok and not q.needs_conversion and "codec_con_perdida" in q.flags
+    assert q.reasons_es[-1] == f"{fmt.upper()} con un códec con pérdida ({subtype}): no es lossless."
+
+
+@pytest.mark.parametrize("fmt", ["wav", "aiff"])
+def test_r4_b6_pcm_and_float_wav_aiff_are_still_lossless(tmp_path, fmt):
+    for bits in (16, 24):
+        info = probe(make_track(tmp_path / f"p{bits}.{fmt}", fmt=fmt, seconds=3, bitdepth=bits))
+        assert info.subtype == f"PCM_{bits}"
+        assert check_quality(info, LOSSLESS, lossy_allowed=False).ok
+        cdj = check_quality(info, CDJ, lossy_allowed=False)
+        assert cdj.ok and not cdj.needs_conversion
+    fl = probe(make_track(tmp_path / f"f.{fmt}", fmt=fmt, seconds=3, float_pcm=True))
+    assert fl.subtype == "FLOAT"
+    assert check_quality(fl, LOSSLESS, lossy_allowed=False).ok
+    cdj = check_quality(fl, CDJ, lossy_allowed=False)
+    assert cdj.ok and cdj.needs_conversion and "aiff_c_o_float" in cdj.flags
+    u8 = probe(make_track(tmp_path / f"u8.{fmt}", fmt=fmt, seconds=3, subtype="PCM_U8"))
+    assert check_quality(u8, LOSSLESS, lossy_allowed=False).ok          # 8-bit PCM stays as it is (N11)

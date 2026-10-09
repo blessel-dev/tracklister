@@ -9,6 +9,7 @@ in reverse order and reports, in Spanish, anything it could not revert.
 """
 from __future__ import annotations
 
+import errno
 import hashlib
 import os
 import shutil
@@ -20,6 +21,8 @@ from tracklister.core.jsonio import read_json, write_json
 from tracklister.core.layout import journal_path
 from tracklister.core.model import JOURNAL_SCHEMA, JournalOp
 from tracklister.organize.naming import unique_path, win_long
+
+DRIVE_GONE_ES = "No se encuentra la unidad de la carpeta del set: ¿se ha desconectado el disco?"
 
 
 def _now() -> str:
@@ -79,6 +82,10 @@ class Journal:
         missing = []
         p = d
         while not os.path.isdir(win_long(p)):
+            if p.parent == p:
+                # the root of a drive or network share that is not there (a USB or network disk that was
+                # unplugged): its parent is itself, so walking up would never end (audit round 4, B5)
+                raise FileNotFoundError(errno.ENOENT, DRIVE_GONE_ES, str(d))
             missing.append(p)
             p = p.parent
         for m in reversed(missing):
@@ -89,7 +96,18 @@ class Journal:
         src, dst = Path(src), Path(dst)
         self.mkdir(batch_id, dst.parent)
         real = unique_path(dst)
-        shutil.move(win_long(src), win_long(real))
+        try:
+            shutil.move(win_long(src), win_long(real))
+        except OSError:
+            # When a rename fails (on Windows, a file open in Ableton or a player), shutil.move copies and
+            # then cannot delete the source: never leave that copy (or half of it) behind while the source
+            # is still there. `real` did not exist before (unique_path). Audit round 4, B4.
+            if os.path.lexists(win_long(src)) and os.path.lexists(win_long(real)):
+                try:
+                    os.remove(win_long(real))
+                except OSError:
+                    pass
+            raise
         self._record(batch_id, "move", src, real, uid)
         return real
 

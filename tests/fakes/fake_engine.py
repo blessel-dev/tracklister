@@ -230,7 +230,8 @@ def write_audio(f: dict, item: dict, dst: Path) -> None:
                      seed=int(a.get("seed", zlib.crc32(f["path"].encode("utf-8")) % 1000)),
                      float_pcm=bool(a.get("float_pcm")),
                      low_treble=bool(a.get("low_treble")),
-                     mp3_info_frame=not bool(a.get("no_info_frame")))
+                     mp3_info_frame=not bool(a.get("no_info_frame")),
+                     subtype=a.get("subtype"), channels=int(a.get("channels") or 2))
 
 
 REASONS_V3 = {"no_results": (9, "NoSearchResults", "No search results", "No Soulseek file results found."),

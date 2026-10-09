@@ -185,6 +185,23 @@ def test_r3_b1_genuine_artist_variants_still_match(tmp_path):
         assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
 
 
+@pytest.mark.parametrize("want,got", [("Feel It", "Feel It All"), ("Higher", "Higher Love"), ("Sin", "Original Sin")])
+def test_r4_b2_a_title_with_a_word_more_or_less_is_never_proposed(tmp_path, want, got):
+    """Audit round 4, B2: 'Feel It All' was proposed as the file of the row 'Feel It' (title 78 %). Now it
+    scores at most 0.4*100 + 0.6*50 = 70 < MATCH_MIN: the row is missing and the file stays as it is,
+    also by its tags; with the right file next to it, that one is the match."""
+    folder = tmp_path / "s"
+    _make(folder, [f"Amelie Lens - {got}.mp3"])
+    tagged = make_track(folder / "sin nombre.flac", fmt="flac", seconds=1, tags={"artist": "Amelie Lens", "title": got})
+    rows = [_row(1, "Amelie Lens", want)]
+    props = propose_reorder(folder, rows)
+    assert _by_pos(props)[1].status == "missing"
+    assert {p.src.name for p in props if p.status == "extra"} == {f"Amelie Lens - {got}.mp3", tagged.name}
+    _make(folder, [f"Amelie Lens - {want}.mp3"])
+    by = _by_pos(propose_reorder(folder, rows))
+    assert by[1].status == "match" and by[1].src.name == f"Amelie Lens - {want}.mp3"
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])

@@ -128,11 +128,12 @@ def make_track(path, *, fmt: str, seconds: float, samplerate: int = 44100, bitde
                lowpass_hz: float | None = None, mp3_kbps: int | None = None, vbr: bool = False,
                tags: dict | None = None, truncate_to_s: float | None = None, seed: int = 0,
                channels: int = 2, low_treble: bool = False, float_pcm: bool = False,
-               mp3_info_frame: bool = True) -> Path:
+               mp3_info_frame: bool = True, subtype: str | None = None) -> Path:
     """Write one synthetic file. `fmt` is the real container: flac|wav|aiff|mp3.
 
     mp3_info_frame=False drops LAME's Xing/Info frame: mutagen then reports an UNKNOWN bitrate mode
-    and only the first frame's bitrate (a VBR file of this generator starts with a 320 kbps frame)."""
+    and only the first frame's bitrate (a VBR file of this generator starts with a 320 kbps frame).
+    subtype (WAV/AIFF/FLAC) forces libsndfile's codec, e.g. "ULAW" or "IMA_ADPCM": a lossy WAV/AIFF."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fmt = fmt.lower()
@@ -146,7 +147,7 @@ def make_track(path, *, fmt: str, seconds: float, samplerate: int = 44100, bitde
         if not mp3_info_frame and not strip_mp3_info_frame(path):
             raise ValueError(f"no Xing/Info frame to remove in {path.name}")
     else:
-        subtype = "FLOAT" if float_pcm else _SUBTYPE[bitdepth]
+        subtype = subtype or ("FLOAT" if float_pcm else _SUBTYPE[bitdepth])
         sf.write(str(path), x, samplerate, format={"flac": "FLAC", "wav": "WAV", "aiff": "AIFF"}[fmt],
                  subtype=subtype)
     if tags:

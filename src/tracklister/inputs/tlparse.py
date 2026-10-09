@@ -22,7 +22,7 @@ import re
 from dataclasses import asdict, dataclass, field
 
 from tracklister.core.model import RowStatus, TrackRow
-from tracklister.core.textnorm import norm_key, split_artists
+from tracklister.core.textnorm import VERSION_KW, norm_key, pick_version, split_artists
 
 # ---------------------------------------------------------------- model
 
@@ -64,9 +64,7 @@ NUMBERING = re.compile(rf"^(?:#\s?\d{{1,3}}\b[.):]?|\d{{1,3}}\s*[.)\]:]|\d{{1,3}
                        rf"|\d{{1,3}}\s+(?=[\[\(]?{TS_CORE}))\s*")
 LEAD_JUNK = re.compile(r"^[^\w\"'\u201c\u201d\u2018\u2019\[\(?]+")
 AFTER_TS_JUNK = re.compile(rf"^[\s{DASH_CHARS}|:>\]\)\u2022\u00b7*]+")
-VERSION_KW = re.compile(
-    r"\b(remix|rmx|mix|edit|dub|version|rework|re-?edit|vip|bootleg|flip|reprise|instrumental|"
-    r"acapella|a cappella|remaster(?:ed)?|interpretation|reshape|tool|jam|cut)\b", re.I)
+# VERSION_KW comes from core.textnorm (the same words as the verifier: 'live' too, audit round 4, B3)
 UNREL_KW = re.compile(r"\b(unreleased|forthcoming|upcoming|dubplate|white ?label|wip|soon)\b", re.I)
 FEAT_KW = re.compile(r"^\s*(?:feat\.?|ft\.?|featuring)\s+(.+)$", re.I)
 AT_LABEL = re.compile(r"\s@\s+([^@()\[\]]+?)\s*$")           # "... @ SDL records"
@@ -116,6 +114,7 @@ def _clean_title(row: ParsedLine, title: str) -> None:
             else:
                 _put_label(row, lab)
         t = t[:m.start()].rstrip()
+    after_feat: str | None = None
     m = FEAT_THEN_VERSION.match(t)
     if m:
         tail = TRAILING_GROUPS.match(m.group(3))
@@ -123,10 +122,11 @@ def _clean_title(row: ParsedLine, title: str) -> None:
         if core and VERSION_KW.search(core):
             row.feat = row.feat or m.group(2).strip()
             if not row.version:
-                row.version = core
+                after_feat = core
             else:
                 row.notes.append(core)
             t = m.group(1).rstrip() + groups
+    versions: list[str] = []      # version groups, right to left: pick_version() chooses (round 4, B3)
     while True:  # trailing (...) or [...] groups
         m = re.search(r"\s*([\(\[])\s*([^()\[\]]*?)\s*[\)\]]\s*$", t)
         if not m or m.start() == 0:
@@ -146,11 +146,16 @@ def _clean_title(row: ParsedLine, title: str) -> None:
         elif BPM_NOTE.match(inner):
             row.notes.append(inner)
         elif VERSION_KW.search(inner) and not row.version:
-            row.version = inner
+            versions.append(inner)
         elif not row.label:
             row.label = inner
         else:
             row.notes.append(inner)
+    if after_feat:                # 'Title (feat. X) Y Dub (Z)': left of the trailing groups
+        versions.append(after_feat)
+    if versions:
+        row.version = pick_version(versions)
+        row.notes += [v for v in reversed(versions) if v != row.version]
     m = re.search(r"\s+(?:feat\.?|ft\.?|featuring)\s+(.+)$", t, re.I)
     if m:
         row.feat = row.feat or m.group(1).strip()

@@ -146,6 +146,19 @@ def test_r3_b1_diagnostic_end_to_end_with_a_namesake_first(tmp_path):
     assert c[1].accepted and c[1].why_es.startswith("elegido")
 
 
+@pytest.mark.parametrize("dur", [30, None])
+@pytest.mark.parametrize("want,got", [("Feel It", "Feel It All"), ("Higher", "Higher Love"), ("Sin", "Original Sin")])
+def test_r4_b2_diagnostic_rejects_a_title_with_a_word_more_or_less(want, got, dur):
+    """Audit round 4, B2: the Diagnostico judges titles with the verification's word rule."""
+    from tests.fakes.scenarios import row
+    fmt = build_preset("lossless").passes[0]
+    r = row(1, "Amelie Lens", want, dur=30)
+    score, ok, why = judge_candidate(r, fmt, f"@@x\\Techno\\Amelie Lens - {got}.flac", dur, None)
+    assert not ok and score < 50 and "título distinto" in why, why
+    score, ok, why = judge_candidate(r, fmt, f"@@x\\Techno\\Amelie Lens - {want}.flac", dur, None)
+    assert ok and score >= 80, why
+
+
 def test_download_only_when_opted_in(tmp_path):
     rows, runner, paths = _setup(tmp_path)
     diag = run_diagnostic(rows, runner, CREDS, download=True, max_rows=1, paths=paths, settings=Settings())

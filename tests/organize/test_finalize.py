@@ -4,10 +4,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
+import pytest
+
 from tracklister.core.model import DoubtKind, ResultState, RowResult, TrackRow
-from tracklister.organize.finalize import place_verified, stray_audio_files, sync_names
+from tracklister.organize.finalize import RenameError, place_verified, stray_audio_files, sync_names
 from tracklister.organize.journal import Journal
 from tracklister.verify.verifier import Verdict
 
@@ -91,6 +94,77 @@ def test_sync_names_renames_the_copy_in_originales_too(tmp_path):
     assert j.undo_last() == []
     assert (s / "_originales" / "01 - A - Uno.flac").read_bytes() == b"orig-Uno"
     assert (s / "01 - A - Uno.aiff").read_bytes() == b"Uno"
+
+
+# ---- external audit, round 4 (claude-audit-raw-r4-1.txt) ---------------------------------------------
+
+def _rotated_set(tmp_path):
+    """3 verified files; the table was rotated (C first): every file needs a new number."""
+    s = tmp_path / "set"
+    rows = [_row(1, "A"), _row(2, "B"), _row(3, "C")]
+    res = {}
+    for r in rows:
+        f = _file(s / f"{r.pos:02d} - A - {r.title}.flac", b"audio-" + r.title.encode())
+        res[r.uid] = RowResult(uid=r.uid, pos=r.pos, state=ResultState.VERIFICADO, file=f.name)
+    rows[0].pos, rows[1].pos, rows[2].pos = 2, 3, 1
+    return s, rows, res
+
+
+def _folder(s: Path) -> dict[str, bytes]:
+    return {p.name: p.read_bytes() for p in s.iterdir() if p.is_file()}
+
+
+@pytest.mark.parametrize("fail_on", [2, 5], ids=["phase-1", "phase-2"])
+def test_r4_b4_a_rename_that_fails_puts_every_name_back(tmp_path, monkeypatch, fail_on):
+    """B4: a failed rename (WinError 32: the file is open in Ableton) used to leave files under
+    __tracklister_tmp_* names, with the batch committed and nothing undone, and those rows were then
+    downloaded again. Now the batch is reverted, the folder keeps its names and the results are not
+    touched; a later call renames everything."""
+    import shutil
+
+    s, rows, res = _rotated_set(tmp_path)
+    before = _folder(s)
+    before_res = {u: (r.file, r.original_file, r.pos) for u, r in res.items()}
+    j = Journal(s)
+    real_move, calls = shutil.move, {"n": 0}
+
+    def flaky(src, dst, *a, **kw):
+        calls["n"] += 1
+        if calls["n"] == fail_on:
+            raise PermissionError(13, "El proceso no tiene acceso al archivo porque está siendo utilizado por "
+                                      "otro proceso", src)
+        return real_move(src, dst, *a, **kw)
+    monkeypatch.setattr(shutil, "move", flaky)
+    with pytest.raises(OSError) as e:
+        sync_names(s, rows, res, j)
+    assert isinstance(e.value, RenameError)
+    # the 2nd and the 5th move are both B's (02): the message names the file as the user knows it
+    assert e.value.msg_es == ("No se pudo cambiar el nombre de '02 - A - B.flac': está abierto en otro programa "
+                              "(Ableton, un reproductor…). Ciérralo y vuelve a pulsar Descargar.")
+    assert _folder(s) == before and not list(s.glob("__tracklister_tmp_*"))
+    assert {u: (r.file, r.original_file, r.pos) for u, r in res.items()} == before_res
+    assert all(b["committed"] for b in Journal(s).batches()) and Journal(s).batches() == []
+    monkeypatch.setattr(shutil, "move", real_move)
+    assert sync_names(s, rows, res, j) == 3
+    assert _folder(s) == {"01 - A - C.flac": b"audio-C", "02 - A - A.flac": b"audio-A", "03 - A - B.flac": b"audio-B"}
+    assert [res[r.uid].file for r in rows] == ["02 - A - A.flac", "03 - A - B.flac", "01 - A - C.flac"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows file locks (no FILE_SHARE_DELETE)")
+def test_r4_b4_a_file_really_open_in_another_program_leaves_the_folder_as_it_was(tmp_path):
+    """The real Windows case: the file is open (Python opens files without FILE_SHARE_DELETE, like many
+    players), so renaming it fails, and shutil.move then copies it and cannot delete the original. No copy
+    and no temporary name may stay behind."""
+    s, rows, res = _rotated_set(tmp_path)
+    before = _folder(s)
+    j = Journal(s)
+    with open(s / "02 - A - B.flac", "rb"):
+        with pytest.raises(RenameError) as e:
+            sync_names(s, rows, res, j)
+        assert "'02 - A - B.flac': está abierto en otro programa" in e.value.msg_es
+        assert sorted(p.name for p in s.iterdir() if p.is_file()) == sorted(before)
+    assert _folder(s) == before and Journal(s).batches() == []
+    assert sync_names(s, rows, res, j) == 3 and "01 - A - C.flac" in _folder(s)
 
 
 def test_stray_audio_files_lists_what_no_result_points_to(tmp_path):

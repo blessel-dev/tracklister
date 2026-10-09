@@ -10,7 +10,8 @@ Fake network JSON (tracklister.fakenet/1). Optional per-file extensions used her
 `announce_length`/`announce_samplerate` (False = the peer does not broadcast it, so the engine
 cannot filter on it), `real_kbps` (actual MP3 bitrate when the announced `bitrate_kbps` is null),
 `audio.cover`, `audio.low_treble`, `audio.float_pcm`, `audio.seed`, `audio.no_info_frame` (MP3 without
-LAME's Xing/Info frame).
+LAME's Xing/Info frame), `audio.subtype` (libsndfile codec of a WAV/AIFF, e.g. "ULAW": a lossy WAV) and
+`audio.channels`.
 """
 from __future__ import annotations
 

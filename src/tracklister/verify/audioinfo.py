@@ -43,6 +43,9 @@ class AudioInfo:
     # MP3 whose header does not say CBR or VBR (no Xing/Info/VBRI frame): the bitrate of every frame
     # read at the start and around 25/50/75 % of the file; () = no frame could be read. None otherwise.
     mp3_frame_kbps: tuple[int, ...] | None = None
+    # libsndfile's codec of the audio ("PCM_16", "FLOAT", "ULAW", "IMA_ADPCM"...); None = it cannot read it.
+    # A WAV or AIFF may hold a lossy codec (audit round 4, B6).
+    subtype: str | None = None
 
     @property
     def is_lossless(self) -> bool:
@@ -294,4 +297,4 @@ def probe(path: Path, *, decode: bool = True) -> AudioInfo:
                      duration_s=duration, decoded_duration_s=dec, samplerate=samplerate, bitdepth=bitdepth,
                      channels=channels, bitrate_kbps=bitrate, bitrate_mode=mode, is_aifc=is_aifc,
                      is_float=is_float, tag_artist=artist, tag_title=title, tag_album=album,
-                     mp3_frame_kbps=frame_kbps)
+                     mp3_frame_kbps=frame_kbps, subtype=subtype)

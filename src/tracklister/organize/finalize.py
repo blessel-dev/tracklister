@@ -43,10 +43,30 @@ def place_verified(set_dir: Path, row: TrackRow, src: Path, verdict: Verdict, wi
     return rel_to_set(set_dir, real)
 
 
+RENAME_LOCKED_ES = ("No se pudo cambiar el nombre de '{name}': está abierto en otro programa (Ableton, un "
+                    "reproductor…). Ciérralo y vuelve a pulsar Descargar.")
+RENAME_FAILED_ES = "No se pudo cambiar el nombre de '{name}' ({err}). Vuelve a pulsar Descargar."
+RENAME_NOT_REVERTED_ES = "Además, no se pudo dejar todo como estaba:"
+
+
+class RenameError(OSError):
+    """sync_names could not rename a file of the set; everything it had renamed was put back.
+    msg_es is the Spanish text for the user (gui.workers.error_text shows it)."""
+
+    def __init__(self, msg_es: str, cause: OSError):
+        super().__init__(cause.errno, msg_es, cause.filename)
+        self.msg_es = msg_es
+
+
 def sync_names(set_dir: Path, rows: list[TrackRow], results: dict[str, RowResult], journal: Journal) -> int:
     """Rename existing files after table edits (pos changed): the file AND its copy in _originales,
     in one journal batch. Two phases through temporary names so that swapped positions never
-    collide. Returns how many files got a new name."""
+    collide. Returns how many files got a new name.
+
+    All or nothing (audit round 4, B4): if any rename fails (a file open in Ableton or a player, a
+    disk that is gone...), the whole batch is reverted, so the folder keeps exactly the names it had
+    and the results are not touched; then a RenameError says which file. The next run tries again
+    without downloading anything."""
     set_dir = Path(set_dir)
     width = pad_width(len(rows))
     plan: list[tuple[RowResult, str, Path, Path]] = []
@@ -67,19 +87,35 @@ def sync_names(set_dir: Path, rows: list[TrackRow], results: dict[str, RowResult
     if not plan:
         return 0
     bid = journal.begin("Actualizar nombres con el orden de la tabla")
+    done: list[tuple[RowResult, str, Path]] = []
+    current: Path | None = None
     try:
-        staged: list[tuple[RowResult, str, Path, Path]] = []
+        staged: list[tuple[RowResult, str, Path, Path, Path]] = []
         for res, attr, cur, want in plan:
+            current = cur
             tag = "" if attr == "file" else "_orig"
             tmp_name = f"__tracklister_tmp_{res.uid}{tag}{cur.suffix}"
             tmp = journal.move(bid, cur, cur.with_name(tmp_name), uid=res.uid)
-            staged.append((res, attr, tmp, want))
-        for res, attr, tmp, want in staged:
-            real = journal.move(bid, tmp, want, uid=res.uid)
-            setattr(res, attr, rel_to_set(set_dir, real))
-            res.pos = next((r.pos for r in rows if r.uid == res.uid), res.pos)
-    finally:
-        journal.commit(bid)
+            staged.append((res, attr, cur, tmp, want))
+        for res, attr, cur, tmp, want in staged:
+            current = cur
+            done.append((res, attr, journal.move(bid, tmp, want, uid=res.uid)))
+    except Exception as e:
+        not_reverted = journal.discard(bid)      # in reverse order: every temporary name goes back
+        if not isinstance(e, OSError):
+            raise
+        name = current.name if current is not None else "?"
+        if isinstance(e, PermissionError):
+            msg = RENAME_LOCKED_ES.format(name=name)
+        else:
+            msg = RENAME_FAILED_ES.format(name=name, err=e.strerror or type(e).__name__)
+        if not_reverted:
+            msg += " " + " ".join([RENAME_NOT_REVERTED_ES] + not_reverted)
+        raise RenameError(msg, e) from e
+    journal.commit(bid)
+    for res, attr, real in done:
+        setattr(res, attr, rel_to_set(set_dir, real))
+        res.pos = next((r.pos for r in rows if r.uid == res.uid), res.pos)
     return len(plan)
 
 

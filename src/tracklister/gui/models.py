@@ -16,9 +16,10 @@ from typing import Iterable
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from PySide6.QtGui import QColor
 
-from tracklister.core.model import DoubtKind, ResultState, RowResult, RowStatus, TrackRow
+from tracklister.core.model import DoubtKind, ResultState, RowResult, RowStatus, TrackIds, TrackRow
 from tracklister.core.textnorm import nfc, norm_key, split_artists, split_title_version
 from tracklister.gui.theme import Theme, mono_font, state_icon, state_label_es
+from tracklister.library.index import row_key
 
 R = Qt.ItemDataRole
 
@@ -266,6 +267,7 @@ class TrackTableModel(QAbstractTableModel):
         if role != R.EditRole or key not in self.EDITABLE:
             return False
         text = nfc(str(value or ""))
+        track_before = row_key(r)
         if key == "start" or key == "duration":
             try:
                 secs = parse_clock(text)
@@ -292,6 +294,10 @@ class TrackTableModel(QAbstractTableModel):
             r.version = text or None
         elif key == "label":
             r.label = text or None
+        if key in ("artist", "title", "version") and r.enrich_source and row_key(r) != track_before:
+            # another track now (audit round 4): the duration and ids the stores gave were the old one's.
+            # 'Descargar' completes them again (N.7); a duration typed by the user (no enrich_source) stays.
+            r.expected_duration_s, r.ids, r.enrich_source = None, TrackIds(), None
         if r.is_id and key in ("artist", "title") and not is_id_text(r.title) and not is_id_text(r.artist_display):
             r.is_id = False
             r.status = RowStatus.OK

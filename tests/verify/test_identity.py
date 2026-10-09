@@ -9,9 +9,10 @@ import pytest
 from tests.fakes.synth import make_track
 from tracklister.core.model import TrackRow
 from tracklister.verify.audioinfo import probe
+from tracklister.core.textnorm import split_title_version
 from tracklister.verify.identity import (
     NUMBER_MISMATCH_MAX, SAME_ARTIST_MIN, ArtistMatch, artist_match, artist_similarity, identity_score,
-    number_tokens, parse_name, strip_track_number, title_similarity,
+    number_tokens, parse_name, strip_track_number, title_similarity, title_words_match,
 )
 
 
@@ -180,3 +181,46 @@ def test_r3_b1_word_rule_details():
     assert artist_match(["Fjaak"], "Fjaak - Live 2026").same and artist_match(["Fjaak"], "01 Fjaak").same
     assert artist_match(["808 State"], "808 State").same and not artist_match(["808 State"], "909 State").same
     assert artist_similarity(["Adam Beyer"], "Adam Port") == artist_match(["Adam Beyer"], "Adam Port").score
+
+
+# ---- external audit, round 4 (claude-audit-raw-r4-1.txt), B2 ----------------------------------------
+# A word more or less is another track: the auditor's pairs (they scored 71-100 and passed).
+OTHER_TITLES = [("Feel It", "Feel It All"), ("Higher", "Higher Love"), ("Feel It All", "Feel It"),
+                ("Sin", "Original Sin"), ("Feel It", "Feel Me")]
+# The same title written in other ways.
+SAME_TITLES = [("Feel It", "FEEL IT"), ("Rock and Roll", "Rock & Roll"), ("Rock & Roll", "Rock and Roll"),
+               ("Don't Stop", "Dont Stop"), ("Dont Stop", "Don t Stop"), ("Strobe", "Strobbe"),
+               ("Part 2", "Pt. 2"), ("Dust 1", "Dust 01"), ("Feel It", "01 Feel It"), ("Original Sin", "Original Sin")]
+
+
+@pytest.mark.parametrize("want,got", OTHER_TITLES)
+def test_r4_b2_a_word_more_or_less_is_another_track(tmp_path, want, got):
+    assert not title_words_match(want, got)
+    score, same_numbers = title_similarity(want, got)
+    assert score <= NUMBER_MISMATCH_MAX < 70 and same_numbers
+    s = identity_score(_row("Amelie Lens", want), _info(tmp_path, "x.flac", {"artist": "Amelie Lens", "title": got}),
+                       None)
+    assert not s.title_words_ok and s.title <= NUMBER_MISMATCH_MAX and s.numbers_ok
+    by_name = identity_score(_row("Amelie Lens", want), _info(tmp_path, "y.flac"), f"Amelie Lens - {got}.flac")
+    assert by_name.evidence == "nombre" and not by_name.title_words_ok and by_name.title <= NUMBER_MISMATCH_MAX
+
+
+@pytest.mark.parametrize("want,got", SAME_TITLES)
+def test_r4_b2_the_same_title_written_another_way_still_matches(want, got):
+    assert title_words_match(want, got), (want, got)
+    assert title_similarity(want, got)[0] > 70
+
+
+def test_r4_b2_scene_names_and_version_suffixes():
+    # the release group glued to a scene-style name is not a word of the title (the P3 sandbox case)
+    assert parse_name("plug_trax_-_zoned_out-psy.mp3", None) == ("plug trax", "zoned out")
+    assert parse_name("Artist_-_Title_(Kai_Remix)-WEB.flac", None) == ("Artist", "Title (Kai Remix)")
+    # a version word glued like that stays (it is not a release group); names with spaces are untouched
+    assert parse_name("artist_-_title-remix.mp3", None) == ("artist", "title-remix")
+    assert parse_name("artist_-_title-live.mp3", None) == ("artist", "title-live")
+    assert parse_name("Artist - Hip-Hop.mp3", None) == ("Artist", "Hip-Hop")
+    # suffixes that split_title_version takes away never count as words
+    for got in ("Feel It (Original Mix)", "Feel It - Original Mix", "Feel It [LENSKE001]", "Feel It feat. X",
+                "Feel It (feat. X)"):
+        base, _ = split_title_version(got)
+        assert title_words_match("Feel It", base), got

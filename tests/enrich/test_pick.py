@@ -47,6 +47,21 @@ def test_label_written_as_artist_still_matches():
     assert p.accepted and p.artist_score == 100
 
 
+def test_r4_b3_a_store_remix_or_live_behind_another_group_is_never_the_original():
+    """Audit round 4, B3: 'Zoned Out (Someone Remix) [Extended Mix]' was read as the Extended Mix, so an
+    original row could take the remix's duration; '(Live)' was no version at all."""
+    from tracklister.core.model import TrackIds
+    from tracklister.enrich.providers import make_candidate
+    row = _row("Plug Trax", "Zoned Out")
+    for title in ("Zoned Out (Someone Remix) [Extended Mix]", "Zoned Out (Extended Mix) (Someone Remix)",
+                  "Zoned Out (Live)", "Zoned Out (Live at Awakenings)"):
+        c = make_candidate("itunes", "Plug Trax", title, 412.0, TrackIds(), None)
+        p = pick_best(row, [c])
+        assert c.title == "Zoned Out" and not p.accepted and not p.version_ok, title
+    good = make_candidate("itunes", "Plug Trax", "Zoned Out (Extended Mix) [Label]", 420.0, TrackIds(), None)
+    assert pick_best(row, [good]).accepted
+
+
 def test_thresholds():
     row = _row("ANFS", "Caballero")
     p = pick_best(row, [_c("Nicolas Grandfils", "Les trois caballeros", None, 305, "deezer")])

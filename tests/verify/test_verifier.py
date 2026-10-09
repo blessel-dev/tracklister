@@ -151,3 +151,87 @@ def test_mp3_vbr_and_256_do_not_meet_format(tmp_path):
     assert hv.state == ResultState.NO_CUMPLE_FORMATO and "mp3_vbr" in hv.flags
     hc = _v(tmp_path, "hc.mp3", accept=MP3, lossy=True, fmt="mp3", mp3_info_frame=False, tags=TAGS)
     assert hc.state == ResultState.VERIFICADO and "mp3_modo_desconocido" in hc.flags
+
+
+# ---- external audit, round 4 (claude-audit-raw-r4-1.txt) ---------------------------------------------
+
+CDJ = build_preset("cdj_antiguos").accept
+
+
+@pytest.mark.parametrize("accept", [LOSSLESS, CDJ], ids=["lossless", "cdj_antiguos"])
+@pytest.mark.parametrize("fmt,subtype,channels", [("wav", "IMA_ADPCM", 2), ("wav", "ULAW", 2), ("wav", "ALAW", 2),
+                                                  ("wav", "GSM610", 1), ("aiff", "ULAW", 2)])
+def test_r4_b6_a_lossy_codec_inside_a_wav_or_aiff_does_not_meet_format(tmp_path, accept, fmt, subtype, channels):
+    """B6: these were VERIFICADO 100 in Lossless and in CDJ antiguos (not even converted)."""
+    v = _v(tmp_path, f"Fjaak - Spirit.{fmt}", accept=accept, fmt=fmt, subtype=subtype, channels=channels, tags=TAGS)
+    assert v.state == ResultState.NO_CUMPLE_FORMATO and "codec_con_perdida" in v.flags and not v.needs_conversion
+    assert v.reasons_es == [f"{fmt.upper()} con un códec con pérdida ({subtype}): no es lossless."]
+
+
+def _lens(tmp_path, want, got, by, dur=None):
+    """An 'Amelie Lens' file whose title is `got`, judged for the row `want` (no expected duration)."""
+    name = f"Amelie Lens - {got}.flac"
+    tags = {"artist": "Amelie Lens", "title": got} if by == "tags" else None
+    return _v(tmp_path, name, row=_row("Amelie Lens", want, dur=dur), tags=tags)
+
+
+@pytest.mark.parametrize("by", ["tags", "nombre"])
+@pytest.mark.parametrize("want,got", [("Feel It", "Feel It All"), ("Higher", "Higher Love"),
+                                      ("Feel It All", "Feel It"), ("Sin", "Original Sin"), ("Feel It", "Feel Me")])
+def test_r4_b2_a_title_with_a_word_more_or_less_is_never_verified(tmp_path, want, got, by):
+    """B2: 'Feel It' against 'Feel It All' was VERIFICADO 85 without an expected duration (82 for 'Higher
+    Love', 95 for 'Original Sin'): --strict-title lets them through. Now it is another track."""
+    v = _lens(tmp_path, want, got, by)
+    assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.IDENTIDAD and v.score <= 49, v.reasons_es
+    assert f"Otro título: '{got}' no tiene las mismas palabras que '{want}', así que es otra pista." in v.reasons_es
+    timed = _lens(tmp_path, want, got, by, dur=20)                 # with the right duration too
+    assert timed.state == ResultState.DUDOSO and timed.doubt == DoubtKind.IDENTIDAD
+
+
+@pytest.mark.parametrize("by", ["tags", "nombre"])
+@pytest.mark.parametrize("want,got", [("Feel It", "Feel It (Original Mix)"), ("Feel It", "Feel It - Original Mix"),
+                                      ("Feel It", "Feel It [LENSKE001]"), ("Feel It", "Feel It feat. X"),
+                                      ("Feel It", "FEEL IT"), ("Rock and Roll", "Rock & Roll"),
+                                      ("Rock & Roll", "Rock and Roll"), ("Don't Stop", "Dont Stop"),
+                                      ("Strobe", "Strobbe")])
+def test_r4_b2_the_same_title_written_another_way_is_still_verified(tmp_path, want, got, by):
+    v = _lens(tmp_path, want, got, by)
+    assert v.state == ResultState.VERIFICADO and v.score >= ACCEPT_SCORE, v.reasons_es
+
+
+def test_r4_b2_a_track_number_glued_to_the_name_is_not_a_word(tmp_path):
+    v = _v(tmp_path, "01 Feel It.flac", row=_row("Amelie Lens", "Feel It", dur=None), tail="Amelie Lens\\01 Feel It.flac")
+    assert v.state == ResultState.VERIFICADO and "sin_tags" in v.flags, v.reasons_es
+
+
+@pytest.mark.parametrize("by", ["tags", "nombre"])
+@pytest.mark.parametrize("got", ["Spirit (Kai Remix) (Extended Mix)", "Spirit (Extended Mix) (Kai Remix)",
+                                 "Spirit (Live at Awakenings)", "Spirit (Live)"])
+def test_r4_b3_a_remix_or_a_live_never_passes_for_the_original(tmp_path, by, got):
+    """B3: an original row without an expected duration against these files was VERIFICADO 95 (the remix
+    was hidden behind '(Extended Mix)'; '(Live ...)' was no version). Now: another version, to _dudosos."""
+    name = f"Fjaak - {got}.flac"
+    tags = {"artist": "Fjaak", "title": got} if by == "tags" else None
+    v = _v(tmp_path, name, row=_row(dur=None), tags=tags)
+    assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.VERSION, v.reasons_es
+    assert v.score <= 49 and any(r.startswith("Otra versión: se pedía la original") for r in v.reasons_es)
+
+
+@pytest.mark.parametrize("by", ["tags", "nombre"])
+def test_r4_b3_the_extended_mix_of_the_wanted_remix_is_still_verified(tmp_path, by):
+    got = "Spirit (Kai Remix) (Extended Mix)"
+    tags = {"artist": "Fjaak", "title": got} if by == "tags" else None
+    v = _v(tmp_path, f"Fjaak - {got}.flac", row=_row(version="Kai Remix", dur=None), tags=tags)
+    assert v.state == ResultState.VERIFICADO and v.score == 95, v.reasons_es
+    for plain in ("Spirit (Extended Mix) [Drumcode]", "Spirit (Original Mix)"):
+        p = _v(tmp_path, f"Fjaak - {plain}.flac", row=_row(dur=None),
+               tags={"artist": "Fjaak", "title": plain} if by == "tags" else None)
+        assert p.state == ResultState.VERIFICADO, (plain, p.reasons_es)
+
+
+@pytest.mark.parametrize("accept", [LOSSLESS, CDJ], ids=["lossless", "cdj_antiguos"])
+@pytest.mark.parametrize("fmt", ["wav", "aiff"])
+@pytest.mark.parametrize("bits", [16, 24])
+def test_r4_b6_pcm_wav_and_aiff_are_still_verified(tmp_path, accept, fmt, bits):
+    v = _v(tmp_path, f"Fjaak - Spirit.{fmt}", accept=accept, fmt=fmt, bitdepth=bits, tags=TAGS)
+    assert v.state == ResultState.VERIFICADO and v.score == 100 and not v.needs_conversion, v.reasons_es

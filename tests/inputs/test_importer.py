@@ -125,6 +125,26 @@ def test_youtube_without_ytdlp_explains_what_to_do():
     assert "SoundCloud" in res.message_es
 
 
+@pytest.mark.parametrize("line,version", [
+    ("Fjaak - Spirit (Kai Remix) (Extended Mix)", "Kai Remix"),
+    ("Fjaak - Spirit (Extended Mix) (Kai Remix)", "Kai Remix"),
+    ("Fjaak - Spirit (Live at Awakenings)", "Live at Awakenings"),
+    ("Fjaak - Spirit (Live)", "Live")])
+def test_r4_b3_a_pasted_remix_or_live_keeps_its_version(tmp_path, line, version):
+    """Audit round 4, B3: '(Kai Remix) (Extended Mix)' became the extended ORIGINAL (the remix went to the
+    label column), and '(Live ...)' a label: the original was searched, verified and keyed in the library.
+    The same for pasted text and for a table."""
+    from tracklister.engine.csvwriter import engine_title
+    from tracklister.library.index import library_key, row_key
+    table = tmp_path / "tabla.csv"
+    table.write_text('Artist,Title\nFjaak,"' + line.split(" - ", 1)[1] + '"\n', encoding="utf-8")
+    for source in (line, table):
+        (r,) = import_source(source).rows
+        assert (r.title, r.version) == ("Spirit", version), source
+        assert engine_title(r) == f"Spirit ({version})" and r.label is None
+        assert row_key(r) != library_key("Fjaak", "Spirit", None)
+
+
 def test_review_rows_count_in_message():
     res = import_source(FIX / "una-columna.csv")
     assert res.message_es == "una-columna.csv: 3 pistas, 1 por revisar. Revisa la tabla antes de descargar."

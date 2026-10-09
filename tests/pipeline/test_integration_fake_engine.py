@@ -746,3 +746,270 @@ def test_r2_n3_the_mp3_question_is_asked_once_per_set(tmp_path):
     s2.save()
     _, asked = h.run(s2, runner2, approve=lambda rows: set())
     assert asked == [] and [p.name for p in s2.doc.passes] == ["lossless", "mp3_320", "lossless", "mp3_320"]
+
+
+# ---- external audit, round 4 (claude-audit-raw-r4-1.txt) ---------------------------------------------
+
+def test_r4_b5_the_library_drive_unplugged_before_placing_never_hangs_the_run(tmp_path, monkeypatch):
+    """B5: the engine finished, and the USB or network disk of the library goes away before the files are
+    placed. Journal.mkdir used to walk up from the set folder forever (the parent of 'Q:\\' is itself):
+    the run hung and Cancelar could not stop it. Now each row of the pass fails with the reason, no row
+    stays 'en curso', and the run ends."""
+    import tracklister.organize.journal as journal_mod
+    from tests.fakes.gone_drive import unplug_drive
+    h = Harness(tmp_path)
+    s, runner = h.session("correcto", name="Set USB")
+    real_run = runner.run
+
+    def run_then_unplug(*a, **kw):
+        result = real_run(*a, **kw)
+        unplug_drive(monkeypatch, journal_mod)            # the engine is done; then the disk goes away
+        return result
+    monkeypatch.setattr(runner, "run", run_then_unplug)
+    events = []
+    try:
+        s.run(runner, CREDS, events.append, threading.Event(), lambda rows: set())
+    except OSError:
+        pass                                              # also acceptable: the run ends with the error
+    states = [r.state for r in s.doc.results.values()]
+    assert ResultState.EN_CURSO not in states and set(states) <= {ResultState.FALLIDA, ResultState.PENDIENTE}
+    failed = [r for r in s.doc.results.values() if r.state == ResultState.FALLIDA]
+    assert failed and all(journal_mod.DRIVE_GONE_ES in r.reasons[0] and r.file is None for r in failed)
+    assert not any(r.state == ResultState.VERIFICADO for r in s.doc.results.values())
+
+
+@pytest.mark.parametrize("preset", ["lossless", "cdj_antiguos"])
+def test_r4_b6_a_ulaw_wav_does_not_meet_format_and_the_retry_bans_its_peer(tmp_path, preset):
+    """B6: a WAV holding u-law (8-bit lossy) was VERIFICADO in Lossless and placed unconverted in CDJ
+    antiguos. Now it is "no cumple formato", nothing is placed, and 'Reintentar fallos' bans its user."""
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    h = Harness(tmp_path)
+    ulaw = fake_file("peerA", "@@x\\Fjaak\\Fjaak - Spirit.wav", "Fjaak", "Spirit", 30, fmt="wav",
+                     audio={"subtype": "ULAW"})
+    s, runner = _set_with(h, f"Set ulaw {preset}", [fake_row(1, "Fjaak", "Spirit", dur=30)],
+                          _network(h, f"ulaw-{preset}", [ulaw]), preset=preset)
+    h.run(s, runner)
+    r = _res(s, 1)
+    if preset == "lossless":
+        assert r.state == ResultState.NO_CUMPLE_FORMATO and "codec_con_perdida" in r.flags
+        assert r.reasons[-1] == "WAV con un códec con pérdida (ULAW): no es lossless."
+    else:          # CDJ antiguos: its next pass (FLAC to AIFF) finds nothing else
+        assert r.state in (ResultState.NO_CUMPLE_FORMATO, ResultState.NO_ENCONTRADO)
+    assert r.file is None and r.rejected_peers == ["peerA"] and not _files(s.set_dir)
+    pcm = fake_file("peerB", "@@y\\Fjaak\\Fjaak - Spirit.wav", "Fjaak", "Spirit", 30, fmt="wav")
+    runner.env["TRACKLISTER_FAKE_NETWORK"] = str(_network(h, f"ulaw-{preset}-2", [ulaw, pcm]))
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    argv = read_json(Path(s.doc.passes[-1].work_dir) / "pass.json")["argv_redacted"]
+    assert argv[argv.index("--banned-users") + 1] == "peerA"
+    r = _res(s, 1)
+    assert r.state == ResultState.VERIFICADO and r.peer == "peerB" and r.file == "01 - Fjaak - Spirit.wav"
+
+
+def test_r4_b4_a_file_open_in_another_program_never_hides_files_nor_downloads_them_again(tmp_path, monkeypatch):
+    """B4: a row inserted at the top renumbers the set; one of its files is open in Ableton, so renaming it
+    fails. sync_names used to leave the files it had already moved under __tracklister_tmp_* names and fail
+    before saving: on reopening the set, those rows went back to PENDIENTE and were downloaded again. Now
+    the folder keeps its names, the run ends with the Spanish message, and once the file is closed the next
+    Descargar renames everything without asking the engine for those rows."""
+    import shutil as shutil_mod
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    from tracklister.organize.finalize import RenameError
+    h = Harness(tmp_path)
+    first = _finalized(h, "correcto", "Set B4")
+    set_dir = first.set_dir
+    kobosil = fake_file("peerC", "@@x\\Kobosil\\Kobosil - Aggression.flac", "Kobosil", "Aggression", 28)
+    _, base = build_scenario("correcto", tmp_path / "base")
+    net = _network(h, "b4", json.loads(base.read_text(encoding="utf-8"))["files"] + [kobosil])
+
+    def table():          # the user inserted Kobosil above the two downloaded tracks
+        return [fake_row(1, "Kobosil", "Aggression", dur=28), fake_row(2, "Fjaak", "Spirit", dur=30),
+                fake_row(3, "Chris Liebing", "Higher Things", "FJAAK Remix", dur=32)]
+    locked = "02 - Chris Liebing - Higher Things (FJAAK Remix).flac"
+    real_move = shutil_mod.move
+
+    def open_in_ableton(src, dst, *a, **kw):
+        if Path(src).name == locked:
+            raise PermissionError(13, "El proceso no tiene acceso al archivo porque está siendo utilizado por otro "
+                                      "proceso", src)
+        return real_move(src, dst, *a, **kw)
+    monkeypatch.setattr(shutil_mod, "move", open_in_ableton)
+    s, runner = _set_with(h, "Set B4", table(), net)
+    h.run(s, runner)
+    assert [p.uids for p in s.doc.passes][1:] == [[_res(s, 1).uid]]          # only the new row was downloaded
+    with pytest.raises(OSError) as e:
+        s.finalize(h.library)
+    assert isinstance(e.value, RenameError) and f"'{locked}': está abierto en otro programa" in e.value.msg_es
+    assert not list(set_dir.glob("__tracklister_tmp_*"))
+    assert sorted(f for f in _files(set_dir) if f.endswith(".flac")) == [
+        "01 - Fjaak - Spirit.flac", "01 - Kobosil - Aggression.flac", locked]
+    again = SetSession.load(set_dir, Settings(preset_id="lossless", library_root=str(h.lib_root)), h.paths)
+    assert all(r.state == ResultState.VERIFICADO and (set_dir / r.file).is_file() for r in again.doc.results.values())
+    assert again.pending_rows() == []                       # nothing is downloaded again
+    monkeypatch.setattr(shutil_mod, "move", real_move)      # the file is closed
+    s2, runner2 = _set_with(h, "Set B4", table(), net)
+    h.run(s2, runner2)
+    s2.finalize(h.library)
+    assert len(s2.doc.passes) == 2                          # no new pass: nothing asked to the engine
+    assert sorted(f for f in _files(set_dir) if f.endswith(".flac")) == [
+        "01 - Kobosil - Aggression.flac", "02 - Fjaak - Spirit.flac",
+        "03 - Chris Liebing - Higher Things (FJAAK Remix).flac"]
+    assert [_res(s2, i).file for i in (1, 2, 3)] == ["01 - Kobosil - Aggression.flac", "02 - Fjaak - Spirit.flac",
+                                                     "03 - Chris Liebing - Higher Things (FJAAK Remix).flac"]
+    _no_row_left_running_and_journal_closed(s2)
+
+
+@pytest.mark.parametrize("got", ["Spirit (Kai Remix) (Extended Mix)", "Spirit (Live at Awakenings)"])
+def test_r4_b3_a_remix_or_a_live_behind_another_group_goes_to_dudosos(tmp_path, got):
+    """B3: --strict-title 'Spirit' lets these through. An original row without an expected duration used to
+    take them as VERIFICADO (95). Now they go to _dudosos as another version; a row that asks for the Kai
+    Remix still takes its extended mix."""
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    h = Harness(tmp_path)
+    net = _network(h, "b3", [fake_file("peerA", f"@@x\\Fjaak\\Fjaak - {got}.flac", "Fjaak", got, 30)])
+    s, runner = _set_with(h, "Set B3", [fake_row(1, "Fjaak", "Spirit")], net)
+    h.run(s, runner)
+    r = _res(s, 1)
+    assert r.state == ResultState.DUDOSO and r.doubt == DoubtKind.VERSION and r.score <= 49, r.reasons
+    assert r.file == "_dudosos/01 - Fjaak - Spirit.flac" and r.rejected_peers == ["peerA"]
+    if "Kai Remix" in got:
+        s2, runner2 = _set_with(h, "Set B3 remix", [fake_row(1, "Fjaak", "Spirit", "Kai Remix")], net)
+        h.run(s2, runner2)
+        assert _res(s2, 1).state == ResultState.VERIFICADO
+        assert _res(s2, 1).file == "01 - Fjaak - Spirit (Kai Remix).flac"
+
+
+def test_r4_b2_a_title_with_a_word_more_goes_to_dudosos_and_the_retry_bans_its_peer(tmp_path):
+    """B2: --strict-title 'Feel It' lets 'Amelie Lens - Feel It All.flac' through (also in the relaxed retry);
+    without an expected duration it was VERIFICADO 85. Now it is another track: _dudosos, «Otro título»,
+    and 'Reintentar fallos' bans its user and gets the right file."""
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    h = Harness(tmp_path)
+    all_ = fake_file("peerA", "@@x\\Amelie Lens\\Amelie Lens - Feel It All.flac", "Amelie Lens", "Feel It All", 30)
+    s, runner = _set_with(h, "Set B2", [fake_row(1, "Amelie Lens", "Feel It")], _network(h, "b2", [all_]))
+    h.run(s, runner)
+    r = _res(s, 1)
+    assert r.state == ResultState.DUDOSO and r.doubt == DoubtKind.IDENTIDAD and r.score <= 49, r.reasons
+    assert r.file == "_dudosos/01 - Amelie Lens - Feel It.flac" and r.rejected_peers == ["peerA"]
+    assert any(x.startswith("Otro título: 'Feel It All'") for x in r.reasons)
+    right = fake_file("peerB", "@@y\\Amelie Lens\\Amelie Lens - Feel It.flac", "Amelie Lens", "Feel It", 30)
+    runner.env["TRACKLISTER_FAKE_NETWORK"] = str(_network(h, "b2-2", [all_, right]))
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    argv = read_json(Path(s.doc.passes[-1].work_dir) / "pass.json")["argv_redacted"]
+    assert argv[argv.index("--banned-users") + 1] == "peerA"
+    r = _res(s, 1)
+    assert r.state == ResultState.VERIFICADO and r.peer == "peerB" and r.file == "01 - Amelie Lens - Feel It.flac"
+
+
+def _table_copy(rows):
+    """What Nuevo set hands to a new download (gui/pages/new_set.py _copy_rows): the same uids."""
+    from tracklister.core.model import TrackRow
+    return [TrackRow.from_dict(r.to_dict()) for r in rows]
+
+
+def _tag_title(p: Path) -> str:
+    return str(mutagen.File(str(p)).tags["title"][0])
+
+
+@pytest.mark.parametrize("field,value,new_file", [
+    ("title", "Some Chords", "01 - deadmau5 - Some Chords.flac"),
+    ("version", "Kai Remix", "01 - deadmau5 - Strobe (Kai Remix).flac")])
+def test_r4_b1_a_row_corrected_in_the_table_is_downloaded_and_never_takes_the_old_file(tmp_path, field, value,
+                                                                                         new_file):
+    """B1: after a download the user corrects a row in the Nuevo set table (trackid said 'Strobe', it was
+    'Some Chords'; or it was the Kai Remix) and presses Descargar again with the same set name. The edited
+    row kept its uid, so the old VERIFICADO result survived, nothing was downloaded, and finalize renamed
+    the Strobe audio to the new title (and the library stored it under that key). Now the row gets a new
+    uid, is downloaded as the corrected track, and the old file keeps its name, listed as a stray file."""
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    h = Harness(tmp_path)
+    net = _network(h, f"b1-{field}", [
+        fake_file("peerA", "@@x\\deadmau5\\deadmau5 - Strobe.flac", "deadmau5", "Strobe", 30),
+        fake_file("peerB", "@@y\\deadmau5\\deadmau5 - Some Chords.flac", "deadmau5", "Some Chords", 30),
+        fake_file("peerC", "@@z\\deadmau5\\deadmau5 - Strobe (Kai Remix).flac", "deadmau5", "Strobe (Kai Remix)", 30),
+        fake_file("peerD", "@@w\\Fjaak\\Fjaak - Spirit.flac", "Fjaak", "Spirit", 30)])
+    s, runner = _set_with(h, "Set B1", [fake_row(1, "deadmau5", "Strobe", dur=30),
+                                       fake_row(2, "Fjaak", "Spirit", dur=30)], net)
+    h.run(s, runner)
+    s.finalize(h.library)
+    old_uid, keep_uid = _res(s, 1).uid, _res(s, 2).uid
+    assert _res(s, 1).file == "01 - deadmau5 - Strobe.flac" and _res(s, 1).state == ResultState.VERIFICADO
+    strobe = (s.set_dir / "01 - deadmau5 - Strobe.flac").read_bytes()
+    table = _table_copy(s.doc.rows)
+    setattr(table[0], field, value)
+    s2, runner2 = _set_with(h, "Set B1", table, net)
+    r1 = next(r for r in s2.doc.rows if r.pos == 1)
+    assert r1.uid != old_uid and s2.doc.results[r1.uid].state == ResultState.PENDIENTE
+    assert next(r for r in s2.doc.rows if r.pos == 2).uid == keep_uid           # the untouched row inherits
+    assert [r.uid for r in s2.pending_rows()] == [r1.uid]
+    h.run(s2, runner2)
+    s2.finalize(h.library)
+    assert s2.doc.passes[-1].uids == [r1.uid]
+    res = _res(s2, 1)
+    assert res.state == ResultState.VERIFICADO and res.file == new_file, res.reasons
+    assert _tag_title(s2.set_dir / new_file) == ("Some Chords" if field == "title" else "Strobe (Kai Remix)")
+    assert (s2.set_dir / new_file).read_bytes() != strobe
+    assert (s2.set_dir / "01 - deadmau5 - Strobe.flac").read_bytes() == strobe          # never renamed
+    rep = (s2.set_dir / "Informe - Set B1.txt").read_text(encoding="utf-8")
+    assert STRAY_TITLE_ES in rep and "    01 - deadmau5 - Strobe.flac" in rep
+    entries = {Path(e.path).name: e.key for e in h.library.entries if e.set_name == "Set B1"}
+    assert "01 - deadmau5 - Strobe.flac" not in entries and new_file in entries
+    assert _res(s2, 2).state == ResultState.VERIFICADO and _res(s2, 2).file == "02 - Fjaak - Spirit.flac"
+
+
+def test_r4_b1_two_edited_rows_that_would_share_a_uid_never_collide(tmp_path):
+    """B1 (3): row 1 'Spirit' becomes 'Spectrum' and row 2 'Raw' becomes 'Spirit'. Row 2 inherits Spirit's
+    result (its file gets its number), row 1 is downloaded, and no two rows share a uid: sync_names used to
+    plan two renames of one file (FileNotFoundError, a __tracklister_tmp_* left behind)."""
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    h = Harness(tmp_path)
+    net = _network(h, "b1-swap", [fake_file("peerA", "@@x\\Fjaak\\Fjaak - Spirit.flac", "Fjaak", "Spirit", 30),
+                                  fake_file("peerA", "@@x\\Fjaak\\Fjaak - Raw.flac", "Fjaak", "Raw", 30),
+                                  fake_file("peerB", "@@y\\Fjaak\\Fjaak - Spectrum.flac", "Fjaak", "Spectrum", 30)])
+    s, runner = _set_with(h, "Set swap", [fake_row(1, "Fjaak", "Spirit", dur=30), fake_row(2, "Fjaak", "Raw", dur=30)],
+                          net)
+    h.run(s, runner)
+    s.finalize(h.library)
+    spirit_uid = _res(s, 1).uid
+    spirit = (s.set_dir / "01 - Fjaak - Spirit.flac").read_bytes()
+    table = _table_copy(s.doc.rows)
+    table[0].title, table[1].title = "Spectrum", "Spirit"
+    s2, runner2 = _set_with(h, "Set swap", table, net)
+    uids = [r.uid for r in s2.doc.rows]
+    assert len(set(uids)) == 2 and uids[1] == spirit_uid and set(s2.doc.results) == set(uids)
+    assert s2.doc.results[uids[0]].state == ResultState.PENDIENTE
+    h.run(s2, runner2)
+    s2.finalize(h.library)
+    assert _res(s2, 1).state == ResultState.VERIFICADO and _res(s2, 1).file == "01 - Fjaak - Spectrum.flac"
+    assert _res(s2, 2).state == ResultState.VERIFICADO and _res(s2, 2).file == "02 - Fjaak - Spirit.flac"
+    assert (s2.set_dir / "02 - Fjaak - Spirit.flac").read_bytes() == spirit
+    assert sorted(f for f in _files(s2.set_dir) if f.endswith(".flac")) == [
+        "01 - Fjaak - Spectrum.flac", "02 - Fjaak - Raw.flac", "02 - Fjaak - Spirit.flac"]   # Raw: stray, kept
+    assert not list(s2.set_dir.glob("__tracklister_tmp_*"))
+    _no_row_left_running_and_journal_closed(s2)
+
+
+def test_r4_b1_only_rows_matched_by_artist_title_and_version_inherit():
+    """_merge_rows: unchanged, reordered rows and rows that only change the label or the start time keep the
+    old uid and result; an edited row and a repeated uid get new ones; every uid ends up unique."""
+    from tests.fakes.scenarios import row as fake_row
+    from tracklister.core.model import RowResult
+    from tracklister.pipeline.session import _merge_rows
+    old_rows = [fake_row(1, "Fjaak", "Spirit"), fake_row(2, "Kobosil", "Aggression"), fake_row(3, "Fjaak", "Raw"),
+                fake_row(4, "Roll Dann", "Mercy")]
+    doc = SetDoc(set_id="s", name="S", preset_id="lossless", rows=old_rows,
+                 results={r.uid: RowResult(uid=r.uid, pos=r.pos, state=ResultState.VERIFICADO) for r in old_rows})
+    table = _table_copy(old_rows)
+    table = [table[1], table[0], table[2], table[3]]                       # rows 1 and 2 swapped
+    for i, r in enumerate(table, start=1):
+        r.pos = i
+    table[0].label, table[1].ts_start = "Drumcode", 120                    # label and start: same track
+    table[2].title = "Raw Power"                                           # edited: another track
+    dup = _table_copy([table[3]])[0]                                       # a pasted copy with the same uid
+    dup.pos, dup.title = 5, "Mercy Me"
+    table.append(dup)
+    _merge_rows(doc, table)
+    by_pos = {r.pos: r.uid for r in doc.rows}
+    assert by_pos[1] == old_rows[1].uid and by_pos[2] == old_rows[0].uid and by_pos[4] == old_rows[3].uid
+    assert by_pos[3] not in {r.uid for r in old_rows} and by_pos[5] not in {r.uid for r in old_rows}
+    assert len(set(by_pos.values())) == 5
+    assert set(doc.results) == {old_rows[0].uid, old_rows[1].uid, old_rows[3].uid}
