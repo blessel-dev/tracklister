@@ -2,7 +2,7 @@
 
 Estabas dormido, así que en cada pregunta abierta tomé el valor recomendado y lo apunto aquí. Si quieres cambiar alguna, dime la letra y el número (por ejemplo "G.4") y lo ajusto.
 
-Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditoria-actual.md` §5 y fuentes `02-fuentes-tracklists.md` §5. Las secciones A a C responden a esas preguntas. Las demás recogen lo que se decidió al construir cada parte: D (motor), E (entradas y enriquecimiento), G (interfaz), M (marca) y N (unión final de todo).
+Fuentes: encargo `04-encargo-construccion.md` (Addendum), auditoría `01-auditoria-actual.md` §5 y fuentes `02-fuentes-tracklists.md` §5. Las secciones A a C responden a esas preguntas. Las demás recogen lo que se decidió al construir cada parte: D (motor), E (entradas y enriquecimiento), G (interfaz), M (marca), N (unión final de todo) y P (empaquetado y publicación).
 
 ## A. Preguntas de la auditoría (01 §5)
 
@@ -161,3 +161,32 @@ Detalle de la marca: `construccion\identidad-visual.md`.
 5. **Tildes también en los mensajes del motor y en los informes**: los motivos que ves en Resultados ("Otra versión: se pedía la original..."), el `Informe - <set>.txt` y el informe del Diagnóstico estaban escritos sin tildes ("cancion", "contrasena") y no casaban con el resto de la interfaz. Ahora van bien escritos. Los valores internos que se guardan en `set.json` (por ejemplo el tipo de duda `version`/`duracion`) no cambian, así que los sets ya creados se siguen abriendo igual.
 6. **Un archivo dudoso nunca muestra una confianza alta**: antes, un archivo con otra versión, otra canción o una duración que no cuadra podía salir como "Dudoso · otra versión" con "Confianza 100/100", porque la cifra solo medía artista, título y duración. Ahora, en esos casos (los que van a `_dudosos`, y también un archivo truncado) la confianza se queda como mucho en 49/100, por debajo de la franja "revisar" (50-79). Un archivo correcto pero con posible lossless falso se queda como mucho en 79/100. Así, "Dudoso" siempre va con una confianza por debajo del 80 que hace falta para "Verificado". El Diagnóstico aplica la misma regla a los candidatos que rechaza por versión, artista, título o duración.
 7. **"Descargar" completa antes las duraciones que faltan**: sin duración esperada, el motor no puede filtrar por duración y la comprobación posterior no detecta un radio edit o un extended (causa P1.2 de la auditoría). Con "Completar datos al importar" activado (por defecto), al pulsar "Descargar" se completan primero las pistas marcadas que aún no tienen duración (por ejemplo, las que has añadido o cambiado a mano después de importar), con el progreso en el aviso de arriba. Las que no aparecen en iTunes, Deezer ni MusicBrainz se descargan igual y en Resultados dicen "Sin duración esperada". Si no hay conexión, la descarga empieza igual. Si desactivas "Completar datos" en Ajustes, se respeta y se descarga directamente.
+
+## P. Empaquetado y publicación
+
+1. **El programa**: PyInstaller en modo carpeta (onedir), con ventana y sin consola, sin UPX y con el icono "T" (`packaging/tracklister.spec`). `Tracklister.exe` lleva sus datos de versión: producto "Tracklister" 1.0.0, sin "Blessel" en el nombre. Se construye con `.\.venv\Scripts\python.exe packaging\build.py --zip`.
+2. **scipy y sklearn no van dentro**: la app no los usa (solo los usan las herramientas de marca). El análisis de PyInstaller no los encuentra, y un test comprueba que ningún módulo de `src/` importa nada de lo que se excluye (scipy, sklearn, Pillow, pytest...). Por eso no hacen falta las opciones `--collect-submodules scipy._external --collect-submodules scipy`. Si algún día la app usa scipy, el test avisa: hay que quitarlo de la lista de excluidos y añadir esas opciones.
+3. **Qué hay en la carpeta (y en el zip)**: unos 220 MB descomprimidos y 134 MB en zip.
+   - `Tracklister.exe` y `_internal\` (Python, Qt y la marca).
+   - `engines\`: los dos motores fijados por SHA-256, Sockseek 3.0.5 (por defecto) y sldl 2.6.0 (reserva, Ajustes > Motor), cada uno con su LICENSE y su SOURCE.md. La app los descomprime y los comprueba la primera vez que descarga.
+   - `tools\yt-dlp.exe` con sus licencias, que la app copia al primer arranque a `%LOCALAPPDATA%\Tracklister\tools\`.
+   - `licenses\`: los textos de licencia de Python, PyInstaller, OpenSSL, Qt/PySide6 y cada paquete de Python que va dentro.
+   - `LICENSE.txt` y `NOTICES.txt`, que se abren con doble clic. En el repo siguen siendo `LICENSE` y `third_party/NOTICES.md`.
+4. **yt-dlp fijado**: la versión 2026.08.19 (la última estable), fijada por SHA-256 y contrastada con el `SHA2-256SUMS` de su release. Si YouTube cambia, "Actualizar yt-dlp" en Ajustes la pone al día sin tocar la app.
+5. **Licencia**: `LICENSE` es el texto oficial de la GPL-3.0 (lo comprueba un test por su SHA-256). "O cualquier versión posterior" consta en `pyproject.toml`, en el README y en `NOTICES`. Qt/PySide6 se usan bajo su opción LGPL-3.0, y su texto va incluido.
+6. **Logo y nombre Blessel**: `NOTICES` dice que son la firma del creador y que, como permite la sección 7(e) de la GPL-3.0, la licencia no da derechos de marca sobre ellos. Pendiente de que lo confirmes.
+7. **GitHub Actions** (`.github/workflows/release.yml`):
+   - Solo se ejecuta al subir una etiqueta `v*`, en un runner `windows-2025`.
+   - Las acciones van fijadas por commit: `actions/checkout` v7.0.1 y `actions/setup-python` v7.0.0. La Release se publica con la herramienta `gh` del propio runner, sin acciones de terceros, y el único permiso de escritura es `contents: write`.
+   - Pasos: Python 3.13, venv con los locks exactos, motores y yt-dlp comprobados por SHA-256, todos los tests, la build, la prueba de humo sin Python y, al final, la Release.
+   - La Release lleva el zip de la app, los zips de código fuente de los dos motores (que exigen la AGPL y la GPL) y `SHA256SUMS.txt`. Las notas, en español, explican cómo comprobar el SHA-256 con `Get-FileHash` y cómo pasar el aviso de SmartScreen.
+8. **La etiqueta tiene que coincidir con la versión de la app** (`v1.0.0` con `1.0.0`). Si no coincide, no se publica nada: un exe con otra versión haría que el aviso de actualización saliera siempre.
+9. **Propietario de GitHub**: sigue siendo el marcador `OWNER_PLACEHOLDER` en `GITHUB_OWNER` (`src/tracklister/config.py`), la única constante. Lo recomendable es rellenarlo antes de publicar. Si se te olvida, el workflow lo rellena solo para esa build con el dueño del repo y deja un aviso en la ejecución. El repo no cambia, y un fork conserva el propietario que ya tenga.
+10. **Dos tests ajustados**: comprobaban que `GITHUB_OWNER` valía el marcador, así que habrían fallado en cuanto lo rellenaras, y GitHub Actions no habría publicado nada. Ahora ponen ellos el marcador antes de comprobar que no se envía nada.
+11. **`.tmp\` nunca sale del portátil**: está en `.gitignore` y no se publica, y `build.py` rechaza un paquete que lo contenga. Lo mismo vale para los tests, scipy, `settings.json`, los `.conf` y los `.log`. Hay tests para todo ello.
+12. **Huella de este PC**: `build.py` busca dentro del paquete el nombre de la cuenta de Windows y el del PC, y los dos salen 0. En GitHub Actions esa búsqueda se salta, porque el runner no tiene datos personales.
+13. **Prueba de humo del exe** (`packaging/smoke_test.py`):
+    - Copia la carpeta fuera del repo y arranca `Tracklister.exe` sin Python en el PATH, sin variables `PYTHON*`, con un usuario nuevo y sin tocar el Administrador de credenciales.
+    - Comprueba que se abre el primer inicio, que sale con código 0, que el registro queda limpio y que copia yt-dlp entero.
+    - En este portátil pasó con la plataforma real de Windows (3,5 s) y en modo offscreen, el que usa GitHub Actions.
+    - La captura está en `construccion\capturas\exe\`. En la copia guardada, la carpeta de la biblioteca, que muestra la ruta real de tu Música, se ve como `C:\Users\<usuario>\Music\Tracklister`.
