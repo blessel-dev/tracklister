@@ -8,11 +8,7 @@ import sys
 
 
 def main() -> int:
-    try:
-        from tracklister.gui.app import run  # created by the GUI step
-    except ImportError:
-        print("Tracklister 1.0.0: la interfaz aun no esta construida (tracklister.gui.app.run).")
-        return 1
+    from tracklister.gui.app import run
     return run(sys.argv)
 
 
