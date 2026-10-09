@@ -9,8 +9,8 @@ Fully offline and safe for the corporate laptop:
 - an in-memory keyring with a dummy account (never the Windows Credential Manager);
 - the FAKE engine (tests/fakes/fake_engine.py) with tests/fakes/scenarios.py networks: no Soulseek;
 - no enrichment, no update check, no Downloads watcher.
-The 'nuevo set' capture imports the sample trackid.net CSV with the real importer when it is
-available (tests/fixtures/inputs/), else with a tiny local reader of the same CSV.
+The 'nuevo set' and 'reordenar' captures import the sample trackid.net CSV
+(tests/fixtures/inputs/) with the REAL importer (tracklister.inputs.importer).
 
 Screens: 01 primer inicio, 02 nuevo set, 03 descargando, 04 resultados (every state), 05 duplicado,
 06 lossy, 07 reordenar, 08 diagnostico, 09 ajustes; 00-vista-general.png puts them side by side.
@@ -18,7 +18,6 @@ Screens: 01 primer inicio, 02 nuevo set, 03 descargando, 04 resultados (every st
 from __future__ import annotations
 
 import argparse
-import csv
 import os
 import sys
 import tempfile
@@ -38,8 +37,7 @@ import keyring  # noqa: E402
 import keyring.backend  # noqa: E402
 
 DEFAULT_OUT = Path(r"c:\projects\ABLETON\.agents\tasks\tracklister-v2\construccion\capturas")
-SAMPLE_CSV_NAMES = ("fjaak-techno-dj-set-section-may-2026.csv",)
-SAMPLE_CSV_DIRS = (REPO / "tests" / "fixtures" / "inputs", Path(r"c:\projects\ABLETON\tracklister"))
+SAMPLE_CSV = REPO / "tests" / "fixtures" / "inputs" / "fjaak-techno-dj-set-section-may-2026.csv"
 SCREENS = ("primer-inicio", "nuevo-set", "descargando", "resultados", "duplicado", "lossy", "reordenar",
            "diagnostico", "ajustes")
 DUMMY_USER, DUMMY_PASS = "usuario-prueba", "clave-prueba"
@@ -74,7 +72,6 @@ from tests.fakes.scenarios import build_scenario  # noqa: E402
 from tests.gui.fakes import FakeServices, ScriptedPrompter  # noqa: E402
 from tracklister.core.model import DuplicateChoice, SourceRef, TrackRow  # noqa: E402
 from tracklister.core.paths import app_paths  # noqa: E402
-from tracklister.core.textnorm import split_artists, split_title_version  # noqa: E402
 from tracklister.engine.credentials import CredentialStore, Credentials  # noqa: E402
 from tracklister.gui.app import build_window, create_app  # noqa: E402
 from tracklister.gui.dialogs import DuplicateDialog, LossyDialog  # noqa: E402
@@ -100,73 +97,26 @@ def settle(app, ms: int = 300) -> None:
 
 
 class CaptureServices(FakeServices):
-    """FakeServices, but the real importer when INPUTS is available (for the sample CSV)."""
+    """FakeServices (fake engine, no network, no desktop side effects) with the REAL importer."""
 
     def import_source(self, source):
-        try:
-            import tracklister.inputs.importer  # noqa: F401
-        except ImportError:
-            return super().import_source(source)
         self.import_calls.append(source)
         return Services.import_source(self, source)
 
 
-def sample_csv() -> Path | None:
-    for d in SAMPLE_CSV_DIRS:
-        for n in SAMPLE_CSV_NAMES:
-            if (d / n).is_file():
-                return d / n
-    return None
-
-
-def _secs(hms: str) -> int | None:
-    try:
-        h, m, s = (int(x) for x in hms.split(":"))
-        return h * 3600 + m * 60 + s
-    except ValueError:
-        return None
-
-
-def fallback_rows(path: Path) -> list[TrackRow]:
-    """Only used when inputs.importer is not there yet: the trackid CSV, gaps > 90 s as ID rows."""
-    rows: list[TrackRow] = []
-    prev_end = None
-    with open(path, encoding="utf-8-sig", newline="") as f:
-        for rec in csv.DictReader(f):
-            start, end = _secs(rec["Start"]), _secs(rec["End"])
-            if prev_end is not None and start is not None and start - prev_end > 90:
-                rows.append(TrackRow(pos=0, title="ID (hueco)", ts_start=prev_end, is_id=True, download=False,
-                                     status="id", confidence=0.0, source="trackid_csv"))
-            label = rec.get("Label") or None
-            artist = rec["Artist"]
-            parts = [a for a in split_artists(artist) if not label or a.lower() != label.lower()]
-            parts = parts or split_artists(artist)
-            title, version = split_title_version(rec["Title"])
-            rows.append(TrackRow(pos=0, title=title, artists=parts, artist_display=" & ".join(parts),
-                                 version=version, label=label, ts_start=start, ts_end=end, source="trackid_csv",
-                                 raw=",".join(rec.values())))
-            prev_end = end
-    for i, r in enumerate(rows, start=1):
-        r.pos = i
-        if isinstance(r.status, str):
-            from tracklister.core.model import RowStatus
-            r.status = RowStatus(r.status)
-    return rows
+def sample_csv() -> Path:
+    if not SAMPLE_CSV.is_file():
+        raise SystemExit(f"Falta la tracklist de muestra: {SAMPLE_CSV}")
+    return SAMPLE_CSV
 
 
 def sample_rows(services) -> tuple[list[TrackRow], str]:
-    """The sample trackid CSV through the real importer (INPUTS) if present, else the local reader."""
+    """The sample trackid CSV through the real importer."""
     csv_path = sample_csv()
-    if csv_path is None:
-        return build_scenario("correcto", _HOME / "n-sample")[0], "correcto"
-    try:
-        import tracklister.inputs.importer  # noqa: F401
-        res = Services.import_source(services, csv_path)
-        if getattr(res, "rows", None):
-            return list(res.rows), csv_path.name
-    except ImportError:
-        pass
-    return fallback_rows(csv_path), csv_path.name
+    res = Services.import_source(services, csv_path)
+    if not getattr(res, "rows", None):
+        raise SystemExit(f"El importador no ha leído {csv_path.name}: {getattr(res, 'message_es', '')}")
+    return list(res.rows), csv_path.name
 
 
 def new_services(lib_root: Path, *, ready: bool = True, network: Path | None = None) -> CaptureServices:
@@ -241,17 +191,8 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
     s = new_services(lib)
     if want("nuevo-set"):
         w = make_window(app, s, theme=theme)
-        csv_path = sample_csv()
-        if csv_path is not None:
-            try:
-                import tracklister.inputs.importer  # noqa: F401
-                w.new_set.import_source(csv_path)
-                wait_until(app, lambda: not w.new_set._busy and w.new_set.model.rowCount() > 0, 30)
-            except ImportError:
-                w.new_set.set_rows(fallback_rows(csv_path), name="Fjaak - Techno DJ Set - Section - May 2026",
-                                   sources=[SourceRef("trackid_csv", csv_path.name)])
-                w.new_set.banner.show_message(f"{w.new_set.model.rowCount()} pistas leídas del CSV de trackid.net "
-                                              "(4 huecos de más de 90 s como ID).", "ok")
+        w.new_set.import_source(sample_csv())
+        wait_until(app, lambda: not w.new_set._busy and w.new_set.model.rowCount() > 0, 30)
         settle(app, 300)
         shots["nuevo-set"] = save(w.grab().toImage(), out, f"02-nuevo-set-{theme}")
         close_window(app, w)
