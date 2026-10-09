@@ -1,0 +1,232 @@
+{
+ "id": "mD9ELt_Pvp4",
+ "title": "FJAAK | Techno DJ Set | SECTION. | May 2026",
+ "provenance": "fuentes/youtube/parse_mD9ELt_Pvp4.json (prototype)",
+ "chosen": {
+  "source": "comment",
+  "author": "@travo1001",
+  "rows": 22
+ },
+ "rows": [
+  {
+   "ts": 0,
+   "artist": "ID",
+   "title": "ID",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 19,
+   "artist": "Blasha, Allatt",
+   "title": "8AM in Salford",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 158,
+   "artist": "Phara / Phaaar",
+   "title": "Grey Ribbon",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 270,
+   "artist": "Justyn Nell",
+   "title": "Visions",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 435,
+   "artist": "Roll Dann",
+   "title": "The Red House",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 660,
+   "artist": "DJ Dextro",
+   "title": "Covil dos Abutres",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 735,
+   "artist": "Axel Karakasis",
+   "title": "Last Ray",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 925,
+   "artist": "Plug Trax",
+   "title": "Zoned Out",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1110,
+   "artist": "OFF / GRID",
+   "title": "No Money No Problems",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1230,
+   "artist": "Ferdinger",
+   "title": "I'm Still Here",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1410,
+   "artist": "Truncate",
+   "title": "Dust 1",
+   "version": "Kai Van Dongen Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1570,
+   "artist": "ID",
+   "title": "ID",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 1740,
+   "artist": "STIPP, Sandrien",
+   "title": "Corrie",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1898,
+   "artist": "Klint",
+   "title": "Gunslingers",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1980,
+   "artist": "Exos",
+   "title": "Glaður Og Reifur",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2190,
+   "artist": "Lewis Fautzi",
+   "title": "Zona Neutra",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2340,
+   "artist": "FJAAK",
+   "title": "ID",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 2510,
+   "artist": "ID",
+   "title": "ID",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 2685,
+   "artist": "ANFS",
+   "title": "Caballero",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2870,
+   "artist": "Introversion",
+   "title": "Duff",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3050,
+   "artist": "Deas",
+   "title": "Here Again",
+   "version": null,
+   "feat": null,
+   "label": "CROWD",
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3205,
+   "artist": "Chris Liebing",
+   "title": "Higher Things",
+   "version": "FJAAK Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  }
+ ]
+}

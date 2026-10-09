@@ -1,0 +1,182 @@
+{
+ "id": "cmUov7X5Pjc",
+ "title": "Funk Tribu | Boiler Room: Ghent",
+ "provenance": "fuentes/youtube/parse_cmUov7X5Pjc.json (prototype)",
+ "chosen": {
+  "source": "comment",
+  "author": "@funktribumusic",
+  "rows": 17
+ },
+ "rows": [
+  {
+   "ts": 250,
+   "artist": "Funk Tribu & CAIVA",
+   "title": "Keep Up",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 250,
+   "artist": "Funk Tribu",
+   "title": "Unreleased",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 470,
+   "artist": "Funk Tribu",
+   "title": "Unreleased",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 623,
+   "artist": "Funk Tribu",
+   "title": "Platinum",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 864,
+   "artist": "Funk Tribu",
+   "title": "Damage Control",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1113,
+   "artist": "BK",
+   "title": "Give It To Me",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1320,
+   "artist": "Funk Tribu",
+   "title": "Unreleased",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 1448,
+   "artist": "Coolio",
+   "title": "Gangsta’s Paradise",
+   "version": "Funk Tribu Edit",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1671,
+   "artist": "Felix",
+   "title": "Don’t you want me",
+   "version": "Ki/Ki Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1830,
+   "artist": "Funk Tribu & Odymel",
+   "title": "Unreleased",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 1989,
+   "artist": "Funk Tribu & Bad Boombox",
+   "title": "Unreleased",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 2207,
+   "artist": "Funk Tribu",
+   "title": "Unreleased",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 2428,
+   "artist": "Funk Tribu & ANDATA",
+   "title": "New Wave",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2490,
+   "artist": "Daft Punk",
+   "title": "Harder Better Faster Stronger",
+   "version": "Acapella",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2625,
+   "artist": "Funk Tribu",
+   "title": "All Of It",
+   "version": null,
+   "feat": "LUCY DYE",
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3060,
+   "artist": "Pyrolysis",
+   "title": "From Ze Oven",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3350,
+   "artist": "Funk Tribu",
+   "title": "I Got It For You",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  }
+ ]
+}

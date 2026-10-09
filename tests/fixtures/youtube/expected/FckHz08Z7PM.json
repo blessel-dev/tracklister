@@ -1,0 +1,812 @@
+{
+ "id": "FckHz08Z7PM",
+ "title": "Ben Sims B2B Oscar Mulero - Stone Techno Festival 2022 - @ARTE Concert",
+ "provenance": "fuentes/youtube/parse_FckHz08Z7PM.json (prototype)",
+ "chosen": {
+  "source": "comment",
+  "author": "@brelant9692",
+  "rows": 80
+ },
+ "rows": [
+  {
+   "ts": 0,
+   "artist": "Planetary Assault Systems",
+   "title": "Angel Of The East",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 140,
+   "artist": "Oscar Mulero",
+   "title": "Claro Magnetismo",
+   "version": null,
+   "feat": null,
+   "label": "Wu100 - Viaje interior",
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 219,
+   "artist": "Mr.Tron",
+   "title": "Concentro",
+   "version": "Translate remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 467,
+   "artist": "Oscar Mulero",
+   "title": "Inancanzable Visio?n",
+   "version": null,
+   "feat": null,
+   "label": "Wu100 - Viaje interior",
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 720,
+   "artist": "Mike Parker",
+   "title": "Splitting Electricity",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 840,
+   "artist": "OM",
+   "title": "Asteroidal dust",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 982,
+   "artist": "Evod,Oisel",
+   "title": "Dune",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1027,
+   "artist": "DJ Surgeles",
+   "title": "Star Godz",
+   "version": null,
+   "feat": null,
+   "label": "Axis Records",
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1223,
+   "artist": "Planetary Assault Systems",
+   "title": "Nano Chameleon",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1320,
+   "artist": "Evod",
+   "title": "Alterazione",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1405,
+   "artist": "Jeroen Search",
+   "title": "Frontal Lobe",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1537,
+   "artist": "Pwcca",
+   "title": "Unreleased",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 1750,
+   "artist": "Nørbak",
+   "title": "Amongst Them",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2020,
+   "artist": "Lewis Fautzi",
+   "title": "inwards",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2132,
+   "artist": "Planetary Assault Systems",
+   "title": "Give It Up",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2223,
+   "artist": "Endplate",
+   "title": "unreal",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2390,
+   "artist": "Alarico",
+   "title": "Cruisin",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2520,
+   "artist": "Planetary Assault Systems",
+   "title": "Bolt",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2760,
+   "artist": "Elektrabel",
+   "title": "Cave Creature",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2848,
+   "artist": "Ribé",
+   "title": "Elementary Particle",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2952,
+   "artist": "Dimi Angélis",
+   "title": "The Web Of Fear",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3278,
+   "artist": "Truncate",
+   "title": "First Phase",
+   "version": "PAS Jam 2",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3400,
+   "artist": "Temudo",
+   "title": "Priority",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3622,
+   "artist": "Jeroen Search",
+   "title": "Vector Sum",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3793,
+   "artist": "Vinicius Honorio",
+   "title": "Subway Grind",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4003,
+   "artist": "Slam",
+   "title": "Cirklon Bells",
+   "version": "Jeroen Search Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4235,
+   "artist": "Anika Kunst",
+   "title": "Detox",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4500,
+   "artist": "Jeroen Search & Gotshell",
+   "title": "Extraterrestre",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4680,
+   "artist": "Kashpitzky",
+   "title": "I Demand",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4910,
+   "artist": "Truncate",
+   "title": "repeat",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4978,
+   "artist": "Ritzi Lee",
+   "title": "Code Substantial",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5217,
+   "artist": "Roman Poncet",
+   "title": "Walfisch",
+   "version": "Robert Hood Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5320,
+   "artist": "Jeroen Search",
+   "title": "Infinite loop",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5419,
+   "artist": "Tenzella",
+   "title": "Frazil",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5520,
+   "artist": "SHDW & Obscure Shape",
+   "title": "Verlorene Seelen",
+   "version": "Ø Phase Version",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5608,
+   "artist": "Truncate",
+   "title": "Intact",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5681,
+   "artist": "PUSHMANN",
+   "title": "Felleus",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5973,
+   "artist": "Subjected",
+   "title": "Thtswhtwnt",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6120,
+   "artist": "Ritzi Lee",
+   "title": "Binary Stream-Processor",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6360,
+   "artist": "Israel Toledo",
+   "title": "Radon",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6665,
+   "artist": "Translate",
+   "title": "Division selectiva",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6795,
+   "artist": "Robert Hood",
+   "title": "I Am",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6943,
+   "artist": "Translate",
+   "title": "Constant Relay",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 7155,
+   "artist": "Tensal",
+   "title": "Thesis 2",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 7234,
+   "artist": "Alarico",
+   "title": "G Funk",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 7432,
+   "artist": "Thanos Hana",
+   "title": "Ringer 1",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 7620,
+   "artist": "Rødhåd",
+   "title": "Wise Saying",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 7860,
+   "artist": "Arthur Robert",
+   "title": "Wither",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 8038,
+   "artist": "LSD",
+   "title": "Process 6",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 8297,
+   "artist": "Tadeo",
+   "title": "The Labyrinth",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 8577,
+   "artist": "Stef Mendesidis",
+   "title": "The Secret Agent’s Blunder",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 8867,
+   "artist": "Lsd",
+   "title": "Process 5",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 8940,
+   "artist": "Stefan Vincent",
+   "title": "Renunciation",
+   "version": "Dub Tool",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 9000,
+   "artist": "Staffan Linzatti",
+   "title": "Induced Compliance",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 9178,
+   "artist": "Paradox",
+   "title": "Proceed",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 9300,
+   "artist": "Ritzi Lee",
+   "title": "Scaling Up",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 9540,
+   "artist": "Maan",
+   "title": "Trow",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 9861,
+   "artist": "Alexander Johansson, Mattias Fridell",
+   "title": "Katalast",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 9780,
+   "artist": "Mike Storm",
+   "title": "From The Human Eye to Earth",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 10101,
+   "artist": "Cri Du Coeur",
+   "title": "Diaphragm",
+   "version": "Truncate Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 10200,
+   "artist": "",
+   "title": "industrializer jam 3 & dj zank",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "partial"
+  },
+  {
+   "ts": 10620,
+   "artist": "ID",
+   "title": "ID",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 10708,
+   "artist": "Ribé",
+   "title": "Las Noches",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 10976,
+   "artist": "Planetary Assault Systems",
+   "title": "Screen",
+   "version": "2018 Re-edit",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 10980,
+   "artist": "Oscar Mulero",
+   "title": "Dos Esqueletos",
+   "version": "Original mix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 11256,
+   "artist": "Andrea Belluzzi",
+   "title": "75",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 11470,
+   "artist": "Kr!z",
+   "title": "Neutrino Systems",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 11533,
+   "artist": "D.Dan",
+   "title": "Vaults",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 11750,
+   "artist": "James Ruskin",
+   "title": "Work",
+   "version": "Steve Rachmad Mix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 12109,
+   "artist": "Translate",
+   "title": "Pulsing Signals",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 12270,
+   "artist": "Temudo",
+   "title": "Float Here Forever",
+   "version": "Original Mix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 12555,
+   "artist": "Planetary Assault Systems",
+   "title": "Devotion",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 12720,
+   "artist": "Lady Starlight & Rødhåd",
+   "title": "200704",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 12920,
+   "artist": "ID",
+   "title": "ID",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": true,
+   "quality": "strong"
+  },
+  {
+   "ts": 12967,
+   "artist": "Divide",
+   "title": "Elaborazione",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 13011,
+   "artist": "",
+   "title": "rob hood grey move",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "partial"
+  },
+  {
+   "ts": 13253,
+   "artist": "Divide",
+   "title": "Isocrono",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 13320,
+   "artist": "vil",
+   "title": "field & jerk u later",
+   "version": null,
+   "feat": null,
+   "label": "marquis hawkes",
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 13580,
+   "artist": "Mark Broom",
+   "title": "909 workout",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 13800,
+   "artist": "Ritzi",
+   "title": "lee-Firewall",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  }
+ ]
+}

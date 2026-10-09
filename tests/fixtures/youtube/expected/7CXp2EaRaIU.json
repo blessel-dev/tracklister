@@ -1,0 +1,122 @@
+{
+ "id": "7CXp2EaRaIU",
+ "title": "andré dancekowski | HÖR - November 6 / 2023",
+ "provenance": "fuentes/youtube/parse_7CXp2EaRaIU.json (prototype)",
+ "chosen": {
+  "source": "comment",
+  "author": "@jussivalter",
+  "rows": 11
+ },
+ "rows": [
+  {
+   "ts": 2,
+   "artist": "Bongoloverz",
+   "title": "Power Of Music (feat. An-Tonic) Bongoloverz Dub",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 371,
+   "artist": "LPH",
+   "title": "Liwando J.T. Company",
+   "version": null,
+   "feat": null,
+   "label": "Don't Deal With Us",
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 685,
+   "artist": "Melodymann",
+   "title": "What Are You Gonna Do",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 990,
+   "artist": "Antman",
+   "title": "What Is House?",
+   "version": null,
+   "feat": null,
+   "label": "Club",
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1202,
+   "artist": "United State",
+   "title": "All This Love That I'm Giving",
+   "version": "doing it in the park mix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1590,
+   "artist": "Cosmic Love Vs Liquid & CC Rogers",
+   "title": "Sweet Harmony",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1922,
+   "artist": "DJ Deller",
+   "title": "Romantic 2001",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2244,
+   "artist": "Luca Lozano & DJ Fett Burger",
+   "title": "Telegrønn",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2505,
+   "artist": "P?rn Kings",
+   "title": "Up To No Good",
+   "version": "DJ Quicksilver Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2856,
+   "artist": "The House Pimps",
+   "title": "Deep In Rhythm",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2987,
+   "artist": "Paul Johnson",
+   "title": "Get On My Camel",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  }
+ ]
+}

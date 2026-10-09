@@ -1,0 +1,372 @@
+{
+ "id": "z6CwInMQF4w",
+ "title": "Estella Boersma - Stone Techno 2024 - ARTE Concert",
+ "provenance": "fuentes/youtube/parse_z6CwInMQF4w.json (prototype)",
+ "chosen": {
+  "source": "comment",
+  "author": "@dakou_cd",
+  "rows": 36
+ },
+ "rows": [
+  {
+   "ts": 211,
+   "artist": "Mikrotakt",
+   "title": "Anticlockwise",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 578,
+   "artist": "Dave Wincent",
+   "title": "Death Row",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 673,
+   "artist": "Phara",
+   "title": "Rhythm Sticks",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 859,
+   "artist": "Luc",
+   "title": "Get Down",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1115,
+   "artist": "M.I.T.A.",
+   "title": "Like You Just Don't Care",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1267,
+   "artist": "CULT",
+   "title": "Raw Groove",
+   "version": "Jon10 Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1321,
+   "artist": "Hertz",
+   "title": "Timballe",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1446,
+   "artist": "Specific Objects",
+   "title": "Madrigal",
+   "version": "Disguised Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1663,
+   "artist": "X CLUB.",
+   "title": "Parallel Wire",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 1975,
+   "artist": "Gary Beck",
+   "title": "Upside Criminal",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2054,
+   "artist": "Tommy Holohan",
+   "title": "Subaru Impreza",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2320,
+   "artist": "Estella Boersma",
+   "title": "Get Up",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2472,
+   "artist": "Estella Boersma",
+   "title": "Rapid",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 2981,
+   "artist": "Yan Cook",
+   "title": "Collateral Damage",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3225,
+   "artist": "Slam",
+   "title": "Viper",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3305,
+   "artist": "Fadi Mohem & Rødhåd",
+   "title": "210407.2",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3505,
+   "artist": "Deas",
+   "title": "Focus",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 3540,
+   "artist": "Marcal",
+   "title": "Biohazard",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4006,
+   "artist": "Ben Khlifa",
+   "title": "Double Sektion",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4359,
+   "artist": "Estella Boersma",
+   "title": "Cerberus",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4479,
+   "artist": "Yan Cook",
+   "title": "Hammerhead",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4560,
+   "artist": "Cleric",
+   "title": "Angel of Death",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4680,
+   "artist": "Disguised",
+   "title": "Sonic Intrusion",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 4846,
+   "artist": "Exos",
+   "title": "Infrared",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5027,
+   "artist": "Disguised",
+   "title": "Pagoda Dreamer",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5133,
+   "artist": "Braintool",
+   "title": "Lost In Noise Remix",
+   "version": null,
+   "feat": null,
+   "label": "Junk",
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5425,
+   "artist": "Marco Bailey",
+   "title": "Days Of Yore",
+   "version": "Original Mix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5536,
+   "artist": "Ant - KN",
+   "title": "Fast Lane",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5620,
+   "artist": "",
+   "title": "Guy McAffer smoke out the mole",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "partial"
+  },
+  {
+   "ts": 5768,
+   "artist": "Lucass P",
+   "title": "Faithful to the Doctrine",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 5949,
+   "artist": "Audioklinik",
+   "title": "Madness",
+   "version": "Chris Da Break Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6135,
+   "artist": "Coast 2 Coast",
+   "title": "Searching",
+   "version": "Original Mix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6471,
+   "artist": "CIS - Eva Vrijdag",
+   "title": "Knaldrang",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6810,
+   "artist": "DJ Disrespect",
+   "title": "Deep Encounter",
+   "version": "Bours? Remix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 6936,
+   "artist": "Tiësto",
+   "title": "Flight 643",
+   "version": null,
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  },
+  {
+   "ts": 7442,
+   "artist": "David LaFhionntain",
+   "title": "Never Die",
+   "version": "Original Mix",
+   "feat": null,
+   "label": null,
+   "is_id": false,
+   "quality": "strong"
+  }
+ ]
+}
