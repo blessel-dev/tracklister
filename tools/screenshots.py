@@ -8,7 +8,8 @@ Fully offline and safe for the corporate laptop:
 - TRACKLISTER_HOME -> a scratch dir (nothing touches the real %APPDATA%/%LOCALAPPDATA%);
 - an in-memory keyring with a dummy account (never the Windows Credential Manager);
 - the FAKE engine (tests/fakes/fake_engine.py) with tests/fakes/scenarios.py networks: no Soulseek;
-- no enrichment, no update check, no Downloads watcher.
+- enrichment ON (the app default) but answered from the recorded tests/fixtures/http files
+  (ReplayTransport, no request leaves the machine); no update check, no Downloads watcher.
 The 'nuevo set' and 'reordenar' captures import the sample trackid.net CSV
 (tests/fixtures/inputs/) with the REAL importer (tracklister.inputs.importer).
 The scratch data (settings, library, set folders) lives under the repo's git-ignored .tmp\\, so
@@ -17,7 +18,7 @@ the paths shown in the screens carry no Windows account name; it is deleted at t
 
 Screens: 01 primer inicio (+ 01b scrolled down), 02 nuevo set, 03 descargando, 04 resultados
 (every state), 05 duplicado, 06 lossy, 07 reordenar, 08 diagnostico, 09 ajustes (+ 09b scrolled
-down); 00-vista-general.png puts them side by side.
+down); 00-vista-general-1.png, -2.png... put them side by side (pages of at most 1568 px).
 """
 from __future__ import annotations
 
@@ -44,6 +45,7 @@ import keyring.backend  # noqa: E402
 
 DEFAULT_OUT = Path(r"c:\projects\ABLETON\.agents\tasks\tracklister-v2\construccion\capturas")
 SAMPLE_CSV = REPO / "tests" / "fixtures" / "inputs" / "fjaak-techno-dj-set-section-may-2026.csv"
+HTTP_FIXTURES = REPO / "tests" / "fixtures" / "http"
 SCREENS = ("primer-inicio", "primer-inicio-abajo", "nuevo-set", "descargando", "resultados", "duplicado", "lossy",
            "reordenar", "diagnostico", "ajustes", "ajustes-abajo")
 SCREEN_LABELS_ES = {
@@ -91,6 +93,7 @@ from tracklister.engine.credentials import CredentialStore, Credentials  # noqa:
 from tracklister.gui.app import build_window, create_app  # noqa: E402
 from tracklister.gui.dialogs import DuplicateDialog, LossyDialog  # noqa: E402
 from tracklister.gui.services import Services  # noqa: E402
+from tracklister.net.http import HttpClient, ReplayTransport  # noqa: E402
 
 
 def wait_until(app, cond, timeout_s: float = 60.0) -> bool:
@@ -112,11 +115,21 @@ def settle(app, ms: int = 300) -> None:
 
 
 class CaptureServices(FakeServices):
-    """FakeServices (fake engine, no network, no desktop side effects) with the REAL importer."""
+    """FakeServices (fake engine, no network, no desktop side effects) with the REAL importer and the
+    REAL enrichment over the recorded iTunes/Deezer/MusicBrainz answers of tests/fixtures/http
+    (ReplayTransport only reads files: no request leaves the machine)."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self._http = HttpClient(ReplayTransport(HTTP_FIXTURES), sleep=lambda s: None)
 
     def import_source(self, source):
         self.import_calls.append(source)
         return Services.import_source(self, source)
+
+    def enrich(self, rows, on_progress=None, cancel=None):
+        self.enrich_calls += 1
+        return Services.enrich(self, rows, on_progress=on_progress, cancel=cancel)
 
 
 def sample_csv() -> Path:
@@ -136,7 +149,7 @@ def sample_rows(services) -> tuple[list[TrackRow], str]:
 
 def new_services(lib_root: Path, *, ready: bool = True, network: Path | None = None) -> CaptureServices:
     s = CaptureServices(library_root=lib_root, network=network)
-    s.settings.enrichment_enabled = False
+    s.settings.enrichment_enabled = True          # the app default; answers come from the recorded fixtures
     s.settings.watch_downloads_folder = False
     if ready:
         s.settings.first_run_done = True
@@ -229,13 +242,16 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
     if want("nuevo-set"):
         w = make_window(app, s, theme=theme)
         w.new_set.import_source(sample_csv())
-        wait_until(app, lambda: not w.new_set._busy and w.new_set.model.rowCount() > 0, 30)
+        # import, then the automatic 'Completar datos' fills Versión/Duración from the recorded answers
+        wait_until(app, lambda: not w.new_set._busy and w.new_set.model.rowCount() > 0
+                   and "Datos completados" in w.new_set.banner.message(), 60)
         settle(app, 300)
         shots["nuevo-set"] = save(w.grab().toImage(), out, f"02-nuevo-set-{theme}")
         close_window(app, w)
 
     if want("descargando"):
-        # peerB answers slowly: the first track is verified while the second one still downloads
+        # peerB answers slowly, so the pass is still running when the capture is taken. The files are
+        # verified when the engine pass ends, so the screen shows the engine's live progress lines.
         rows, net = build_scenario("correcto", work / "net-slow")
         import json
         data = json.loads(net.read_text(encoding="utf-8"))
@@ -244,8 +260,11 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
         s2 = new_services(lib, network=net)
         w = make_window(app, s2, theme=theme)
         w.start_download("Descargando", rows, [SourceRef("tabla", "set.csv")])
-        wait_until(app, lambda: w.results.model.counts().get(ResultState.VERIFICADO, 0) >= 1, 60)
-        settle(app, 1500)
+        if not wait_until(app, lambda: w.results.model.counts().get(ResultState.EN_CURSO, 0) >= len(rows), 30):
+            print(f"aviso ({theme}): la pasada no llegó a 'en curso' a tiempo en 'descargando'")
+        settle(app, 2500)                     # the fake engine prints its search/download lines
+        if w.results.model.counts().get(ResultState.VERIFICADO, 0):
+            print(f"aviso ({theme}): la pasada terminó antes de la captura de 'descargando'")
         shots["descargando"] = save(w.grab().toImage(), out, f"03-descargando-{theme}")
         w.cancel_run()
         wait_until(app, lambda: not w.worker_running(), 60)
@@ -336,21 +355,45 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
     return shots
 
 
-def overview(shots: dict[str, dict[str, Path]], out: Path) -> Path:
-    """One sheet: one row per screen, one column per theme, every capture at the same scale
-    (dialogs keep their real size relative to the window), with Spanish labels."""
+OVERVIEW_MAX_SIDE = 1568      # every overview page fits an image viewer / review tool without downscaling
+
+
+def overview(shots: dict[str, dict[str, Path]], out: Path) -> list[Path]:
+    """Overview pages 00-vista-general-1.png, -2.png...: one row per screen, one column per theme,
+    every capture at the same scale (dialogs keep their real size relative to the window), Spanish
+    labels; no page is longer than OVERVIEW_MAX_SIDE px on either side."""
     themes = list(shots)
     screens = [s for s in SCREENS if any(s in shots[t] for t in themes)]
-    window_w, cell_w, pad, label_h = 1280, 600, 16, 30
+    window_w, cell_w, pad, label_h, head_h = 1280, 600, 16, 30, 40
     scale = cell_w / window_w
 
     def size_of(path: Path) -> tuple[int, int]:
         img = QImage(str(path))
         return max(1, round(img.width() * scale)), max(1, round(img.height() * scale))
 
-    rows = [max((size_of(shots[t][sc])[1] for t in themes if sc in shots[t]), default=0) for sc in screens]
+    heights = {sc: max((size_of(shots[t][sc])[1] for t in themes if sc in shots[t]), default=0) for sc in screens}
     width = pad + len(themes) * (cell_w + pad)
-    height = pad + 40 + sum(h + label_h + pad for h in rows)
+    assert width <= OVERVIEW_MAX_SIDE, width
+    pages: list[list[str]] = [[]]
+    used = pad + head_h
+    for sc in screens:
+        need = heights[sc] + label_h + pad
+        if pages[-1] and used + need > OVERVIEW_MAX_SIDE:
+            pages.append([])
+            used = pad + head_h
+        pages[-1].append(sc)
+        used += need
+    for old in out.glob("00-vista-general*.png"):          # never leave a stale or oversized sheet behind
+        old.unlink()
+    return [_overview_page(shots, themes, page, heights, out / f"00-vista-general-{n}.png", width=width,
+                           cell_w=cell_w, pad=pad, label_h=label_h, head_h=head_h, size_of=size_of)
+            for n, page in enumerate(pages, start=1) if page]
+
+
+def _overview_page(shots, themes, screens, heights, target: Path, *, width, cell_w, pad, label_h, head_h,
+                   size_of) -> Path:
+    rows = [heights[sc] for sc in screens]
+    height = pad + head_h + sum(h + label_h + pad for h in rows)
     sheet = QImage(width, height, QImage.Format.Format_RGB32)
     sheet.fill(QColor("#e9e9e7"))
     p = QPainter(sheet)
@@ -363,7 +406,7 @@ def overview(shots: dict[str, dict[str, Path]], out: Path) -> Path:
     for i, t in enumerate(themes):
         p.drawText(QRect(pad + i * (cell_w + pad), pad, cell_w, 30), Qt.AlignmentFlag.AlignLeft,
                    {"hormigon": "Hormigón (claro)", "noche": "Noche (oscuro)"}.get(t, t))
-    y = pad + 40
+    y = pad + head_h
     f.setPixelSize(13)
     f.setBold(False)
     p.setFont(f)
@@ -381,7 +424,6 @@ def overview(shots: dict[str, dict[str, Path]], out: Path) -> Path:
                 p.drawRect(QRect(ix, y + label_h, iw - 1, ih - 1))
         y += h + label_h + pad
     p.end()
-    target = out / "00-vista-general.png"
     sheet.save(str(target))
     return target
 
@@ -400,8 +442,8 @@ def main(argv=None) -> int:
         for theme in [t.strip() for t in args.themes.split(",") if t.strip()]:
             shots[theme] = capture_theme(app, theme, args.out, only)
             print(f"{theme}: {len(shots[theme])} capturas")
-        sheet = overview(shots, args.out)
-        print(f"vista general: {sheet}")
+        for sheet in overview(shots, args.out):
+            print(f"vista general: {sheet}")
     finally:
         if args.keep:
             print(f"datos de las capturas: {_HOME}")

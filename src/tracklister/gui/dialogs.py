@@ -33,7 +33,21 @@ def _entry_text(e: LibraryEntry) -> str:
     return " · ".join(bits)
 
 
-class DuplicateDialog(QDialog):
+class _FitDialog(QDialog):
+    """A dialog with a design minimum width that still grows to fit its content. An explicit
+    setMinimumWidth() wins over the layout minimum, so with the style sheet fonts (only known once
+    the dialog is polished) a long bold button label would be squeezed and clipped."""
+    base_min_width = 560
+
+    def showEvent(self, e) -> None:  # noqa: N802
+        lay = self.layout()
+        if lay is not None:
+            lay.activate()
+            self.setMinimumWidth(max(self.base_min_width, lay.minimumSize().width()))
+        super().showEvent(e)
+
+
+class DuplicateDialog(_FitDialog):
     """A track of this set already exists in a previous set: ask EVERY time, both options."""
 
     def __init__(self, hit, theme: Theme, *, index: int = 1, total: int = 1, parent: QWidget | None = None):
@@ -125,7 +139,7 @@ def lossy_kbps(preset) -> int:
     return 320
 
 
-class LossyDialog(QDialog):
+class LossyDialog(_FitDialog):
     """Asked once per set: which of these missing tracks may fall back to MP3 320."""
 
     def __init__(self, rows: list[TrackRow], preset, parent: QWidget | None = None):

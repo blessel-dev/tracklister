@@ -54,6 +54,38 @@ def test_duplicate_dialog_reuse_and_apply_all(qtbot, app, tmp_path, tid):
     assert dlg.result_tuple() == (DuplicateChoice.REUSE, hit.entries[0], True)
 
 
+def _bold_text_fits(btn) -> bool:
+    """The label (bold on primary buttons) fits inside the focused button: 2 px border + 13 px
+    padding per side."""
+    from PySide6.QtGui import QFont, QFontMetrics
+    f = QFont(btn.font())
+    f.setBold(f.bold() or btn.property("kind") == "primary")
+    return btn.width() >= QFontMetrics(f).horizontalAdvance(btn.text()) + 2 * (2 + 13)
+
+
+@pytest.mark.parametrize("tid", ["hormigon", "noche"])
+def test_dialog_buttons_are_never_clipped(qtbot, app, tmp_path, tid):
+    """With the real app style sheet (Inter 13 px, bold primary buttons) both dialogs grow to fit
+    their buttons instead of squeezing them under their size hint."""
+    from tracklister.gui.theme import ThemeManager
+    ThemeManager(app, tid, tmp_path)
+    try:
+        dlg = DuplicateDialog(_hit(tmp_path), load_theme(tid), index=1, total=3)
+        qtbot.addWidget(dlg)
+        dlg.show()
+        qtbot.waitExposed(dlg)
+        for b in (dlg.reuse_btn, dlg.download_btn):
+            assert b.width() >= b.sizeHint().width() and _bold_text_fits(b), (b.text(), b.width())
+        lossy = LossyDialog(sample_rows()[:2], build_preset("lossless"))
+        qtbot.addWidget(lossy)
+        lossy.show()
+        qtbot.waitExposed(lossy)
+        for b in (lossy.yes_btn, lossy.no_btn):
+            assert b.width() >= b.sizeHint().width() and _bold_text_fits(b), (b.text(), b.width())
+    finally:
+        app.setStyleSheet("")
+
+
 def test_duplicate_dialog_two_copies_and_download(qtbot, app, tmp_path):
     hit = _hit(tmp_path, 2)
     dlg = DuplicateDialog(hit, load_theme("hormigon"), index=1, total=1)
