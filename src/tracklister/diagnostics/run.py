@@ -28,6 +28,7 @@ from tracklister.engine.csvwriter import ManifestItem, engine_artist, engine_tit
 from tracklister.engine.presets import FormatPass, build_preset
 from tracklister.engine.runner import EngineError, EngineRunner
 from tracklister.verify.identity import parse_name
+from tracklister.verify.verifier import ACCEPT_SCORE, HARD_DOUBT_MAX_SCORE
 
 MAX_CANDIDATES = 15
 
@@ -101,9 +102,12 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
         problems.append(f"artista distinto ({art:.0f}%)")
     if title < 70:
         problems.append(f"título distinto ({title:.0f}%)")
+    identity_doubt = not ok_v or art < 60 or title < 70 or d == 0.0
+    if identity_doubt:
+        score = min(score, HARD_DOUBT_MAX_SCORE)    # same rule as the verifier (DECISIONES N.6)
     if problems:
         return score, False, "rechazado: " + "; ".join(problems)
-    if score < 80:
+    if score < ACCEPT_SCORE:
         return score, False, f"rechazado: confianza {score:.0f}/100"
     return score, True, f"aceptable: confianza {score:.0f}/100"
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 from tests.fakes.synth import make_track
 from tracklister.core.model import DoubtKind, ResultState, TrackRow
 from tracklister.engine.presets import build_preset
-from tracklister.verify.verifier import verify_file
+from tracklister.verify.verifier import ACCEPT_SCORE, REVIEW_SCORE, verify_file
 
 LOSSLESS = build_preset("lossless").accept
 MP3 = build_preset("solo_mp3_320").accept
@@ -76,6 +76,21 @@ def test_duration_review_band_and_unknown_duration(tmp_path):
     assert v.state == ResultState.VERIFICADO and v.score == 90
     n = _v(tmp_path, "n.flac", row=_row(dur=None), tags=TAGS)
     assert "sin_duracion_esperada" in n.flags and n.score == 95 and n.state == ResultState.VERIFICADO
+
+
+def test_doubtful_never_shows_acceptance_confidence(tmp_path):
+    """DUDOSO => score < the acceptance threshold; hard doubts below the 'revisar' band too."""
+    hard = {
+        "version": _v(tmp_path, "hv.flac", tags={"artist": "Fjaak", "title": "Spirit (Kai Van Dongen Remix)"}),
+        "duracion": _v(tmp_path, "hd.flac", row=_row(dur=40), seconds=18, tags=TAGS),
+        "truncado": _v(tmp_path, "ht.flac", seconds=20, truncate_to_s=8, tags=TAGS),
+        "identidad": _v(tmp_path, "hi.flac", tags={"artist": "Duffy", "title": "Spirit"}),
+    }
+    for name, v in hard.items():
+        assert v.state == ResultState.DUDOSO, name
+        assert v.score < REVIEW_SCORE, (name, v.score)
+    spec = _v(tmp_path, "hs.flac", lowpass_hz=16000, tags=TAGS)       # right song, suspicious spectrum
+    assert spec.doubt == DoubtKind.ESPECTRO and REVIEW_SCORE <= spec.score < ACCEPT_SCORE
 
 
 def test_mp3_vbr_and_256_do_not_meet_format(tmp_path):

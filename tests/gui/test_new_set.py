@@ -254,6 +254,46 @@ def test_download_needs_rows_and_a_name(window):
     assert got[0][1][0] is not page.model.row_at(0)                    # copies, never the table's rows
 
 
+def test_download_completes_missing_durations_first(window, qtbot, ready_services):
+    """'Descargar' never sends rows without an expected duration while 'Completar datos' is on."""
+    page = window.new_set
+    page.download_requested.disconnect(window.start_download)   # only the signal is checked here
+    got = []
+    page.download_requested.connect(lambda *a: got.append(a))
+    page.set_rows(sample_rows(), name="Mi set")
+    assert all(r.expected_duration_s is None for r in page.model.downloadable())
+    ready_services.settings.enrichment_enabled = True
+    page.request_download()
+    qtbot.waitUntil(lambda: bool(got), timeout=10000)
+    assert ready_services.enrich_calls == 1
+    sent = [r for r in got[0][1] if r.download and r.title.strip()]
+    assert sent and all(r.expected_duration_s == ready_services.enrich_duration for r in sent)
+    # every marked row already has a duration -> no second enrichment
+    page.request_download()
+    assert len(got) == 2 and ready_services.enrich_calls == 1
+    # 'Completar datos' off in Ajustes -> the user's choice is respected, download straight away
+    page.set_rows(sample_rows(), name="Otro set")
+    ready_services.settings.enrichment_enabled = False
+    page.request_download()
+    assert len(got) == 3 and ready_services.enrich_calls == 1
+
+
+def test_download_still_starts_when_enrichment_fails(window, qtbot, ready_services, monkeypatch):
+    page = window.new_set
+    page.download_requested.disconnect(window.start_download)
+    got = []
+    page.download_requested.connect(lambda *a: got.append(a))
+    page.set_rows(sample_rows(), name="Mi set")
+    ready_services.settings.enrichment_enabled = True
+
+    def boom(rows, on_progress=None, cancel=None):
+        raise RuntimeError("sin red")
+    monkeypatch.setattr(ready_services, "enrich", boom)
+    page.request_download()
+    qtbot.waitUntil(lambda: bool(got), timeout=10000)
+    assert not page._busy
+
+
 @pytest.mark.parametrize("tid", ["hormigon", "noche"])
 def test_new_set_renders_in_both_themes(window, tid):
     window.new_set.set_rows(sample_rows(), name="Set")

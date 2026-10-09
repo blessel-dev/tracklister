@@ -46,6 +46,7 @@ def test_search_only_candidates_and_report(tmp_path):
     c1 = diag[0].candidates
     assert [c.peer for c in c1] == ["maria.lopez", "peerA"]
     assert not c1[0].accepted and "otra versión" in c1[0].why_es
+    assert c1[0].score < 50                         # another version never shows a high confidence
     assert c1[1].accepted and c1[1].why_es.startswith("elegido")
     assert not list((paths.work_dir / "diagnostico").rglob("*.flac"))      # nothing downloaded
     red = Redactor(secrets=[CREDS.username, CREDS.password], own_ips=["83.45.1.200"])

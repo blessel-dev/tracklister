@@ -11,6 +11,7 @@ written from two threads; the result replaces the rows by uid.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -146,7 +147,7 @@ class NewSetPage(QWidget):
         self.enrich_btn = button("Completar datos",
                                  tooltip="Busca la duración y la versión exacta en iTunes, Deezer y MusicBrainz "
                                          "(solo envía artista y título).")
-        self.enrich_btn.clicked.connect(self.enrich)
+        self.enrich_btn.clicked.connect(lambda: self.enrich())     # clicked(bool) must not reach `then`
         self.add_source_btn = button("Añadir otra fuente del mismo set",
                                      tooltip="Combina otra tracklist del mismo set (por ejemplo, el CSV de "
                                              "trackid.net y los comentarios de YouTube).")
@@ -416,22 +417,25 @@ class NewSetPage(QWidget):
         self.banner.show_message(f"Usando: {c.label_es}.", "ok")
 
     # ---- enrichment ------------------------------------------------------------------------------
-    def enrich(self) -> None:
+    def enrich(self, then: Callable[[], None] | None = None) -> None:
+        """Run the enrichment on copies of the rows; `then` runs afterwards, also after an error
+        (used by 'Descargar', which completes missing durations first)."""
         if self._busy or not self.model.rowCount():
             return
         copies = _copy_rows(self.model.rows())
         self._set_busy(True)
-        self.banner.show_message("Completando datos (iTunes, Deezer, MusicBrainz)…", "info", closable=False)
+        head = "Completando datos antes de descargar" if then else "Completando datos"
+        self.banner.show_message(f"{head} (iTunes, Deezer, MusicBrainz)…", "info", closable=False)
 
         def work(task):
             return self.services.enrich(copies, on_progress=task.progress.emit, cancel=task.cancel)
 
-        self.window.pool.start(work, on_ok=lambda outs: self._on_enriched(copies, outs),
-                               on_error=self._on_enrich_error,
+        self.window.pool.start(work, on_ok=lambda outs: self._on_enriched(copies, outs, then),
+                               on_error=lambda msg: self._on_enrich_error(msg, then),
                                on_progress=lambda d, n: self.banner.text.setText(
-                                   f"Completando datos (iTunes, Deezer, MusicBrainz)… {d} de {n}"))
+                                   f"{head} (iTunes, Deezer, MusicBrainz)… {d} de {n}"))
 
-    def _on_enriched(self, copies: list[TrackRow], outcomes) -> None:
+    def _on_enriched(self, copies: list[TrackRow], outcomes, then: Callable[[], None] | None = None) -> None:
         self._set_busy(False)
         self.model.replace_rows_by_uid(copies)
         outs = list(outcomes or [])
@@ -443,11 +447,15 @@ class NewSetPage(QWidget):
         self.banner.show_message(
             f"Datos completados: {len(ok)} de {len(outs)} pistas" + (f" ({detail})" if detail else "") +
             f". {with_dur} con duración esperada.", "ok")
+        if then is not None:
+            then()
 
-    def _on_enrich_error(self, msg: str) -> None:
+    def _on_enrich_error(self, msg: str, then: Callable[[], None] | None = None) -> None:
         self._set_busy(False)
         self.banner.show_message(f"No se pudieron completar los datos ({msg}). Puedes descargar igual: solo "
                                  "faltará la duración esperada.", "warn")
+        if then is not None:
+            then()
 
     # ---- table editing ---------------------------------------------------------------------------
     def _selected_rows(self) -> list[int]:
@@ -493,6 +501,19 @@ class NewSetPage(QWidget):
         if not name:
             self.banner.show_message("Ponle un nombre al set: será el nombre de su carpeta.", "warn")
             self.name.setFocus()
+            return
+        # Without an expected duration the engine's length filter and the post-download duration check
+        # cannot work (01 section 3, P1.2). With 'Completar datos' on (the default), marked rows that
+        # still lack one are completed first; rows with no match are downloaded anyway (DECISIONES N.7).
+        missing = [r for r in self.model.downloadable() if not r.expected_duration_s]
+        if missing and self.services.settings.enrichment_enabled:
+            self.enrich(then=self._emit_download)
+            return
+        self._emit_download()
+
+    def _emit_download(self) -> None:
+        name = self.name.text().strip()
+        if not name or not self.model.downloadable():
             return
         self.download_requested.emit(name, _copy_rows(self.model.rows()), list(self.sources))
 

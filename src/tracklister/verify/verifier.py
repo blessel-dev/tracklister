@@ -13,6 +13,8 @@ Fixed rules, in order:
    < 50 DUDOSO/IDENTIDAD (d = 1 / 0.5 / 0.75 without an expected duration)
 7. suspicious spectrum on VERIFICADO/REVISAR (lossless only) -> DUDOSO/ESPECTRO, stays in the set
 Every failed check adds its Spanish reason; the doubt kind is the first rule that fired.
+A DUDOSO verdict never carries a score at or above the acceptance threshold: rules 2-5 cap it at
+49 and rule 7 at 79 (DECISIONES N.6).
 """
 from __future__ import annotations
 
@@ -28,6 +30,8 @@ from tracklister.verify.spectral import fake_lossless_check
 
 TRUNCATION_TOLERANCE_S = 2.0
 ARTIST_MIN, TITLE_MIN = 60.0, 70.0
+ACCEPT_SCORE, REVIEW_SCORE = 80, 50
+HARD_DOUBT_MAX_SCORE = REVIEW_SCORE - 1       # rules 2-5: capped at 49, never inside the 50-79 band
 
 
 @dataclass(frozen=True)
@@ -105,10 +109,13 @@ def verify_file(row: TrackRow, path: Path, accept: AcceptRule, *, lossy_allowed:
 
     score = int(round(0.35 * ident.artist + 0.45 * ident.title + 20 * d))
     if doubt is not None:
+        # A hard doubt (other song, other version, duration, truncated) never shows a high confidence:
+        # the score is capped below the "revisar" band (DECISIONES N.6).
+        score = min(score, HARD_DOUBT_MAX_SCORE)
         return Verdict(ResultState.DUDOSO, doubt, score, reasons, flags, info, q.needs_conversion, ident)
-    if score >= 80:
+    if score >= ACCEPT_SCORE:
         state, doubt = ResultState.VERIFICADO, None
-    elif score >= 50:
+    elif score >= REVIEW_SCORE:
         state, doubt = ResultState.DUDOSO, DoubtKind.REVISAR
         reasons.append(f"Confianza {score}/100: revísalo (se queda en el set).")
     else:
@@ -120,6 +127,7 @@ def verify_file(row: TrackRow, path: Path, accept: AcceptRule, *, lossy_allowed:
             if doubt == DoubtKind.REVISAR:
                 flags.append("revisar")
             state, doubt = ResultState.DUDOSO, DoubtKind.ESPECTRO
+            score = min(score, ACCEPT_SCORE - 1)        # doubtful -> always below the acceptance threshold
             flags.append("posible_falso_lossless")
             reasons.append(sp.reason_es or "Posible lossless falso.")
     return Verdict(state, doubt, score, reasons, flags, info, q.needs_conversion, ident)
