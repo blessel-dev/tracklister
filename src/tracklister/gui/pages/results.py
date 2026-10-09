@@ -126,7 +126,8 @@ class ResultsPage(QWidget):
         foot.addWidget(self.log_btn)
         foot.addStretch(1)
         self.retry_btn = button("Reintentar fallos",
-                                tooltip="Vuelve a buscar las que fallaron, con el filtro de artista relajado.")
+                                tooltip="Vuelve a buscar las que fallaron, con el filtro de artista relajado. Las "
+                                        "dudosas se buscan sin el usuario que dio el archivo rechazado.")
         self.themes.bind_icon(self.retry_btn, "reintentar")
         self.continue_btn = button("Continuar descarga")
         self.copy_btn = button("Copiar tracklist", tooltip="Texto con tiempos para Mixcloud o Instagram.")

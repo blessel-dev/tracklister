@@ -182,6 +182,17 @@ class MainWindow(QMainWindow):
     def worker_running(self) -> bool:
         return self.worker is not None and self.worker.isRunning()
 
+    def engine_busy_es(self) -> tuple[str, str] | None:
+        """(title, Spanish message) when the engine is already in use, else None.
+
+        ONE engine process at a time: a download (or 'Reintentar fallos'/'Continuar') and the
+        Diagnostico would log in with the same account and listen port, and Soulseek drops one."""
+        if self.worker_running():
+            return "Descarga en curso", "Espera a que termine la descarga actual (o cancélala)."
+        if self.diagnostic.running():
+            return "Diagnóstico en curso", "Espera a que termine el Diagnóstico (o cancélalo)."
+        return None
+
     def _credentials(self):
         try:
             creds = self.services.get_credentials()
@@ -194,8 +205,9 @@ class MainWindow(QMainWindow):
         return creds
 
     def start_download(self, name: str, rows: list, sources: list) -> bool:
-        if self.worker_running():
-            self.prompter.inform("Descarga en curso", "Espera a que termine la descarga actual (o cancélala).")
+        busy = self.engine_busy_es()
+        if busy:
+            self.prompter.inform(*busy)
             return False
         creds = self._credentials()
         if creds is None:
@@ -235,7 +247,11 @@ class MainWindow(QMainWindow):
         return True
 
     def run_again(self, mode: str) -> None:
-        if self.session is None or self.worker_running():
+        if self.session is None:
+            return
+        busy = self.engine_busy_es()
+        if busy:
+            self.prompter.inform(*busy)
             return
         creds = self._credentials()
         if creds is None:

@@ -9,7 +9,8 @@ so synthetic audio stays fast; each row's expected_duration_s matches its "right
 Fake network JSON (tracklister.fakenet/1). Optional per-file extensions used here:
 `announce_length`/`announce_samplerate` (False = the peer does not broadcast it, so the engine
 cannot filter on it), `real_kbps` (actual MP3 bitrate when the announced `bitrate_kbps` is null),
-`audio.cover`, `audio.low_treble`, `audio.float_pcm`, `audio.seed`.
+`audio.cover`, `audio.low_treble`, `audio.float_pcm`, `audio.seed`, `audio.no_info_frame` (MP3 without
+LAME's Xing/Info frame).
 """
 from __future__ import annotations
 
@@ -21,11 +22,12 @@ from tracklister.core.model import RowStatus, TrackRow
 SCENARIOS = (
     "correcto", "version_equivocada", "radio_edit", "flac_transcodificado", "truncado", "sin_tags",
     "sin_resultados", "peer_timeout", "duplicado_entre_sets", "rerun", "nombres_raros", "ban",
-    "mp3_vbr", "mp3_256", "cdj_flac_96k", "todos_los_estados", "login_falla",
+    "mp3_vbr", "mp3_vbr_sin_cabecera", "mp3_256", "cdj_flac_96k", "todos_los_estados", "login_falla",
 )
 
 # Preset each scenario is meant to run with (default "lossless").
-SCENARIO_PRESET = {"mp3_vbr": "solo_mp3_320", "mp3_256": "solo_mp3_320", "cdj_flac_96k": "cdj_antiguos"}
+SCENARIO_PRESET = {"mp3_vbr": "solo_mp3_320", "mp3_vbr_sin_cabecera": "solo_mp3_320", "mp3_256": "solo_mp3_320",
+                   "cdj_flac_96k": "cdj_antiguos"}
 
 
 def row(pos: int, artist: str, title: str, version: str | None = None, dur: int | None = None,
@@ -71,9 +73,12 @@ def _scenario(name: str, tmp: Path) -> tuple[list[TrackRow], dict]:
         net["login_fails"] = True
         return rows, net
     if name == "version_equivocada":
+        # the engine takes the FIRST candidate that passes its filters: the remix of peerA. The right
+        # file (peerB) only comes when "Reintentar fallos" bans peerA (--banned-users).
         return ([row(1, "Fjaak", "Spirit", dur=30)],
                 _net([file("peerA", "@@x\\Fjaak\\Fjaak - Spirit (Kai Van Dongen Remix).flac", "Fjaak",
-                           "Spirit (Kai Van Dongen Remix)", 30)]))
+                           "Spirit (Kai Van Dongen Remix)", 30),
+                      file("peerB", "@@y\\Fjaak\\Fjaak - Spirit.flac", "Fjaak", "Spirit", 30)]))
     if name == "radio_edit":
         return ([row(1, "Blasha & Allatt", "Dust 1", dur=40)],
                 _net([file("peerA", "@@x\\Blasha\\Blasha & Allatt - Dust 1 (Radio Edit).flac", "Blasha & Allatt",
@@ -123,6 +128,11 @@ def _scenario(name: str, tmp: Path) -> tuple[list[TrackRow], dict]:
         return ([row(1, "Fjaak", "Spirit", dur=30)],
                 _net([file("peerA", "@@x\\Fjaak\\Fjaak - Spirit.mp3", "Fjaak", "Spirit", 30, fmt="mp3",
                            vbr=True)]))
+    if name == "mp3_vbr_sin_cabecera":
+        # VBR without the Xing/Info frame: the header says nothing and the first frame is 320 kbps
+        return ([row(1, "Fjaak", "Spirit", dur=30)],
+                _net([file("peerA", "@@x\\Fjaak\\Fjaak - Spirit.mp3", "Fjaak", "Spirit", 30, fmt="mp3",
+                           vbr=True, audio={"no_info_frame": True})]))
     if name == "mp3_256":
         return ([row(1, "Fjaak", "Spirit", dur=30)],
                 _net([file("peerA", "@@x\\Fjaak\\Fjaak - Spirit.mp3", "Fjaak", "Spirit", 30, fmt="mp3",

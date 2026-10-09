@@ -42,12 +42,26 @@ def check_quality(info: AudioInfo, accept: AcceptRule, *, lossy_allowed: bool) -
             return QualityCheck(False, False, reasons + [
                 f"MP3 {mode.upper()} (unos {info.bitrate_kbps or '?'} kbps): solo vale MP3 CBR de "
                 f"{accept.mp3_min_kbps} kbps o más."], flags + ["mp3_vbr"])
-        if (info.bitrate_kbps or 0) < accept.mp3_min_kbps:
+        kbps = info.bitrate_kbps or 0
+        if mode == "unknown":
+            # No Xing/Info/VBRI frame: mutagen's bitrate is only the FIRST frame's. Every frame read
+            # (start of the audio and around 25/50/75 %) must have the same bitrate.
+            seen = tuple(info.mp3_frame_kbps or ())
+            if not seen:
+                return QualityCheck(False, False, reasons + [
+                    "MP3 sin cabecera que diga si es CBR o VBR, y no se pueden leer sus frames: no se puede "
+                    f"comprobar que sea CBR de {accept.mp3_min_kbps} kbps."], flags + ["mp3_cabecera_ilegible"])
+            if len(set(seen)) > 1:
+                return QualityCheck(False, False, reasons + [
+                    f"MP3 VBR sin cabecera (sus frames van de {min(seen)} a {max(seen)} kbps): solo vale MP3 CBR "
+                    f"de {accept.mp3_min_kbps} kbps o más."], flags + ["mp3_vbr"])
+            kbps = seen[0]
+        if kbps < accept.mp3_min_kbps:
             return QualityCheck(False, False, reasons + [
-                f"MP3 de {info.bitrate_kbps or '?'} kbps: se pide {accept.mp3_min_kbps} kbps o más."],
+                f"MP3 de {kbps or '?'} kbps: se pide {accept.mp3_min_kbps} kbps o más."],
                 flags + ["mp3_bajo_bitrate"])
         if mode == "unknown":
-            flags.append("mp3_modo_desconocido")
+            flags.append("mp3_modo_desconocido")     # header says nothing, but every frame read is CBR
         return QualityCheck(True, False, reasons, flags)
     if c not in LOSSLESS_CONTAINERS:
         return QualityCheck(False, False, reasons + [f"Formato {_LABEL.get(c, c)} no permitido en este preset."],

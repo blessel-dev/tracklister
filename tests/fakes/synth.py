@@ -100,11 +100,39 @@ def _write_tags(path: Path, fmt: str, tags: dict) -> None:
         f.save()
 
 
+_L3_KBPS_MPEG1 = (0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320)
+
+
+def strip_mp3_info_frame(path) -> bool:
+    """Remove the Xing/Info/VBRI frame (the first MPEG frame, written by LAME) of an MP3 file, so the
+    header no longer says whether it is CBR or VBR. Returns True when a frame was removed."""
+    path = Path(path)
+    data = path.read_bytes()
+    pos = 0
+    if data[:3] == b"ID3":
+        pos = 10 + (((data[6] & 0x7F) << 21) | ((data[7] & 0x7F) << 14) | ((data[8] & 0x7F) << 7) | (data[9] & 0x7F))
+    b1, b2 = data[pos + 1], data[pos + 2]
+    if data[pos] != 0xFF or (b1 & 0xE0) != 0xE0 or (b1 >> 3) & 3 != 3 or (b1 >> 1) & 3 != 1:
+        return False                                   # only MPEG-1 Layer III (what libsndfile writes here)
+    kbps = _L3_KBPS_MPEG1[(b2 >> 4) & 0xF]
+    sr = (44100, 48000, 32000)[(b2 >> 2) & 3]
+    length = 144000 * kbps // sr + ((b2 >> 1) & 1)
+    head = data[pos:pos + 64]
+    if not (b"Xing" in head or b"Info" in head or b"VBRI" in head):
+        return False
+    path.write_bytes(data[:pos] + data[pos + length:])
+    return True
+
+
 def make_track(path, *, fmt: str, seconds: float, samplerate: int = 44100, bitdepth: int = 16,
                lowpass_hz: float | None = None, mp3_kbps: int | None = None, vbr: bool = False,
                tags: dict | None = None, truncate_to_s: float | None = None, seed: int = 0,
-               channels: int = 2, low_treble: bool = False, float_pcm: bool = False) -> Path:
-    """Write one synthetic file. `fmt` is the real container: flac|wav|aiff|mp3."""
+               channels: int = 2, low_treble: bool = False, float_pcm: bool = False,
+               mp3_info_frame: bool = True) -> Path:
+    """Write one synthetic file. `fmt` is the real container: flac|wav|aiff|mp3.
+
+    mp3_info_frame=False drops LAME's Xing/Info frame: mutagen then reports an UNKNOWN bitrate mode
+    and only the first frame's bitrate (a VBR file of this generator starts with a 320 kbps frame)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fmt = fmt.lower()
@@ -115,6 +143,8 @@ def make_track(path, *, fmt: str, seconds: float, samplerate: int = 44100, bitde
         sf.write(str(path), x, samplerate, format="MP3", subtype="MPEG_LAYER_III",
                  bitrate_mode="VARIABLE" if vbr else "CONSTANT",
                  compression_level=0.0 if vbr else _MP3_LEVEL_FOR_KBPS.get(kbps, 0.0))
+        if not mp3_info_frame and not strip_mp3_info_frame(path):
+            raise ValueError(f"no Xing/Info frame to remove in {path.name}")
     else:
         subtype = "FLOAT" if float_pcm else _SUBTYPE[bitdepth]
         sf.write(str(path), x, samplerate, format={"flac": "FLAC", "wav": "WAV", "aiff": "AIFF"}[fmt],

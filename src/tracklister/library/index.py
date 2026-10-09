@@ -23,6 +23,8 @@ from tracklister.organize.naming import win_long
 
 DURATION_TOL_S = 3.0
 _LIBRARY_STATES = {ResultState.VERIFICADO, ResultState.YA_EN_BIBLIOTECA}
+# Marks of a file that travel with it when another set reuses it ("Usar el que ya tengo").
+CARRIED_FLAGS = ("posible_falso_lossless",)
 
 
 def library_key(artist: str, title: str, version: str | None) -> str:
@@ -85,7 +87,8 @@ class LibraryIndex:
                 key=row_key(row), artist_norm=norm_key(parts[0] if parts else artist), title_norm=norm_key(row.title),
                 version_kind=str(classify_version(row.version)), path=os.path.abspath(str(p)), set_id=doc.set_id,
                 set_name=doc.name, pos=row.pos, duration_s=res.duration_s, format=res.format,
-                size=os.path.getsize(win_long(p)), added_at=_now()))
+                size=os.path.getsize(win_long(p)), added_at=_now(),
+                flags=[f for f in CARRIED_FLAGS if f in res.flags]))
             added += 1
         return added
 

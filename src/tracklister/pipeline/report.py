@@ -16,6 +16,8 @@ STATE_ES = {
     ResultState.NO_CUMPLE_FORMATO: "No cumple formato", ResultState.FALLIDA: "Fallida",
     ResultState.YA_EN_BIBLIOTECA: "Ya en biblioteca", ResultState.OMITIDA: "Omitida",
 }
+STRAY_TITLE_ES = ("Archivos de la carpeta que ya no son de ninguna pista de la tabla (filas borradas o intentos "
+                  "anteriores; no se ha borrado ninguno):")
 DOUBT_ES = {
     DoubtKind.IDENTIDAD: f"otra canción (en {DUDOSOS})", DoubtKind.VERSION: f"otra versión (en {DUDOSOS})",
     DoubtKind.DURACION: f"duración que no cuadra (en {DUDOSOS})",
@@ -50,7 +52,9 @@ def tracklist_text(doc: SetDoc) -> str:
     return "\n".join(lines) + "\n"
 
 
-def report_text(doc: SetDoc, *, preset_label: str, engine_id: str | None = None) -> str:
+def report_text(doc: SetDoc, *, preset_label: str, engine_id: str | None = None,
+                stray_files: list[str] | None = None) -> str:
+    """`stray_files`: audio files of the folder that belong to no current row (organize.finalize)."""
     rows = sorted(doc.rows, key=lambda x: x.pos)
     width = 3 if len(rows) > 99 else 2
     counts = Counter(doc.results[r.uid].state for r in rows if r.uid in doc.results)
@@ -80,6 +84,9 @@ def report_text(doc: SetDoc, *, preset_label: str, engine_id: str | None = None)
                 out.append(f"    - {reason}")
             if "posible_falso_lossless" in res.flags:
                 out.append("    ! Marca: posible lossless falso. Escúchalo antes de pincharlo.")
+    if stray_files:
+        out += ["", STRAY_TITLE_ES]
+        out += [f"    {f}" for f in stray_files]
     out += ["", f"Las dudas de identidad, versión o duración están en la carpeta {DUDOSOS}.",
             f"Los FLAC originales convertidos para CDJ antiguos están en {ORIGINALES}."]
     return "\n".join(out) + "\n"

@@ -16,8 +16,6 @@ from dataclasses import dataclass, field
 from pathlib import Path, PureWindowsPath
 from typing import Callable
 
-from rapidfuzz import fuzz
-
 from tracklister.core.model import TrackRow
 from tracklister.core.paths import AppPaths, app_paths
 from tracklister.core.settings import Settings
@@ -27,7 +25,7 @@ from tracklister.engine.credentials import Credentials
 from tracklister.engine.csvwriter import ManifestItem, engine_artist, engine_title
 from tracklister.engine.presets import FormatPass, build_preset
 from tracklister.engine.runner import EngineError, EngineRunner
-from tracklister.verify.identity import parse_name
+from tracklister.verify.identity import artist_similarity, parse_name, row_artists, title_similarity
 from tracklister.verify.verifier import ACCEPT_SCORE, HARD_DOUBT_MAX_SCORE
 
 MAX_CANDIDATES = 15
@@ -74,14 +72,13 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     parent = parts[-2] if len(parts) >= 2 else None
     artist, title_full = parse_name(name, parent)
     base, version = split_title_version(title_full)
-    want_t, got_t = norm_key(row.title), norm_key(base)
-    title = max(fuzz.ratio(want_t, got_t), fuzz.token_sort_ratio(want_t, got_t)) if want_t and got_t else 0.0
-    art = 0.0
-    hay = norm_key(" ".join(parts))
-    for c in [row.artist_display] + list(row.artists or []):
-        k = norm_key(c)
-        if k:
-            art = max(art, fuzz.token_set_ratio(k, norm_key(artist)), 100.0 if f" {k} " in f" {hay} " else 0.0)
+    # same title/artist rules as the verification (verify.identity): other numbers in the title are
+    # another track, and a one-word partial artist does not count
+    title, numbers_ok = title_similarity(row.title, base)
+    art = artist_similarity(row_artists(row), artist)
+    folders = {norm_key(p) for p in parts[:-1]}
+    if any(norm_key(c) in folders for c in row_artists(row) if norm_key(c)):
+        art = 100.0          # a folder named exactly like the artist ("Music\Fjaak\Live\03 Spirit.flac")
     problems: list[str] = []
     ext = _ext(filename)
     if fmt.formats and ext not in fmt.formats:
@@ -101,7 +98,7 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     if art < 60:
         problems.append(f"artista distinto ({art:.0f}%)")
     if title < 70:
-        problems.append(f"título distinto ({title:.0f}%)")
+        problems.append(f"título distinto ({title:.0f}%)" if numbers_ok else "título con otros números (otra pista)")
     identity_doubt = not ok_v or art < 60 or title < 70 or d == 0.0
     if identity_doubt:
         score = min(score, HARD_DOUBT_MAX_SCORE)    # same rule as the verifier (DECISIONES N.6)

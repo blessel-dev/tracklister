@@ -10,6 +10,7 @@ approved (asked at most once per run, before the first lossy pass).
 """
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import threading
@@ -21,31 +22,50 @@ from typing import Callable, Iterable
 
 from tracklister import config
 from tracklister.core.jsonio import read_json, write_json
-from tracklister.core.layout import ORIGINALES, REPORT_TEMPLATE, TRACKLIST_TEMPLATE, set_doc_path
+from tracklister.core.layout import DUDOSOS, ORIGINALES, REPORT_TEMPLATE, TRACKLIST_TEMPLATE, set_doc_path
 from tracklister.core.model import (
     QUARANTINE_DOUBTS, DuplicateChoice, LibraryEntry, PassRecord, ResultState, RowResult, SetDoc, SourceRef,
     TrackRow,
 )
 from tracklister.core.paths import AppPaths
 from tracklister.core.settings import Settings
-from tracklister.engine.cli import EngineJob, PASS_JSON
+from tracklister.engine.cli import EngineJob, PASS_JSON, bannable_peer
 from tracklister.engine.credentials import Credentials
 from tracklister.engine.csvwriter import write_engine_csv
 from tracklister.engine.outputs import EngineEvent
 from tracklister.engine.presets import FormatPass, Preset, build_preset, relaxed
 from tracklister.engine.runner import EngineError, EngineRunner
-from tracklister.library.index import LibraryIndex, row_key
-from tracklister.organize.finalize import place_verified, rel_to_set, sync_names
+from tracklister.library.index import CARRIED_FLAGS, LibraryIndex, row_key
+from tracklister.organize.finalize import place_verified, rel_to_set, stray_audio_files, sync_names
 from tracklister.organize.journal import Journal, same_file_content
 from tracklister.organize.naming import pad_width, safe_component, track_filename, win_long
 from tracklister.pipeline import report as report_mod
 from tracklister.verify.convert import to_aiff_pcm
 from tracklister.verify.verifier import verify_file
 
+log = logging.getLogger("tracklister.pipeline")
+
 GOOD = (ResultState.VERIFICADO, ResultState.YA_EN_BIBLIOTECA)
 MISSING = (ResultState.PENDIENTE, ResultState.EN_CURSO, ResultState.NO_ENCONTRADO,
            ResultState.NO_CUMPLE_FORMATO, ResultState.FALLIDA)
 RETRYABLE = (ResultState.NO_ENCONTRADO, ResultState.FALLIDA, ResultState.NO_CUMPLE_FORMATO)
+
+NOT_RETRIED_ES = (f"No se ha vuelto a buscar: no se sabe de qué usuario de Soulseek vino este archivo, así que "
+                  f"volvería el mismo. Revisa el archivo en {DUDOSOS}, o corrige artista, título o versión en "
+                  "la tabla de Nuevo set y vuelve a descargar.")
+SAME_FILE_ES = (f"Ha vuelto el mismo archivo que ya estaba en {DUDOSOS} (idéntico byte a byte): por ahora no "
+                "hay en Soulseek otra copia mejor de esta pista.")
+CONVERT_FAILED_ES = ("No se pudo convertir a AIFF para CDJ antiguos ({err}): el archivo está dañado o incompleto. "
+                     "No se pone en el set; pulsa «Reintentar fallos» para volver a descargarla.")
+
+
+def _row_error_es(e: BaseException) -> str:
+    """Spanish reason for an unexpected error while processing ONE downloaded file."""
+    if isinstance(e, OSError):
+        what = f"No se pudo mover o guardar el archivo descargado ({e.strerror or type(e).__name__})."
+    else:
+        what = f"Error inesperado al comprobar el archivo descargado ({type(e).__name__})."
+    return what + " Pulsa «Reintentar fallos» para volver a intentarlo."
 
 REASON_ES = {
     "NoSearchResults": "Soulseek no devolvió ningún resultado para esta búsqueda.",
@@ -207,7 +227,11 @@ class SetSession:
             res.state, res.doubt, res.file = ResultState.YA_EN_BIBLIOTECA, None, rel_to_set(self.set_dir, real)
             res.format, res.duration_s = entry.format, entry.duration_s
             res.reasons = [f"Copiado de tu biblioteca: set '{entry.set_name}', pista {entry.pos}."]
-            res.flags = ["reutilizado"]
+            carried = [f for f in CARRIED_FLAGS if f in (entry.flags or [])]
+            if "posible_falso_lossless" in carried:
+                res.reasons.append(f"Marca que trae del set '{entry.set_name}': posible lossless falso (sacado de "
+                                   "un MP3). Escúchalo antes de pincharlo.")
+            res.flags = ["reutilizado"] + carried
             res.updated_at = _now()
         self.save()
 
@@ -240,42 +264,82 @@ class SetSession:
                 res.reasons = ["Fila desmarcada (ID o revisar): no se descarga."]
         self.save()
         todo = {r.uid for r in self.pending_rows()}
-        self._passes(runner, creds, on_event, cancel, ask_lossy, todo, relaxed_mode=False)
+        self._passes(runner, creds, on_event, cancel, ask_lossy, [(todo, ())], relaxed_mode=False)
+
+    @staticmethod
+    def _peers_to_ban(res: RowResult, own_username: str | None) -> list[str]:
+        """The peers whose files this row already rejected; [] when the peer of the CURRENT file is
+        unknown or cannot be banned (then a retry would only bring the same file back)."""
+        if not bannable_peer(res.peer, own_username):
+            return []
+        return [p for p in dict.fromkeys(res.rejected_peers + [res.peer]) if bannable_peer(p, own_username)]
 
     def retry_failed(self, runner: EngineRunner, creds: Credentials, on_event: Callable[[SessionEvent], None],
                      cancel: threading.Event) -> None:
-        todo = {r.uid for r in self.doc.rows if r.download and (r.title or "").strip()
-                and (self._res(r.uid).state in RETRYABLE + (ResultState.PENDIENTE, ResultState.EN_CURSO)
-                     or self._quarantined(self._res(r.uid)))}
-        self._passes(runner, creds, on_event, cancel, lambda rows: set(), todo, relaxed_mode=True)
+        """'Reintentar fallos': relaxed passes (no --strict-artist) for the rows that are missing.
 
-    def _passes(self, runner, creds, on_event, cancel, ask_lossy, todo: set[str], relaxed_mode: bool) -> None:
+        A row whose file went to _dudosos (other song, version or duration) gets its own relaxed pass
+        with --banned-users <the peers that gave the rejected files>: otherwise the engine would pick
+        the same first candidate again. Without a known (bannable) peer it is not sent again: it keeps
+        its doubt, with a Spanish reason saying what to do."""
+        normal: set[str] = set()
+        quarantined: set[str] = set()
+        banned: list[str] = []
+        for r in self.doc.rows:
+            if not (r.download and (r.title or "").strip()):
+                continue
+            res = self._res(r.uid)
+            if self._quarantined(res):
+                peers = self._peers_to_ban(res, creds.username)
+                if peers:
+                    quarantined.add(r.uid)
+                    banned += [p for p in peers if p not in banned]
+                elif NOT_RETRIED_ES not in res.reasons:
+                    res.reasons = res.reasons + [NOT_RETRIED_ES]
+                    on_event(SessionEvent("row_state", r.uid, res.state, NOT_RETRIED_ES, 1, 1))
+            elif res.state in RETRYABLE + (ResultState.PENDIENTE, ResultState.EN_CURSO):
+                normal.add(r.uid)
+        self.save()
+        groups = [(normal, ())] if normal else []
+        if quarantined:
+            groups.append((quarantined, tuple(banned)))
+        self._passes(runner, creds, on_event, cancel, lambda rows: set(), groups, relaxed_mode=True)
+
+    def _passes(self, runner, creds, on_event, cancel, ask_lossy, groups: list[tuple[set[str], tuple[str, ...]]],
+                relaxed_mode: bool) -> None:
+        """Every preset pass, one engine process per group of rows (a group = rows + the peers banned for
+        them). Rows are never left 'en curso', whatever happens."""
         self.engine_id = runner.spec.engine_id
         asked = False
+        todo: set[str] = set().union(*(uids for uids, _ in groups)) if groups else set()
         total = len(todo)
         try:
+            stop = None
             for p in self.preset.passes:
-                if cancel.is_set():
+                if cancel.is_set() or stop:
                     break
-                if p.lossy:
-                    cands = [r for r in self.lossy_candidates() if r.uid in todo]
-                    if not cands:
+                for uids, banned in groups:
+                    if cancel.is_set():
+                        break
+                    if p.lossy:
+                        cands = [r for r in self.lossy_candidates() if r.uid in uids]
+                        if not cands:
+                            continue
+                        if not asked and not relaxed_mode:
+                            asked = True
+                            approved = set(ask_lossy(cands) or set())
+                            self.approve_lossy(u for u in approved if u in {c.uid for c in cands})
+                        rows = [r for r in cands if r.uid in self.doc.lossy_approved]
+                    else:
+                        rows = [r for r in sorted(self.doc.rows, key=lambda x: x.pos)
+                                if r.uid in uids and self._needs_file(r)]
+                    if not rows:
                         continue
-                    if not asked and not relaxed_mode:
-                        asked = True
-                        approved = set(ask_lossy(cands) or set())
-                        self.approve_lossy(u for u in approved if u in {c.uid for c in cands})
-                    rows = [r for r in cands if r.uid in self.doc.lossy_approved]
-                else:
-                    rows = [r for r in sorted(self.doc.rows, key=lambda x: x.pos)
-                            if r.uid in todo and self._needs_file(r)]
-                if not rows:
-                    continue
-                stop = self._run_pass(relaxed(p) if relaxed_mode else p, rows, runner, creds, on_event, cancel,
-                                      total)
-                if stop:
-                    on_event(SessionEvent("error", message_es=stop))
-                    break
+                    stop = self._run_pass(relaxed(p) if relaxed_mode else p, rows, runner, creds, on_event, cancel,
+                                          total, banned)
+                    if stop:
+                        on_event(SessionEvent("error", message_es=stop))
+                        break
         except EngineError as e:
             for u in todo:
                 if self._res(u).state in (ResultState.PENDIENTE, ResultState.EN_CURSO):
@@ -283,14 +347,16 @@ class SetSession:
                     self._res(u).reasons = [e.msg_es]
             self.save()
             on_event(SessionEvent("error", message_es=e.msg_es))
-        for u in todo:
-            if self._res(u).state == ResultState.EN_CURSO:
-                self._res(u).state = ResultState.PENDIENTE
-        self.save()
+        finally:
+            for u in todo:
+                if self._res(u).state == ResultState.EN_CURSO:
+                    self._res(u).state = ResultState.PENDIENTE
+            self.save()
         on_event(SessionEvent("finished", message_es="Listo.", done=total, total=total))
 
     def _run_pass(self, fmt: FormatPass, rows: list[TrackRow], runner: EngineRunner, creds: Credentials,
-                  on_event: Callable[[SessionEvent], None], cancel: threading.Event, total: int) -> str | None:
+                  on_event: Callable[[SessionEvent], None], cancel: threading.Event, total: int,
+                  banned: tuple[str, ...] = ()) -> str | None:
         """Run one pass; returns a Spanish message when the remaining passes must not run."""
         index = len(self.doc.passes) + 1
         work = self.paths.work_dir / self.doc.set_id[:8] / f"p{index:02d}"
@@ -305,9 +371,17 @@ class SetSession:
                     "started_at": started, "finished_at": None, "exit_code": None}
         write_json(work / PASS_JSON, pass_doc)
         label = f"Pasada {index}: {fmt.name}" + ("" if fmt.strict_artist else " (relajada)")
+        if banned:
+            label += " sin los usuarios de los archivos rechazados"
         on_event(SessionEvent("pass_started", message_es=f"{label}: {len(rows)} pistas.", total=total))
+        was_quarantined = {r.uid for r in rows if self._quarantined(self._res(r.uid))}
         for r in rows:
-            self._set_state(r.uid, ResultState.EN_CURSO, on_event, "En cola", total=total)
+            if r.uid in was_quarantined:
+                # its file in _dudosos and its doubt stay until a better file arrives (also if the pass is
+                # cancelled or fails): only the screen shows it "en curso"
+                on_event(SessionEvent("row_state", r.uid, ResultState.EN_CURSO, "En cola", total=total))
+            else:
+                self._set_state(r.uid, ResultState.EN_CURSO, on_event, "En cola", total=total)
         self.save()
 
         def on_engine(ev: EngineEvent) -> None:
@@ -321,7 +395,7 @@ class SetSession:
 
         job = EngineJob(work, fmt, any(m.length for m in manifest), int(self.settings.listen_port),
                         int(self.settings.concurrent_downloads), int(self.settings.searches_per_time),
-                        int(self.settings.searches_renew_s))
+                        int(self.settings.searches_renew_s), banned_users=tuple(banned))
         result = runner.run(job, manifest, creds, on_engine, cancel)
         self.doc.passes.append(PassRecord(index=index, name=fmt.name + ("" if fmt.strict_artist else "-relajada"),
                                           engine=runner.spec.engine_id, uids=[m.uid for m in manifest],
@@ -333,37 +407,27 @@ class SetSession:
         bid = self.journal.begin(label)
         lossy_ok = "mp3" in fmt.formats
         width = self._width()
-        for n, m in enumerate(manifest, start=1):
-            row, res = self._row(m.uid), self._res(m.uid)
-            outcome = result.outcomes.get(m.snum)
-            res.attempts += 1
-            res.pass_name = fmt.name
-            had_quarantined = self._quarantined(res)
-            if outcome is not None and outcome.file is not None:
-                self._handle_file(row, res, outcome, fmt, lossy_ok, width, bid, had_quarantined)
-            elif had_quarantined:
-                res.reasons = res.reasons + [f"{label}: no apareció nada mejor."]
-            elif result.cancelled:
-                res.state = ResultState.PENDIENTE
-                res.reasons = ["Cancelado antes de terminar esta pista."]
-            elif result.banned and (outcome is None or outcome.engine_state == "unknown"):
-                res.state = ResultState.FALLIDA
-                res.reasons = ["Soulseek cortó la sesión antes de llegar a esta pista."]
-            elif result.fatal_es and (outcome is None or outcome.engine_state == "unknown"):
-                res.state, res.doubt, res.file = ResultState.FALLIDA, None, None
-                res.reasons = [result.fatal_es]
-            elif outcome is not None and outcome.engine_state == "not_found":
-                res.state, res.doubt, res.file = ResultState.NO_ENCONTRADO, None, None
-                res.reasons = [REASON_ES.get(outcome.reason or "", "No se encontró en Soulseek.") +
-                               f" (formatos: {', '.join(fmt.formats)})"]
-            else:
-                reason = outcome.reason if outcome is not None else None
-                res.state, res.doubt, res.file = ResultState.FALLIDA, None, None
-                res.reasons = [REASON_ES.get(reason or "", f"El motor no pudo descargarla ({reason or 'sin motivo'}).")]
-            res.updated_at = _now()
-            on_event(SessionEvent("row_state", row.uid, res.state, "; ".join(res.reasons[:1]), n, len(manifest)))
-            self.save()
-        self.journal.commit(bid)
+        try:
+            for n, m in enumerate(manifest, start=1):
+                row, res = self._row(m.uid), self._res(m.uid)
+                outcome = result.outcomes.get(m.snum)
+                res.attempts += 1
+                res.pass_name = fmt.name
+                had_quarantined = m.uid in was_quarantined
+                try:
+                    self._settle_row(row, res, outcome, result, fmt, label, lossy_ok, width, bid, had_quarantined)
+                except Exception as e:  # noqa: BLE001 - one bad file marks its row, never stops the pass
+                    log.exception("row %s: processing the downloaded file failed", row.pos)
+                    if had_quarantined:
+                        res.reasons = res.reasons + [_row_error_es(e)]
+                    else:
+                        res.state, res.doubt, res.file, res.score = ResultState.FALLIDA, None, None, None
+                        res.reasons = [_row_error_es(e)]
+                res.updated_at = _now()
+                on_event(SessionEvent("row_state", row.uid, res.state, "; ".join(res.reasons[:1]), n, len(manifest)))
+                self.save()
+        finally:
+            self.journal.commit(bid)
         shutil.rmtree(win_long(work / "in"), ignore_errors=True)
         on_event(SessionEvent("pass_finished", message_es=f"{label}: terminada.", total=total))
         if result.banned:
@@ -373,31 +437,66 @@ class SetSession:
             return result.fatal_es
         return None
 
+    def _settle_row(self, row: TrackRow, res: RowResult, outcome, result, fmt: FormatPass, label: str,
+                    lossy_ok: bool, width: int, bid: str, had_quarantined: bool) -> None:
+        """The outcome of one row after a pass: its file verified and placed, or why there is none.
+        A row whose file is in _dudosos keeps it (and its doubt) unless a new file arrives."""
+        if outcome is not None and outcome.file is not None:
+            self._handle_file(row, res, outcome, fmt, lossy_ok, width, bid, had_quarantined)
+        elif had_quarantined:
+            if result.cancelled:
+                note = "Cancelado antes de terminar esta pista."
+            elif (result.banned or result.fatal_es) and (outcome is None or outcome.engine_state == "unknown"):
+                note = result.fatal_es or "Soulseek cortó la sesión antes de llegar a esta pista."
+            else:
+                note = f"{label}: no apareció nada mejor."
+            res.reasons = res.reasons + [note]
+        elif result.cancelled:
+            res.state = ResultState.PENDIENTE
+            res.reasons = ["Cancelado antes de terminar esta pista."]
+        elif result.banned and (outcome is None or outcome.engine_state == "unknown"):
+            res.state = ResultState.FALLIDA
+            res.reasons = ["Soulseek cortó la sesión antes de llegar a esta pista."]
+        elif result.fatal_es and (outcome is None or outcome.engine_state == "unknown"):
+            res.state, res.doubt, res.file = ResultState.FALLIDA, None, None
+            res.reasons = [result.fatal_es]
+        elif outcome is not None and outcome.engine_state == "not_found":
+            res.state, res.doubt, res.file = ResultState.NO_ENCONTRADO, None, None
+            res.reasons = [REASON_ES.get(outcome.reason or "", "No se encontró en Soulseek.") +
+                           f" (formatos: {', '.join(fmt.formats)})"]
+        else:
+            reason = outcome.reason if outcome is not None else None
+            res.state, res.doubt, res.file = ResultState.FALLIDA, None, None
+            res.reasons = [REASON_ES.get(reason or "", f"El motor no pudo descargarla ({reason or 'sin motivo'}).")]
+
     def _handle_file(self, row: TrackRow, res: RowResult, outcome, fmt: FormatPass, lossy_ok: bool, width: int,
                      bid: str, had_quarantined: bool) -> None:
-        verdict = verify_file(row, outcome.file, self.preset.accept, lossy_allowed=lossy_ok,
+        src = Path(outcome.file)
+        # a retry that brings back exactly the file already in _dudosos must say so (DECISIONES R.1)
+        came_back = bool(had_quarantined and res.file and same_file_content(src, self.set_dir / res.file))
+        verdict = verify_file(row, src, self.preset.accept, lossy_allowed=lossy_ok,
                               source_path_tail=outcome.source_path_tail,
                               duration_ok_s=int(self.settings.duration_ok_s),
                               duration_review_s=int(self.settings.duration_review_s),
                               spectral=bool(self.settings.spectral_check_enabled))
         info = verdict.info
         if verdict.state == ResultState.NO_CUMPLE_FORMATO:
-            if had_quarantined:
-                res.reasons = res.reasons + verdict.reasons_es
-                return
-            res.state, res.doubt, res.file, res.score = ResultState.NO_CUMPLE_FORMATO, None, None, None
-            res.reasons, res.flags = list(verdict.reasons_es), list(verdict.flags)
-            res.format, res.bitrate_kbps = info.container, info.bitrate_kbps
-            res.source_path_tail, res.peer = outcome.source_path_tail, outcome.peer
+            self._not_in_format(res, outcome, verdict.reasons_es, verdict.flags, info, had_quarantined)
             return
         reasons, flags = list(verdict.reasons_es), list(verdict.flags)
-        src = Path(outcome.file)
         samplerate, bitdepth, container = info.samplerate, info.bitdepth, info.container
         original_rel = None
-        if verdict.needs_conversion:
+        quarantine = verdict.doubt in QUARANTINE_DOUBTS
+        if verdict.needs_conversion and not quarantine:
             acc = self.preset.accept
-            conv = to_aiff_pcm(src, src.parent / "__convertido.aiff", max_samplerate=acc.max_samplerate or 48000,
-                               max_bitdepth=acc.max_bitdepth or 24)
+            try:
+                conv = to_aiff_pcm(src, src.parent / "__convertido.aiff",
+                                   max_samplerate=acc.max_samplerate or 48000, max_bitdepth=acc.max_bitdepth or 24)
+            except Exception as e:  # noqa: BLE001 - libsndfile/OS errors of a damaged download
+                log.warning("row %s: AIFF conversion failed: %s", row.pos, type(e).__name__)
+                self._not_in_format(res, outcome, [CONVERT_FAILED_ES.format(err=type(e).__name__)],
+                                    verdict.flags + ["conversion_fallida"], info, had_quarantined)
+                return
             orig_dst = self.set_dir / ORIGINALES / track_filename(row, src.suffix, width)
             real_orig = self.journal.move(bid, src, orig_dst, uid=row.uid)
             original_rel = rel_to_set(self.set_dir, real_orig)
@@ -406,13 +505,34 @@ class SetSession:
             flags.append("convertido_aiff")
             reasons.append(conv.warning_es or "Convertido a AIFF para CDJ antiguos (mismo sample rate y bits). "
                                               "El original está en _originales.")
+        elif verdict.needs_conversion:
+            # identity/version/duration doubt (truncated files too): the download goes as it is to _dudosos,
+            # never converted (a damaged FLAC would not convert anyway) and with no copy in _originales
+            flags.append("sin_convertir")
+            reasons.append(f"No se convierte a AIFF: es dudoso y va tal cual a {DUDOSOS}.")
         res.file = place_verified(self.set_dir, row, src, verdict, width, self.journal, bid)
+        if came_back:
+            reasons.append(SAME_FILE_ES)
         res.state, res.doubt, res.score = verdict.state, verdict.doubt, verdict.score
         res.reasons, res.flags = reasons, flags
         res.original_file = original_rel
         res.format, res.samplerate, res.bitdepth = container, samplerate, bitdepth
         res.duration_s = info.decoded_duration_s or info.duration_s
         res.bitrate_kbps = info.bitrate_kbps if container == "mp3" else None
+        res.source_path_tail, res.peer = outcome.source_path_tail, outcome.peer
+        if quarantine and outcome.peer and outcome.peer not in res.rejected_peers:
+            res.rejected_peers = res.rejected_peers + [outcome.peer]
+
+    @staticmethod
+    def _not_in_format(res: RowResult, outcome, reasons_es: list[str], flags: list[str], info,
+                       had_quarantined: bool) -> None:
+        """The download does not meet the preset (or could not be converted): it is not placed."""
+        if had_quarantined:
+            res.reasons = res.reasons + list(reasons_es)
+            return
+        res.state, res.doubt, res.file, res.score = ResultState.NO_CUMPLE_FORMATO, None, None, None
+        res.reasons, res.flags = list(reasons_es), list(flags)
+        res.format, res.bitrate_kbps = info.container, info.bitrate_kbps
         res.source_path_tail, res.peer = outcome.source_path_tail, outcome.peer
 
     # ---- finishing ------------------------------------------------------------------------
@@ -427,7 +547,8 @@ class SetSession:
         library.save()
 
     def report_text(self) -> str:
-        return report_mod.report_text(self.doc, preset_label=self.preset.label_es, engine_id=self.engine_id)
+        return report_mod.report_text(self.doc, preset_label=self.preset.label_es, engine_id=self.engine_id,
+                                      stray_files=stray_audio_files(self.set_dir, self.doc.results.values()))
 
     def tracklist_text(self) -> str:
         return report_mod.tracklist_text(self.doc)

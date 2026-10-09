@@ -8,6 +8,7 @@ soundfile decodes to the end to measure the real duration (truncated downloads).
 """
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,6 +40,9 @@ class AudioInfo:
     tag_artist: str | None
     tag_title: str | None
     tag_album: str | None
+    # MP3 whose header does not say CBR or VBR (no Xing/Info/VBRI frame): the bitrate of every frame
+    # read at the start and around 25/50/75 % of the file; () = no frame could be read. None otherwise.
+    mp3_frame_kbps: tuple[int, ...] | None = None
 
     @property
     def is_lossless(self) -> bool:
@@ -130,6 +134,82 @@ def read_tags(path: Path) -> tuple[str | None, str | None]:
 
 _SUBTYPE_BITS = {"PCM_S8": 8, "PCM_U8": 8, "PCM_16": 16, "PCM_24": 24, "PCM_32": 32, "FLOAT": 32, "DOUBLE": 64}
 
+# MPEG audio Layer III frame headers (ISO 11172-3 / 13818-3): kbps by bitrate index, Hz by version.
+_L3_KBPS = {1: (0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320),        # MPEG-1
+            2: (0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160)}            # MPEG-2 / 2.5
+_SAMPLERATES = {3: (44100, 48000, 32000), 2: (22050, 24000, 16000), 0: (11025, 12000, 8000)}
+MP3_HEAD_FRAMES = 30          # frames read right after the ID3v2 tag
+MP3_PROBE_FRAMES = 10         # frames read at each probe point
+MP3_PROBE_POINTS = (0.25, 0.5, 0.75)
+_RESYNC_WINDOW = 1 << 16      # bytes searched for a frame header at each probe point
+
+
+def _l3_frame(buf: bytes, i: int) -> tuple[int, int, int] | None:
+    """(kbps, frame length, version+samplerate key) of a Layer III header at buf[i], or None."""
+    if i + 4 > len(buf) or buf[i] != 0xFF or (buf[i + 1] & 0xE0) != 0xE0:
+        return None
+    ver = (buf[i + 1] >> 3) & 3            # 3 = MPEG-1, 2 = MPEG-2, 0 = MPEG-2.5, 1 = reserved
+    layer = (buf[i + 1] >> 1) & 3          # 1 = Layer III
+    bi, si, pad = (buf[i + 2] >> 4) & 0xF, (buf[i + 2] >> 2) & 3, (buf[i + 2] >> 1) & 1
+    if ver == 1 or layer != 1 or bi in (0, 15) or si == 3:    # free format (0) cannot be checked either
+        return None
+    kbps = _L3_KBPS[1 if ver == 3 else 2][bi]
+    sr = _SAMPLERATES[ver][si]
+    length = (144000 if ver == 3 else 72000) * kbps // sr + pad
+    return kbps, length, (ver << 2) | si
+
+
+def _frame_run(buf: bytes, n: int) -> list[int]:
+    """Bitrates of up to n consecutive frames from the first real header in buf (resync). A header only
+    counts when two more headers of the same MPEG version and sample rate follow it, so random audio
+    bytes never pass for one."""
+    end = min(len(buf), _RESYNC_WINDOW)
+    i = 0
+    while i < end:
+        h = _l3_frame(buf, i)
+        if h is not None:
+            h2 = _l3_frame(buf, i + h[1])
+            h3 = _l3_frame(buf, i + h[1] + h2[1]) if h2 is not None and h2[2] == h[2] else None
+            if h3 is not None and h3[2] == h[2]:
+                break
+        i += 1
+    else:
+        return []
+    out: list[int] = []
+    key = _l3_frame(buf, i)[2]
+    while len(out) < n:
+        h = _l3_frame(buf, i)
+        if h is None or h[2] != key or i + h[1] > len(buf):
+            break
+        out.append(h[0])
+        i += h[1]
+    return out
+
+
+def mp3_frame_bitrates(path: Path) -> tuple[int, ...]:
+    """Bitrates of the MPEG frames at the start of the audio and around 25/50/75 % of the file.
+
+    Used when the header says nothing about CBR/VBR (no Xing/Info/VBRI frame), where mutagen only
+    reports the FIRST frame's bitrate: a VBR file starting with a 320 kbps frame would pass for CBR."""
+    try:
+        size = os.path.getsize(path)
+        with open(path, "rb") as f:
+            head = f.read(10)
+            start = 0
+            if head[:3] == b"ID3" and len(head) == 10:
+                start = 10 + (((head[6] & 0x7F) << 21) | ((head[7] & 0x7F) << 14) | ((head[8] & 0x7F) << 7)
+                              | (head[9] & 0x7F)) + (10 if head[5] & 0x10 else 0)
+            f.seek(start)
+            seen = _frame_run(f.read(MP3_HEAD_FRAMES * 1441 + _RESYNC_WINDOW), MP3_HEAD_FRAMES)
+            if not seen:
+                return ()
+            for frac in MP3_PROBE_POINTS:
+                f.seek(start + int((size - start) * frac))
+                seen += _frame_run(f.read(MP3_PROBE_FRAMES * 1441 + _RESYNC_WINDOW), MP3_PROBE_FRAMES)
+            return tuple(seen)
+    except OSError:
+        return ()
+
 
 def decoded_duration(path: Path) -> tuple[float | None, int | None, str | None]:
     """Decode to the end; returns (seconds actually decodable, samplerate, subtype)."""
@@ -198,7 +278,9 @@ def probe(path: Path) -> AudioInfo:
     is_float = bool(subtype in ("FLOAT", "DOUBLE")) and container in ("wav", "aiff")
     if duration is None:
         duration = dec
+    frame_kbps = mp3_frame_bitrates(path) if container == "mp3" and mode in (None, "unknown") else None
     return AudioInfo(path=path, container=container, ext_matches=(ext_container == container),
                      duration_s=duration, decoded_duration_s=dec, samplerate=samplerate, bitdepth=bitdepth,
                      channels=channels, bitrate_kbps=bitrate, bitrate_mode=mode, is_aifc=is_aifc,
-                     is_float=is_float, tag_artist=artist, tag_title=title, tag_album=album)
+                     is_float=is_float, tag_artist=artist, tag_title=title, tag_album=album,
+                     mp3_frame_kbps=frame_kbps)

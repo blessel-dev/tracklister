@@ -14,15 +14,13 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from rapidfuzz import fuzz
-
 from tracklister.core.layout import is_reserved_subdir
 from tracklister.core.model import TrackRow
 from tracklister.core.textnorm import nfc, norm_key, split_title_version, versions_compatible
 from tracklister.organize.journal import Journal
 from tracklister.organize.naming import pad_width, track_filename
 from tracklister.verify.audioinfo import read_tags
-from tracklister.verify.identity import parse_name
+from tracklister.verify.identity import artist_similarity, parse_name, row_artists, title_similarity
 
 AUDIO_EXTS = (".flac", ".wav", ".aiff", ".aif", ".mp3", ".m4a", ".ogg", ".opus")
 MATCH_MIN = 75.0
@@ -61,18 +59,14 @@ def _file_identity(f: Path) -> tuple[str, str, str | None]:
 
 
 def _pair_score(row: TrackRow, ident: tuple[str, str, str | None]) -> float:
+    """Same title/artist rules as the download verification (verify.identity): a title with other
+    numbers ('Dust 1' / 'Dust 2') scores at most 0.4*100 + 0.6*50 = 70 < MATCH_MIN, and a partial
+    one-word artist ('Systems' for 'Planetary Assault Systems') is not a match."""
     artist, base, version = ident
-    a = norm_key(artist)
-    t = norm_key(base)
-    if not t:
+    if not norm_key(base):
         return 0.0
-    want_t = norm_key(row.title)
-    title = max(fuzz.ratio(want_t, t), fuzz.token_sort_ratio(want_t, t))
-    art = 0.0
-    for c in [row.artist_display] + list(row.artists or []):
-        k = norm_key(c)
-        if k and a:
-            art = max(art, fuzz.token_set_ratio(k, a), fuzz.ratio(k, a))
+    title, _ = title_similarity(row.title, base)
+    art = artist_similarity(row_artists(row), artist) if norm_key(artist) else 0.0
     score = 0.4 * art + 0.6 * title
     if not versions_compatible(row.version, version)[0]:
         score *= 0.5

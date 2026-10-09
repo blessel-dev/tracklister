@@ -4,6 +4,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from tests.fakes.synth import make_track
 from tracklister.core.settings import CustomPreset
 from tracklister.engine.presets import build_preset
@@ -25,6 +27,31 @@ def test_mp3_rules(tmp_path):
     assert not v.ok and "mp3_vbr" in v.flags and "CBR" in v.reasons_es[0]
     low = _q(tmp_path, "l.mp3", MP3, True, fmt="mp3", mp3_kbps=256)
     assert not low.ok and "mp3_bajo_bitrate" in low.flags and "256" in low.reasons_es[0]
+
+
+def test_mp3_without_xing_or_info_frame_is_judged_by_its_frames(tmp_path):
+    """No Xing/Info/VBRI frame: mutagen only sees the first frame (320 kbps here). Every frame read
+    must have the same bitrate; a VBR file is refused, a real CBR 320 is accepted."""
+    v = _q(tmp_path, "v.mp3", MP3, True, fmt="mp3", vbr=True, mp3_info_frame=False)
+    assert not v.ok and "mp3_vbr" in v.flags and "VBR sin cabecera" in v.reasons_es[0]
+    c = _q(tmp_path, "c.mp3", MP3, True, fmt="mp3", mp3_info_frame=False)
+    assert c.ok and "mp3_modo_desconocido" in c.flags
+    low = _q(tmp_path, "l.mp3", MP3, True, fmt="mp3", mp3_kbps=256, mp3_info_frame=False)
+    assert not low.ok and "mp3_bajo_bitrate" in low.flags and "256" in low.reasons_es[0]
+    # every preset that allows MP3 follows the same rule
+    lv = _q(tmp_path, "lv.mp3", LOSSLESS, True, fmt="mp3", vbr=True, mp3_info_frame=False)
+    assert not lv.ok and "mp3_vbr" in lv.flags
+    cdj = _q(tmp_path, "cv.mp3", CDJ, True, fmt="mp3", vbr=True, mp3_info_frame=False)
+    assert not cdj.ok and "mp3_vbr" in cdj.flags
+    own = build_preset("personalizado", CustomPreset(formats=["mp3"], min_mp3_kbps=256)).accept
+    assert _q(tmp_path, "o.mp3", own, True, fmt="mp3", mp3_kbps=256, mp3_info_frame=False).ok
+    assert not _q(tmp_path, "ov.mp3", own, True, fmt="mp3", vbr=True, mp3_info_frame=False).ok
+
+
+def test_mp3_with_unreadable_frames_is_never_accepted(tmp_path):
+    info = probe(make_track(tmp_path / "c.mp3", fmt="mp3", seconds=3, mp3_info_frame=False))
+    q = check_quality(replace(info, mp3_frame_kbps=()), MP3, lossy_allowed=True)
+    assert not q.ok and "mp3_cabecera_ilegible" in q.flags and "no se puede comprobar" in q.reasons_es[0]
 
 
 def test_mp3_in_lossless_only_when_approved(tmp_path):

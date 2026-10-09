@@ -43,6 +43,7 @@ class EngineJob:
     searches_renew_s: int = 220
     print_json_all: bool = False   # Diagnostico search-only
     input_override: str | None = None  # Diagnostico keyed string "artist=A, title=T, length=L"
+    banned_users: tuple[str, ...] = ()  # "Reintentar fallos": peers whose file went to _dudosos
 
     @property
     def input_csv(self) -> Path:
@@ -67,6 +68,15 @@ class EngineJob:
     @property
     def stdout_path(self) -> Path:
         return Path(self.work_dir) / STDOUT_TXT
+
+
+def bannable_peer(name: str | None, own_username: str | None) -> bool:
+    """Can this peer go in --banned-users? Both engines split the list on ',' and trim each name
+    (3.x ConfigManager.cs:413,788-789; 2.x Config.cs:1284-1285), so a name with a comma or with
+    spaces at either end could never match. The own account never goes in the list."""
+    if not name or "," in name or name != name.strip():
+        return False
+    return name.casefold() != (own_username or "").casefold()
 
 
 def _opt(flag: str, value: str) -> list[str]:
@@ -114,6 +124,9 @@ def build_command(spec: EngineSpec, job: EngineJob, creds: Credentials) -> list[
         a += ["--strict-title"]
     if fmt.strict_artist:
         a += ["--strict-artist"]
+    banned = [u for u in dict.fromkeys(job.banned_users) if bannable_peer(u, creds.username)]
+    if banned:
+        a += _opt("--banned-users", ",".join(banned))
     a += ["--no-skip-existing"]
     a += ["--write-playlist", "--playlist-path", str(w / PLAYLIST)]
     a += ["--concurrent-jobs" if d == EngineDialect.SOCKSEEK3 else "--concurrent-downloads",

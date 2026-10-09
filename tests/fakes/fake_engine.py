@@ -34,7 +34,7 @@ VALUE_FLAGS = {"--input-type", "--user", "--pass", "--output-dir", "-p", "--name
                "--log-file", "--listen-port", "--artist-col", "--title-col", "--length-col",
                "--time-format", "--format", "--min-bitrate", "--max-samplerate", "--length-tol",
                "--playlist-path", "--concurrent-jobs", "--concurrent-downloads", "--searches-per-time",
-               "--searches-renew-time", "--print", "--mock-files-dir"}
+               "--searches-renew-time", "--print", "--mock-files-dir", "--banned-users"}
 BOOL_FLAGS = {"--no-config", "--no-progress", "--no-modify-share-count", "--strict-title",
               "--strict-artist", "--no-skip-existing", "--write-playlist", "--no-listen"}
 V3_ONLY = {"--output-dir", "--concurrent-jobs", "--no-listen"}
@@ -148,6 +148,10 @@ def is_result(f: dict, item: dict) -> bool:
 
 
 def passes(f: dict, item: dict, opts: dict) -> bool:
+    # like both engines: comma-separated, each name trimmed, exact match on the peer name
+    banned = {x.strip() for x in (opts.get("--banned-users") or "").split(",") if x.strip()}
+    if f["peer"] in banned:
+        return False
     fmts = [x.strip() for x in (opts.get("--format") or "").split(",") if x.strip()]
     if fmts and file_ext(f["path"]) not in fmts:
         return False
@@ -205,7 +209,8 @@ def write_audio(f: dict, item: dict, dst: Path) -> None:
                      vbr=bool(f.get("vbr")), tags=tags, truncate_to_s=a.get("truncate_to_s"),
                      seed=int(a.get("seed", zlib.crc32(f["path"].encode("utf-8")) % 1000)),
                      float_pcm=bool(a.get("float_pcm")),
-                     low_treble=bool(a.get("low_treble")))
+                     low_treble=bool(a.get("low_treble")),
+                     mp3_info_frame=not bool(a.get("no_info_frame")))
 
 
 REASONS_V3 = {"no_results": (9, "NoSearchResults", "No search results", "No Soulseek file results found."),

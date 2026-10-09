@@ -5,7 +5,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
 from tests.fakes.synth import make_track
-from tracklister.verify.audioinfo import probe
+from tracklister.verify.audioinfo import mp3_frame_bitrates, probe
 
 
 def test_flac_with_tags(tmp_path):
@@ -35,6 +35,24 @@ def test_mp3_modes(tmp_path):
     assert probe(make_track(tmp_path / "v.mp3", fmt="mp3", seconds=4, vbr=True)).bitrate_mode == "vbr"
     c = probe(make_track(tmp_path / "c.mp3", fmt="mp3", seconds=4, mp3_kbps=256))
     assert (c.bitrate_kbps, c.bitrate_mode) == (256, "cbr")
+
+
+def test_mp3_without_info_frame_reads_frames_across_the_file(tmp_path):
+    v = probe(make_track(tmp_path / "v.mp3", fmt="mp3", seconds=6, vbr=True, mp3_info_frame=False))
+    assert v.bitrate_mode == "unknown" and v.bitrate_kbps == 320      # mutagen only saw the first frame
+    assert len(v.mp3_frame_kbps) >= 40 and len(set(v.mp3_frame_kbps)) > 1
+    c = probe(make_track(tmp_path / "c.mp3", fmt="mp3", seconds=6, mp3_info_frame=False,
+                         tags={"artist": "Fjaak", "title": "Spirit"}))     # ID3v2 in front: skipped
+    assert c.bitrate_mode == "unknown" and len(c.mp3_frame_kbps) >= 40 and set(c.mp3_frame_kbps) == {320}
+    assert probe(make_track(tmp_path / "h.mp3", fmt="mp3", seconds=4)).mp3_frame_kbps is None   # Info: CBR
+    assert probe(make_track(tmp_path / "w.flac", fmt="flac", seconds=2)).mp3_frame_kbps is None
+
+
+def test_mp3_frame_scan_never_takes_noise_for_frames(tmp_path):
+    import numpy as np
+    p = tmp_path / "ruido.mp3"
+    p.write_bytes(b"\xff\xfb\x90\x00" + np.random.default_rng(3).integers(0, 256, 200000, dtype=np.uint8).tobytes())
+    assert mp3_frame_bitrates(p) == ()
 
 
 def test_float_and_aifc(tmp_path):

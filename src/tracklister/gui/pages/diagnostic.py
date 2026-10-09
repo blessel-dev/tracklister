@@ -80,6 +80,10 @@ class DiagnosticPage(QWidget):
         lay.addLayout(foot)
         self._refresh()
 
+    def running(self) -> bool:
+        """True while the Diagnostico task (and so its engine process) is still running."""
+        return self.task is not None and self.task.isRunning()
+
     def _refresh(self) -> None:
         running = self.task is not None
         self.start_btn.setEnabled(bool(self.rows) and not running)
@@ -135,8 +139,9 @@ class DiagnosticPage(QWidget):
             self.banner.show_message("Falta tu cuenta de Soulseek: añádela en Ajustes.", "error",
                                      actions=[("Ir a Ajustes", lambda: self.window.go("settings"))])
             return
-        if self.window.worker_running():
-            self.banner.show_message("Espera a que termine la descarga en curso.", "warn")
+        busy = self.window.engine_busy_es()        # one engine process at a time (same account and port)
+        if busy:
+            self.banner.show_message(busy[1], "warn")
             return
         rows = [TrackRow.from_dict(r.to_dict()) for r in self.rows]
         download = self.download.isChecked()

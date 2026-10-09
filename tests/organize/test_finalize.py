@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from tracklister.core.model import DoubtKind, ResultState, RowResult, TrackRow
-from tracklister.organize.finalize import place_verified, sync_names
+from tracklister.organize.finalize import place_verified, stray_audio_files, sync_names
 from tracklister.organize.journal import Journal
 from tracklister.verify.verifier import Verdict
 
@@ -65,3 +65,42 @@ def test_sync_names_swaps(tmp_path):
     assert sync_names(s, rows, res, j) == 0               # idempotent
     assert j.undo_last() == []
     assert (s / "01 - A - Uno.flac").read_bytes() == b"Uno"
+
+
+def test_sync_names_renames_the_copy_in_originales_too(tmp_path):
+    """CDJ antiguos: after reordering the table, the FLAC kept in _originales gets the new number in the
+    same journal batch as its AIFF (undo puts both back)."""
+    s = tmp_path / "set"
+    rows = [_row(1, "Uno"), _row(2, "Dos")]
+    res = {}
+    for r in rows:
+        f = _file(s / f"{r.pos:02d} - A - {r.title}.aiff", r.title.encode())
+        o = _file(s / "_originales" / f"{r.pos:02d} - A - {r.title}.flac", b"orig-" + r.title.encode())
+        res[r.uid] = RowResult(uid=r.uid, pos=r.pos, state=ResultState.VERIFICADO, file=f.name,
+                               original_file=f"_originales/{o.name}")
+    j = Journal(s)
+    rows[0].pos, rows[1].pos = 2, 1
+    assert sync_names(s, rows, res, j) == 4
+    uno, dos = res[rows[0].uid], res[rows[1].uid]
+    assert (uno.file, uno.original_file) == ("02 - A - Uno.aiff", "_originales/02 - A - Uno.flac")
+    assert (dos.file, dos.original_file) == ("01 - A - Dos.aiff", "_originales/01 - A - Dos.flac")
+    assert (s / "_originales" / "02 - A - Uno.flac").read_bytes() == b"orig-Uno"
+    assert (s / "_originales" / "01 - A - Dos.flac").read_bytes() == b"orig-Dos"
+    assert len(j.batches()) == 1 and j.batches()[0]["committed"]
+    assert sync_names(s, rows, res, j) == 0
+    assert j.undo_last() == []
+    assert (s / "_originales" / "01 - A - Uno.flac").read_bytes() == b"orig-Uno"
+    assert (s / "01 - A - Uno.aiff").read_bytes() == b"Uno"
+
+
+def test_stray_audio_files_lists_what_no_result_points_to(tmp_path):
+    s = tmp_path / "set"
+    _file(s / "01 - A - Uno.flac")
+    _file(s / "02 - A - Borrada.flac")
+    _file(s / "_dudosos" / "03 - A - Vieja.flac")
+    _file(s / "_originales" / "01 - A - Uno.flac")
+    _file(s / "Informe - set.txt")
+    res = [RowResult(uid="u", pos=1, state=ResultState.VERIFICADO, file="01 - A - Uno.flac",
+                     original_file="_originales/01 - A - Uno.flac")]
+    assert stray_audio_files(s, res) == ["02 - A - Borrada.flac", "_dudosos/03 - A - Vieja.flac"]
+    assert stray_audio_files(tmp_path / "no-existe", res) == []

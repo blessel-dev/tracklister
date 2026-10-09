@@ -18,6 +18,14 @@ from tracklister.core.textnorm import (
 )
 
 
+def test_new_optional_fields_load_from_old_files():
+    """set.json/library.json written before the audit fixes (no rejected_peers / flags) still load."""
+    r = RowResult.from_dict({"uid": "u1", "pos": 1, "state": "dudoso", "doubt": "version", "peer": "peerA"})
+    assert r.rejected_peers == [] and r.peer == "peerA"
+    back = RowResult.from_dict(RowResult(uid="u2", pos=2, rejected_peers=["a", "b"]).to_dict())
+    assert back.rejected_peers == ["a", "b"]
+
+
 def test_setdoc_roundtrip(tmp_path):
     row = TrackRow(pos=3, title="Higher Things", artists=["Chris Liebing"],
                    artist_display="Chris Liebing", version="FJAAK Remix", expected_duration_s=289)

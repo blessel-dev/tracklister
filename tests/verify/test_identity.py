@@ -9,7 +9,10 @@ import pytest
 from tests.fakes.synth import make_track
 from tracklister.core.model import TrackRow
 from tracklister.verify.audioinfo import probe
-from tracklister.verify.identity import identity_score, parse_name, strip_track_number
+from tracklister.verify.identity import (
+    NUMBER_MISMATCH_MAX, artist_similarity, identity_score, number_tokens, parse_name, strip_track_number,
+    title_similarity,
+)
 
 
 def _row(artist, title, version=None):
@@ -71,6 +74,46 @@ def test_generic_tags_fall_back_to_name(tmp_path):
     info = _info(tmp_path, "Fjaak - Spirit.flac", {"artist": "Unknown Artist", "title": "Track 01"})
     s = identity_score(_row("Fjaak", "Spirit"), info, "Fjaak\\Fjaak - Spirit.flac")
     assert s.artist == 100 and s.title == 100 and s.evidence == "nombre"
+
+
+@pytest.mark.parametrize("want,got", [("Dust 1", "Dust 2"), ("Untitled 1", "Untitled 2"), ("A1", "B2"),
+                                      ("Part 1", "Part 2"), ("Dust 01", "Dust 2"), ("Spirit", "Spirit 2")])
+def test_titles_with_other_numbers_are_another_track(tmp_path, want, got):
+    info = _info(tmp_path, "x.flac", {"artist": "Blasha & Allatt", "title": got})
+    s = identity_score(_row("Blasha & Allatt", want), info, None)
+    assert not s.numbers_ok and s.title <= NUMBER_MISMATCH_MAX < 70
+
+
+def test_same_numbers_still_match():
+    score, same = title_similarity("Dust 1", "Dust 01")
+    assert same and score > 90
+    assert title_similarity("8AM in Salford", "8AM In Salford") == (100.0, True)
+    assert title_similarity("Dust 1", "Dust 2")[1] is False
+    assert title_similarity("A1", "A1") == (100.0, True) and title_similarity("A1", "B1")[1] is False
+    assert number_tokens("part 2 of 03") == ["2", "3"] and number_tokens("a01 b2") == ["a1", "b2"]
+    # a track number glued to the file name ('01 Spirit.flac') is not a title number; '808' stays
+    assert title_similarity("Spirit", "01 Spirit") == (100.0, True)
+    assert title_similarity("Dust 1", "01 Dust 2")[1] is False
+    assert title_similarity("Pacific State", "808 Pacific State")[1] is False
+
+
+def test_partial_artist_needs_two_words():
+    assert artist_similarity(["Planetary Assault Systems"], "Systems") < 60
+    assert artist_similarity(["Systems"], "Planetary Assault Systems") < 60
+    assert artist_similarity(["Fjaak"], "Fjaak, Chris Liebing") == 100      # one of the split artists
+    assert artist_similarity(["808 State"], "808 State") == 100
+    assert artist_similarity(["Chris Liebing"], "Chris Liebing Speedy J") == 100   # 2 words: subset counts
+    assert artist_similarity(["Fjaak"], "Fjaak - Live 2026") == 100         # an 'Artist - Album' folder
+    assert artist_similarity(["Fjaak"], "01 Fjaak") == 100                  # '01 Fjaak - Spirit.mp3'
+    assert artist_similarity(["2 Unlimited"], "2 Unlimited") == 100
+    assert artist_similarity(["Blasha & Allatt", "Blasha", "Allatt"], "Allatt & Blasha") == 100
+
+
+def test_partial_artist_in_tags_scores_low(tmp_path):
+    info = _info(tmp_path, "x.flac", {"artist": "Systems", "title": "Gated"})
+    assert identity_score(_row("Planetary Assault Systems", "Gated"), info, None).artist < 60
+    collab = _info(tmp_path, "c.flac", {"artist": "Fjaak, Chris Liebing", "title": "Spirit"})
+    assert identity_score(_row("Fjaak", "Spirit"), collab, None).artist == 100
 
 
 @pytest.mark.parametrize("stem,out", [

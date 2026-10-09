@@ -101,6 +101,17 @@ def test_fake_filters_length_bitrate_strict(tmp_path):
     assert n.returncode == 1 and not list((nw / "in").rglob("*.mp3"))
 
 
+def test_fake_respects_banned_users(tmp_path):
+    """Like both engines: a banned peer's files are never candidates (first passing candidate wins)."""
+    p, work, _ = run_fake(tmp_path / "a", "version_equivocada")
+    assert [f.name for f in (work / "in" / "1").iterdir()] == ["Fjaak - Spirit (Kai Van Dongen Remix).flac"]
+    b, bw, _ = run_fake(tmp_path / "b", "version_equivocada", banned_users=("peerA",))
+    assert b.returncode == 0 and [f.name for f in (bw / "in" / "1").iterdir()] == ["Fjaak - Spirit.flac"]
+    assert "peerB\\" in b.stdout and "peerA\\" not in b.stdout
+    c, cw, _ = run_fake(tmp_path / "c", "version_equivocada", EngineDialect.SLDL2, banned_users=("peerA", "peerB"))
+    assert c.returncode == 0 and not list((cw / "in").rglob("*.flac")) and "Not found: Fjaak - Spirit" in c.stdout
+
+
 def test_fake_print_json_all_downloads_nothing(tmp_path):
     p, work, _ = run_fake(tmp_path, "correcto", print_json_all=True,
                           input_override="artist=Fjaak, title=Spirit, length=30")

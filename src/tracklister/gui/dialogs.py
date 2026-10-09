@@ -30,6 +30,8 @@ def _entry_text(e: LibraryEntry) -> str:
         bits.append(e.format.upper())
     if e.duration_s:
         bits.append(fmt_clock(e.duration_s))
+    if "posible_falso_lossless" in (e.flags or []):
+        bits.append("marcado: posible lossless falso")
     return " · ".join(bits)
 
 

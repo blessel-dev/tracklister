@@ -172,6 +172,8 @@ class RowResult:
     pass_name: str | None = None
     attempts: int = 0
     updated_at: str | None = None          # ISO-8601 local time
+    rejected_peers: list[str] = field(default_factory=list)   # peers whose file went to _dudosos (LOCAL
+    #   ONLY): "Reintentar fallos" passes them to the engine as --banned-users
 
     def to_dict(self) -> dict[str, Any]:
         d = dataclasses.asdict(self)
@@ -186,6 +188,7 @@ class RowResult:
         r.doubt = DoubtKind(d["doubt"]) if d.get("doubt") else None
         r.reasons = list(d.get("reasons") or [])
         r.flags = list(d.get("flags") or [])
+        r.rejected_peers = list(d.get("rejected_peers") or [])
         return r
 
 
@@ -288,13 +291,17 @@ class LibraryEntry:
     format: str | None = None
     size: int | None = None
     added_at: str | None = None
+    flags: list[str] = field(default_factory=list)   # marks of the source file that a reuse must keep,
+    #   e.g. "posible_falso_lossless" (optional: library.json files without it still load)
 
     def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "LibraryEntry":
-        return _from_dict(cls, d)
+        e = _from_dict(cls, d)
+        e.flags = list(d.get("flags") or [])
+        return e
 
 
 @dataclass

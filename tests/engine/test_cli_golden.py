@@ -39,6 +39,9 @@ def _cases():
         lossless = build_preset("lossless").passes[0]
         yield f"{eid}__lossless__lossless-relaxed-sin-duracion", eid, EngineJob(
             WORK, relaxed(lossless), False, 50123, concurrent=2)
+        # "Reintentar fallos" for rows whose file went to _dudosos: the peers of those files are banned
+        yield f"{eid}__lossless__lossless-relaxed-banned-users", eid, EngineJob(
+            WORK, relaxed(lossless), True, 49998, banned_users=("peerA", "DJ Peer B"))
         yield f"{eid}__diagnostico__print-json-all", eid, EngineJob(
             WORK, lossless, True, 49998, print_json_all=True,
             input_override="artist=Fjaak, title=Spirit, length=301")
@@ -84,6 +87,25 @@ def test_dialect_differences_are_exactly_the_three_documented():
     assert a2[a2.index("-p") + 1] == str(WORK / "in")
     swap = {"--output-dir": "-p", "--concurrent-jobs": "--concurrent-downloads"}
     assert [swap.get(t, t) for t in a3] == a2
+
+
+def test_banned_users_same_place_in_both_dialects_and_never_the_own_account():
+    p = relaxed(build_preset("lossless").passes[0])
+    job = EngineJob(WORK, p, True, 49998,
+                    banned_users=("peerA", "USUARIO-PRUEBA", "con,coma", " espacio", "peerA", "peer B"))
+    a3 = build_command(_spec("sockseek-3.0.5"), job, CREDS)[1:]
+    a2 = build_command(_spec("sldl-2.6.0"), job, CREDS)[1:]
+    for a in (a3, a2):
+        # own account (any case), a comma or outer spaces (the engines split on ',' and trim) never go in
+        assert a[a.index("--banned-users") + 1] == "peerA,peer B"
+        assert a.index("--banned-users") == a.index("--strict-title") + 1
+    swap = {"--output-dir": "-p", "--concurrent-jobs": "--concurrent-downloads"}
+    assert [swap.get(t, t) for t in a3] == a2
+    dash = build_command(_spec("sockseek-3.0.5"), EngineJob(WORK, p, True, 49998, banned_users=("-raro",)), CREDS)
+    assert "--banned-users=-raro" in dash
+    only_own = EngineJob(WORK, p, True, 49998, banned_users=("usuario-prueba",))
+    assert "--banned-users" not in build_command(_spec("sldl-2.6.0"), only_own, CREDS)
+    assert "--banned-users" not in build_command(_spec("sldl-2.6.0"), EngineJob(WORK, p, True, 49998), CREDS)
 
 
 def test_secret_values_starting_with_dash_use_attached_form():

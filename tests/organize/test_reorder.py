@@ -132,6 +132,21 @@ def test_rerun_on_reordered_folder_is_a_no_op(tmp_path):
     assert j.batches() == []
 
 
+def test_titles_with_other_numbers_never_match(tmp_path):
+    """A folder that only has 'Dust 2' never gives it to the row 'Dust 1' (same rule as the download
+    verification): the row stays missing and the file extra."""
+    rows = [_row(1, "Truncate", "Dust 1"), _row(2, "Regal", "Untitled 1"), _row(3, "Exos", "A1")]
+    folder = tmp_path / "n"
+    _make(folder, ["Truncate - Dust 2.mp3", "Regal - Untitled 2.mp3", "Exos - B2.mp3"])
+    props = propose_reorder(folder, rows)
+    by = _by_pos(props)
+    assert [by[i].status for i in (1, 2, 3)] == ["missing"] * 3
+    assert sorted(p.src.name for p in props if p.status == "extra") == [
+        "Exos - B2.mp3", "Regal - Untitled 2.mp3", "Truncate - Dust 2.mp3"]
+    _make(folder, ["Truncate - Dust 1.mp3"])
+    assert _by_pos(propose_reorder(folder, rows))[1].src.name == "Truncate - Dust 1.mp3"
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])

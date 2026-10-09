@@ -439,6 +439,9 @@ class ResultsTableModel(QAbstractTableModel):
         label = state_label_es(state)
         if res is not None and state == ResultState.DUDOSO and res.doubt:
             label += f" · {DOUBT_SHORT_ES.get(res.doubt, str(res.doubt))}"
+        elif res is not None and state == ResultState.YA_EN_BIBLIOTECA and "posible_falso_lossless" in res.flags:
+            # a reused file keeps the mark it had in its set (never accepted silently)
+            label += f" · {DOUBT_SHORT_ES[DoubtKind.ESPECTRO]}"
         return label
 
     def data(self, index, role=R.DisplayRole):
