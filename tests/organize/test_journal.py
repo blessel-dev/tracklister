@@ -4,6 +4,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+import shutil
+
+import pytest
+
 from tracklister.organize.journal import Journal
 
 
@@ -43,3 +47,33 @@ def test_undo_never_overwrites_and_keeps_the_op(tmp_path):
     assert errs and "no se sobrescribe" in errs[0]
     assert (s / "01.flac").exists() and a.read_bytes() == b"new file in the old place"
     assert len(j.batches()) == 1
+
+
+def test_r3_n2_a_copy_that_fails_leaves_no_half_file_and_discard_reverts_the_batch(tmp_path, monkeypatch):
+    """Audit round 3, N2: a copy that dies halfway (a full disk) leaves nothing under the final name,
+    and discard() reverts what the unfinished batch already did and closes it."""
+    s = tmp_path / "set"
+    s.mkdir()
+    a, b = tmp_path / "a.flac", tmp_path / "b.flac"
+    a.write_bytes(b"A" * 1000)
+    b.write_bytes(b"B" * 1000)
+    real_copy2 = shutil.copy2
+
+    def half_then_full_disk(src, dst, *args, **kw):
+        if "02 - Y" in str(dst):
+            with open(dst, "wb") as f:
+                f.write(b"B" * 10)
+            raise OSError(28, "No queda espacio en el disco")
+        return real_copy2(src, dst, *args, **kw)
+    monkeypatch.setattr(shutil, "copy2", half_then_full_disk)
+    j = Journal(s)
+    bid = j.begin("Usar el que ya tengo")
+    done = j.copy(bid, a, s / "_originales" / "01 - X.flac", uid="u1")
+    with pytest.raises(OSError):
+        j.copy(bid, b, s / "02 - Y.flac", uid="u2")
+    assert done.is_file() and not (s / "02 - Y.flac").exists()          # no half file
+    with pytest.raises(KeyError):
+        j.discard("otro-lote")
+    assert j.discard(bid) == []
+    assert not (s / "_originales").exists() and a.exists() and b.exists()   # sources untouched
+    assert j.batches() == [] and Journal(s).batches() == []

@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import unicodedata
 
+import pytest
+
+from tests.fakes.synth import make_track
 from tracklister.core.model import RowStatus, TrackRow
 from tracklister.organize.journal import Journal
 from tracklister.organize.reorder import ReorderError, apply_reorder, propose_reorder
@@ -145,6 +148,41 @@ def test_titles_with_other_numbers_never_match(tmp_path):
         "Exos - B2.mp3", "Regal - Untitled 2.mp3", "Truncate - Dust 2.mp3"]
     _make(folder, ["Truncate - Dust 1.mp3"])
     assert _by_pos(propose_reorder(folder, rows))[1].src.name == "Truncate - Dust 1.mp3"
+
+
+@pytest.mark.parametrize("want,got", [("Adam Beyer", "Adam Port"), ("Chris Liebing", "Chris Lake"),
+                                      ("Len Faki", "Ken Faki")])
+def test_r3_b1_an_artist_with_a_similar_name_is_never_proposed(tmp_path, want, got):
+    """Audit round 3, B1: 'Adam Port - Rush' scored 0.4*63 + 0.6*100 = 85 >= 75 and was proposed as the
+    'match' of the row 'Adam Beyer - Rush'. Now another artist counts as no artist: the row stays
+    missing and the file extra (left as it is). Also when the artist is only in the tags."""
+    folder = tmp_path / "set"
+    _make(folder, [f"{got} - Rush.mp3"])
+    rows = [_row(1, want, "Rush")]
+    props = propose_reorder(folder, rows)
+    assert _by_pos(props)[1].status == "missing"
+    assert [p.src.name for p in props if p.status == "extra"] == [f"{got} - Rush.mp3"]
+    tagged = tmp_path / "tagged"
+    tagged.mkdir()
+    make_track(tagged / "pista 1.flac", fmt="flac", seconds=2, tags={"artist": got, "title": "Rush"})
+    assert _by_pos(propose_reorder(tagged, rows))[1].status == "missing"
+    _make(folder, [f"{want} - Rush.mp3"])                        # the right file is still found
+    by = _by_pos(propose_reorder(folder, rows))
+    assert by[1].status == "match" and by[1].src.name == f"{want} - Rush.mp3"
+
+
+def test_r3_b1_genuine_artist_variants_still_match(tmp_path):
+    rows = [_row(1, "Chris Liebing", "Motor"), _row(2, "DJ Rush", "Motor 2"), _row(3, "\u00d8 [Phase]", "Motor 3"),
+            _row(4, "Blasha & Allatt", "Motor 4", artists=["Blasha", "Allatt"]), _row(5, "Roll Dann", "Motor 5"),
+            _row(6, "H\u00e9ctor Oaks", "Motor 6")]
+    files = {1: "CHRIS LIEBING - Motor.mp3", 2: "Dj Rush - Motor 2.mp3", 3: "O [Phase] - Motor 3.mp3",
+             4: "Allatt & Blasha - Motor 4.mp3", 5: "Roll Dann & Laster Records - Motor 5.mp3",
+             6: "Hector Oaks - Motor 6.mp3"}
+    folder = tmp_path / "v"
+    _make(folder, files.values())
+    by = _by_pos(propose_reorder(folder, rows))
+    for pos, name in files.items():
+        assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
 
 
 def test_reserved_subdirs_are_ignored(tmp_path):

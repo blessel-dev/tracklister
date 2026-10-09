@@ -7,12 +7,15 @@ from __future__ import annotations
 import json
 import re
 
+import pytest
+
 from tests.fakes.scenarios import build_scenario, file
 from tracklister.core.paths import app_paths
 from tracklister.core.settings import Settings
 from tracklister.diagnostics.redact import Redactor
 from tracklister.diagnostics.report import SELF_CHECK, build_report
-from tracklister.diagnostics.run import keyed_input, run_diagnostic
+from tracklister.diagnostics.run import judge_candidate, keyed_input, run_diagnostic
+from tracklister.engine.presets import build_preset
 from tracklister.engine.credentials import Credentials
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.runner import EngineRunner
@@ -106,6 +109,41 @@ def test_r2_n2_keyed_strings_survive_commas(tmp_path):
                           env={"TRACKLISTER_FAKE_NETWORK": str(net)})
     diag = run_diagnostic([cases[1]], runner, CREDS, paths=paths, settings=Settings())
     assert [c.accepted for c in diag[0].candidates] == [True] and diag[0].error_es is None
+
+
+NAMESAKES = [("Adam Beyer", "Adam Port"), ("Chris Liebing", "Chris Lake"), ("Len Faki", "Ken Faki")]
+
+
+@pytest.mark.parametrize("dur", [30, None])
+@pytest.mark.parametrize("want,got", NAMESAKES)
+def test_r3_b1_diagnostic_rejects_an_artist_with_a_similar_name(want, got, dur):
+    """Audit round 3, B1: the Diagnostico explains candidates with the same rule as the verification."""
+    from tests.fakes.scenarios import row
+    fmt = build_preset("lossless").passes[0]
+    r = row(1, want, "Rush", dur=30)
+    score, ok, why = judge_candidate(r, fmt, f"@@x\\Techno\\{got} - Rush.flac", dur, None)
+    assert not ok and score < 50 and f"otro artista con un nombre parecido ('{got}'" in why, why
+    for variant in (want.upper(), want):
+        score, ok, why = judge_candidate(r, fmt, f"@@x\\Techno\\{variant} - Rush.flac", dur, None)
+        assert ok and score >= 80, why
+
+
+def test_r3_b1_diagnostic_end_to_end_with_a_namesake_first(tmp_path):
+    _, net = build_scenario("sin_resultados", tmp_path / "net")
+    data = json.loads(net.read_text(encoding="utf-8"))
+    # the namesake comes first and passes the engine's filters (the folder carries the row's artist)
+    data["files"] = [file("peerA", "@@x\\Adam Beyer Picks\\Adam Port - Rush.flac", "Adam Port", "Rush", 30),
+                     file("peerB", "@@y\\Adam Beyer\\Adam Beyer - Rush.flac", "Adam Beyer", "Rush", 30)]
+    net.write_text(json.dumps(data), encoding="utf-8")
+    paths = app_paths().ensure()
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    from tests.fakes.scenarios import row
+    diag = run_diagnostic([row(1, "Adam Beyer", "Rush", dur=30)], runner, CREDS, paths=paths, settings=Settings())
+    c = diag[0].candidates
+    assert [x.peer for x in c] == ["peerA", "peerB"]
+    assert not c[0].accepted and "otro artista con un nombre parecido" in c[0].why_es and c[0].score < 50
+    assert c[1].accepted and c[1].why_es.startswith("elegido")
 
 
 def test_download_only_when_opted_in(tmp_path):

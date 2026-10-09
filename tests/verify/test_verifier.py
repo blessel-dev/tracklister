@@ -118,6 +118,27 @@ def test_partial_artist_is_identity_doubt_but_a_collab_tag_is_fine(tmp_path):
     assert num.state == ResultState.VERIFICADO
 
 
+@pytest.mark.parametrize("dur", [20, None])
+@pytest.mark.parametrize("want,got", [("Adam Beyer", "Adam Port"), ("Chris Liebing", "Chris Lake"),
+                                      ("Len Faki", "Ken Faki")])
+def test_r3_b1_an_artist_with_a_similar_name_is_never_verified(tmp_path, want, got, dur):
+    """Audit round 3, B1: same title, similar artist name. These scored 82-96 and passed as VERIFICADO;
+    now they are another artist: DUDOSO/IDENTIDAD (to _dudosos), with or without an expected duration."""
+    v = _v(tmp_path, f"{got} {dur}.flac", row=_row(want, "Rush", dur=dur), tags={"artist": got, "title": "Rush"})
+    assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.IDENTIDAD, v.reasons_es
+    assert v.score < REVIEW_SCORE
+    assert any(r.startswith(f"Otro artista: '{got}' no es '{want}'") and "palabra por palabra" in r
+               for r in v.reasons_es), v.reasons_es
+
+
+@pytest.mark.parametrize("want,got", [("Chris Liebing", "CHRIS LIEBING"), ("DJ Rush", "Dj Rush"),
+                                      ("\u00d8 [Phase]", "O [Phase]"), ("Blasha & Allatt", "Allatt & Blasha"),
+                                      ("Roll Dann", "Roll Dann & Laster Records"), ("H\u00e9ctor Oaks", "Hector Oaks")])
+def test_r3_b1_genuine_artist_variants_are_still_verified(tmp_path, want, got):
+    v = _v(tmp_path, "g.flac", row=_row(want, "Rush"), tags={"artist": got, "title": "Rush"})
+    assert v.state == ResultState.VERIFICADO and v.score == 100, v.reasons_es
+
+
 def test_mp3_vbr_and_256_do_not_meet_format(tmp_path):
     v = _v(tmp_path, "v.mp3", accept=MP3, lossy=True, fmt="mp3", vbr=True, tags=TAGS)
     assert v.state == ResultState.NO_CUMPLE_FORMATO and "mp3_vbr" in v.flags

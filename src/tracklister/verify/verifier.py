@@ -6,8 +6,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 Fixed rules, in order:
 1. quality check fails                                  -> NO_CUMPLE_FORMATO (not placed in the set)
 2. truncated (decoded > 2 s shorter than the header)    -> DUDOSO/DURACION, flag "truncado"
-3. artist < 60 or title < 70                            -> DUDOSO/IDENTIDAD (a title with other numbers,
-   "Dust 1" / "Dust 2", is capped at 50; a partial artist only counts with 2+ words: identity.py)
+3. artist < 60, another artist with a similar name, or title < 70
+                                                        -> DUDOSO/IDENTIDAD (a title with other numbers,
+   "Dust 1" / "Dust 2", is capped at 50; a partial artist only counts with 2+ words; the artist must
+   match word by word, so 'Adam Port' is not 'Adam Beyer' and 'Ken Faki' is not 'Len Faki': identity.py)
 4. versions_compatible() is False                      -> DUDOSO/VERSION
 5. |duration - expected| > duration_review_s            -> DUDOSO/DURACION
 6. score = round(0.35*artist + 0.45*title + 20*d): >= 80 VERIFICADO, 50-79 DUDOSO/REVISAR,
@@ -76,10 +78,13 @@ def verify_file(row: TrackRow, path: Path, accept: AcceptRule, *, lossy_allowed:
                        f"{_fmt_s(hdr)} s.")
         doubt = doubt or DoubtKind.DURACION
 
-    if ident.artist < ARTIST_MIN or ident.title < TITLE_MIN:
+    if ident.artist < ARTIST_MIN or not ident.same_artist or ident.title < TITLE_MIN:
         if ident.artist < ARTIST_MIN:
             reasons.append(f"Otro artista: '{ident.got_artist or '?'}' (se buscaba '{row.artist_display}', "
                            f"coincide {ident.artist:.0f}%).")
+        elif not ident.same_artist:
+            reasons.append(f"Otro artista: '{ident.got_artist or '?'}' no es '{row.artist_display}' (el nombre "
+                           f"se parece un {ident.artist:.0f}%, pero no coincide palabra por palabra).")
         if ident.title < TITLE_MIN and not ident.numbers_ok:
             reasons.append(f"Otro título: '{ident.got_title or '?'}' no lleva los mismos números que "
                            f"'{row.title}', así que es otra pista.")

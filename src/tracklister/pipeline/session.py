@@ -62,6 +62,7 @@ REUSE_LABEL = "Usar el que ya tengo"
 REUSE_CONVERT_FAILED_ES = ("No se pudo convertir a AIFF para CDJ antiguos el archivo de tu biblioteca ({err}): "
                            "se descarga de nuevo.")
 REUSE_NOT_FIT_ES = "El archivo de tu biblioteca ya no vale para el formato de este set: se descarga de nuevo."
+REUSE_COPY_FAILED_ES = "No se pudo copiar a este set el archivo de tu biblioteca ({err}): se descarga de nuevo."
 SAME_FILE_ES = (f"Ha vuelto el mismo archivo que ya estaba en {DUDOSOS} (idéntico byte a byte): por ahora no "
                 "hay en Soulseek otra copia mejor de esta pista.")
 CONVERT_FAILED_ES = ("No se pudo convertir a AIFF para CDJ antiguos ({err}): el archivo está dañado o incompleto. "
@@ -264,13 +265,26 @@ class SetSession:
         res.reasons = [reason_es]
         res.updated_at = _now()
 
+    def _reuse_copy_failed(self, row: TrackRow, res: RowResult, bid: str | None, e: OSError) -> None:
+        """Audit round 3, N2: the library file could not be copied into this set (locked, gone, a full
+        disk...). Only this row is affected: what its batch already copied is reverted (no half file,
+        no stray copy in _originales) and the track is downloaded instead."""
+        log.warning("row %s: library file not copied into the set: %s", row.pos, type(e).__name__)
+        if bid is not None:
+            try:
+                self.journal.discard(bid)
+            except (OSError, KeyError) as e2:
+                log.warning("row %s: the failed copy could not be reverted: %s", row.pos, type(e2).__name__)
+        self._download_instead(row, res, REUSE_COPY_FAILED_ES.format(err=e.strerror or type(e).__name__))
+
     def _reuse(self, row: TrackRow, res: RowResult, entry: LibraryEntry) -> None:
         """'Usar el que ya tengo': copy the library file into this set with its own NN name.
 
         Under "CDJ antiguos" a FLAC (or a WAV/AIFF over 48 kHz/24 bits, AIFF-C, float) becomes AIFF
         exactly like a download, and a copy of the original goes to _originales; the library file itself
-        is never touched. A file that no longer fits the preset, or cannot be converted, is downloaded
-        again instead (the row stays pending, with the reason)."""
+        is never touched. A file that no longer fits the preset, cannot be converted, or cannot be
+        copied into the set (an OSError: round 3, N2) is downloaded again instead (the row stays pending,
+        with the reason); the other rows and the run are not affected."""
         check = self.library_check(row, entry)
         if check is None:
             self._download_instead(row, res, REUSE_NOT_FIT_ES)
@@ -296,8 +310,9 @@ class SetSession:
                 shutil.rmtree(win_long(tmp), ignore_errors=True)
                 self._download_instead(row, res, REUSE_CONVERT_FAILED_ES.format(err=type(e).__name__))
                 return
-            bid = self.journal.begin(REUSE_LABEL)
+            bid = None
             try:
+                bid = self.journal.begin(REUSE_LABEL)
                 orig_dst = self.set_dir / ORIGINALES / track_filename(row, src.suffix, width)
                 if os.path.exists(win_long(orig_dst)) and same_file_content(src, orig_dst):
                     real_orig = orig_dst
@@ -305,8 +320,11 @@ class SetSession:
                     real_orig = self.journal.copy(bid, src, orig_dst, uid=row.uid)
                 real = self.journal.copy(bid, conv.dst, self.set_dir / track_filename(row, ".aiff", width),
                                          uid=row.uid)
-            finally:
                 self.journal.commit(bid)
+            except OSError as e:
+                self._reuse_copy_failed(row, res, bid, e)
+                return
+            finally:
                 shutil.rmtree(win_long(tmp), ignore_errors=True)
             original_rel = rel_to_set(self.set_dir, real_orig)
             container, samplerate, bitdepth = "aiff", conv.samplerate, conv.bitdepth
@@ -315,14 +333,17 @@ class SetSession:
                                               f"El original está en {ORIGINALES}.")
         else:
             dst = self.set_dir / track_filename(row, src.suffix, width)
-            if os.path.exists(win_long(dst)) and same_file_content(src, dst):
-                real = dst
-            else:
-                bid = self.journal.begin(REUSE_LABEL)
-                try:
+            bid = None
+            try:
+                if os.path.exists(win_long(dst)) and same_file_content(src, dst):
+                    real = dst
+                else:
+                    bid = self.journal.begin(REUSE_LABEL)
                     real = self.journal.copy(bid, src, dst, uid=row.uid)
-                finally:
                     self.journal.commit(bid)
+            except OSError as e:
+                self._reuse_copy_failed(row, res, bid, e)
+                return
         res.state, res.doubt, res.score = ResultState.YA_EN_BIBLIOTECA, None, None
         res.file, res.original_file = rel_to_set(self.set_dir, real), original_rel
         res.format, res.duration_s = container, entry.duration_s

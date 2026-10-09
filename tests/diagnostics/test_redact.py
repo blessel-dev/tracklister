@@ -47,6 +47,31 @@ def test_assert_no_secrets():
         assert_no_secrets("hola USUARIO-PRUEBA", ["usuario-prueba"])
 
 
+@pytest.mark.parametrize("text,expected", [
+    ("Connecting to 203.0.113.7:2242", "Connecting to [censurado]:2242"),          # ip:port (.NET endpoint)
+    ("IP:203.0.113.7", "IP:[censurado]"),                                           # after a colon
+    ("addr=203.0.113.7.", "addr=[censurado]."),                                     # before a full stop
+    ("Listening on 0.0.0.0:49998, peer 198.51.100.23:51234.", "Listening on [censurado]:49998, peer [censurado]:51234."),
+    ("[203.0.113.7]:2242 / (10.0.0.7)", "[[censurado]]:2242 / ([censurado])"),
+    ("::ffff:203.0.113.7", "::ffff:[censurado]"),
+])
+def test_r3_b2_ipv4_with_a_port_after_a_colon_or_before_a_full_stop(text, expected):
+    """Audit round 3, B2: these three forms came back unchanged. The user pastes this report in a chat."""
+    out = Redactor().redact(text)
+    assert out == expected
+    assert "203.0.113" not in out and "198.51" not in out and "10.0.0" not in out
+
+
+@pytest.mark.parametrize("text", [
+    "Sockseek 3.0.5 / sldl 2.6.0 / Tracklister 1.0.0 / yt-dlp 2026.08.19",           # versions
+    "01:02:03 23:51:27 4:05 1:02:03.5",                                              # times
+    "Duraci\u00f3n 245 s (4:05), 320 kbps, 1411.2 kbps, 44.1 kHz, 48.0kHz, 12.5 MB, 1,9MB",   # durations, bitrates
+    "Windows 10.0.19045.3803", "1.2.3.4.5", "999.1.1.1", "v1.2.3.4567",             # not an IPv4
+])
+def test_r3_b2_versions_times_durations_and_bitrates_are_kept(text):
+    assert Redactor().redact(text) == text
+
+
 def test_very_short_secrets_only_as_whole_tokens():
     r = Redactor(secrets=["jo", "7"])
     out = r.redact("[003] SongJob: searching: Jo - Joy Division 7 | Logging in as jo..")

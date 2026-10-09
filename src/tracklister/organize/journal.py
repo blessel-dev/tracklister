@@ -97,7 +97,15 @@ class Journal:
         src, dst = Path(src), Path(dst)
         self.mkdir(batch_id, dst.parent)
         real = unique_path(dst)
-        shutil.copy2(win_long(src), win_long(real))
+        try:
+            shutil.copy2(win_long(src), win_long(real))
+        except OSError:
+            # never leave half a file behind under a final name: `real` did not exist (unique_path)
+            try:
+                os.remove(win_long(real))
+            except OSError:
+                pass
+            raise
         self._record(batch_id, "copy", src, real, uid)
         return real
 
@@ -107,6 +115,17 @@ class Journal:
         if not b["ops"]:
             self._data["batches"].remove(b)
         self._save()
+
+    def discard(self, batch_id: str) -> list[str]:
+        """Revert a batch that could not finish (it must be the last one) and close it. Returns the
+        Spanish lines of what could not be reverted; that stays recorded, so undo can retry it."""
+        last = self._data["batches"][-1] if self._data["batches"] else None
+        if last is None or last["batch_id"] != batch_id:
+            raise KeyError(batch_id)
+        errors = self.undo_last()
+        if self._data["batches"] and self._data["batches"][-1]["batch_id"] == batch_id:
+            self.commit(batch_id)
+        return errors
 
     def batches(self) -> list[dict]:
         return [dict(b) for b in self._data["batches"]]

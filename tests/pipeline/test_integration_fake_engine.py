@@ -619,6 +619,117 @@ def test_r2_b3_out_of_format_with_an_unknown_peer_is_not_retried_and_says_why(tm
     assert events[-1].kind == "finished"
 
 
+# ---- external audit, round 3 (claude-audit-raw-r3-1.txt) ---------------------------------------------
+
+def _network(h: Harness, name: str, files: list[dict]) -> Path:
+    _, net = build_scenario("sin_resultados", h.tmp / f"net-{name}")
+    data = json.loads(net.read_text(encoding="utf-8"))
+    data["files"] = files
+    net.write_text(json.dumps(data), encoding="utf-8")
+    return net
+
+
+def _set_with(h: Harness, name: str, rows, net: Path, preset: str = "lossless"):
+    settings = Settings(preset_id=preset, library_root=str(h.lib_root))
+    s = SetSession.create(name, rows, [SourceRef("tabla", f"{name}.csv")], settings, h.lib_root, h.paths)
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(h.paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    return s, runner
+
+
+@pytest.mark.parametrize("want,got,folder", [("Adam Beyer", "Adam Port", "Beyer, Adam"),
+                                             ("Chris Liebing", "Chris Lake", "Liebing, Chris"),
+                                             ("Len Faki", "Ken Faki", "Faki, Len")])
+def test_r3_b1_a_namesake_from_the_relaxed_retry_goes_to_dudosos(tmp_path, want, got, folder):
+    """B1: 'Reintentar fallos' drops --strict-artist, so a file by another artist with a similar name
+    and the same title can come (here from a 'Surname, Name' folder, which the strict pass refuses).
+    It used to be VERIFICADO (82-96); now it is another artist: _dudosos, and the next retry bans it."""
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    h = Harness(tmp_path)
+    namesake = fake_file("peerA", f"@@x\\{folder}\\{got} - Rush.flac", got, "Rush", 30)
+    s, runner = _set_with(h, f"Set {want}", [fake_row(1, want, "Rush", dur=30)], _network(h, want, [namesake]))
+    h.run(s, runner)
+    assert _res(s, 1).state == ResultState.NO_ENCONTRADO                 # --strict-artist refused it
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    argv = read_json(Path(s.doc.passes[-1].work_dir) / "pass.json")["argv_redacted"]
+    assert "--strict-artist" not in argv and s.doc.passes[-1].name == "lossless-relajada"
+    r = _res(s, 1)
+    assert r.state == ResultState.DUDOSO and r.doubt == DoubtKind.IDENTIDAD, r.reasons
+    assert r.file == f"_dudosos/01 - {want} - Rush.flac" and r.score < 50
+    assert any(x.startswith(f"Otro artista: '{got}' no es '{want}'") for x in r.reasons)
+    assert r.rejected_peers == ["peerA"] and not list(s.set_dir.glob("*.flac"))
+    # the right file appears: the next retry bans the namesake's user and gets it
+    right = fake_file("peerB", f"@@y\\{want}\\{want} - Rush.flac", want, "Rush", 30)
+    runner.env["TRACKLISTER_FAKE_NETWORK"] = str(_network(h, f"{want}-2", [namesake, right]))
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    argv = read_json(Path(s.doc.passes[-1].work_dir) / "pass.json")["argv_redacted"]
+    assert argv[argv.index("--banned-users") + 1] == "peerA"
+    r = _res(s, 1)
+    assert r.state == ResultState.VERIFICADO and r.peer == "peerB" and r.file == f"01 - {want} - Rush.flac"
+    s.finalize(h.library)
+    # the namesake (still in _dudosos) never enters the library
+    assert [Path(e.path).name for e in h.library.entries] == [f"01 - {want} - Rush.flac"]
+
+
+@pytest.mark.parametrize("want,got", [("Chris Liebing", "CHRIS LIEBING"), ("DJ Rush", "Dj Rush"),
+                                      ("\u00d8 [Phase]", "O [Phase]"), ("Blasha & Allatt", "Allatt & Blasha"),
+                                      ("Roll Dann", "Roll Dann & Laster Records"),
+                                      ("H\u00e9ctor Oaks", "Hector Oaks")])
+def test_r3_b1_genuine_artist_variants_pass_in_the_relaxed_retry(tmp_path, want, got):
+    from tests.fakes.scenarios import file as fake_file, row as fake_row
+    h = Harness(tmp_path)
+    net = _network(h, "v", [fake_file("peerA", f"@@x\\Musica\\{got} - Motor.flac", got, "Motor", 30)])
+    s, runner = _set_with(h, "Variantes", [fake_row(1, want, "Motor", dur=30)], net)
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())       # a relaxed pass straight away
+    assert [p.name for p in s.doc.passes] == ["lossless-relajada"]
+    r = _res(s, 1)
+    assert r.state == ResultState.VERIFICADO and r.score == 100, r.reasons
+
+
+@pytest.mark.parametrize("preset", ["lossless", "cdj_antiguos"])
+def test_r3_n2_a_library_file_that_cannot_be_copied_is_downloaded_and_the_run_goes_on(tmp_path, monkeypatch,
+                                                                                      preset):
+    """N2: an OSError while copying a library file into the set (here a full disk halfway through the
+    copy) used to stop the whole run. Now only that row is affected: nothing half-copied stays, and it
+    is downloaded instead; the other repeated track is reused as usual."""
+    import shutil as shutil_mod
+    h = Harness(tmp_path)
+    _finalized(h, "duplicado_entre_sets", "Set A")                        # both tracks in the library
+    b, rb = h.session("duplicado_entre_sets", name="Set B", preset=preset)
+    real_copy2 = shutil_mod.copy2
+
+    def full_disk(src, dst, *a, **kw):
+        if Path(dst).parent.name == "Set B" and "Fjaak" in Path(dst).name:
+            with open(dst, "wb") as f:
+                f.write(b"medio archivo")
+            raise OSError(28, "No queda espacio en el disco")
+        return real_copy2(src, dst, *a, **kw)
+    monkeypatch.setattr(shutil_mod, "copy2", full_disk)
+    hits = b.find_duplicates(h.library)
+    assert [x.row.pos for x in hits] == [1, 2]
+    for hit in hits:                                                     # what the GUI worker does
+        b.apply_duplicate_choice(hit.row.uid, DuplicateChoice.REUSE, hit.entries[0])
+    monkeypatch.setattr(shutil_mod, "copy2", real_copy2)
+    r1, r2 = _res(b, 1), _res(b, 2)
+    assert r1.state == ResultState.PENDIENTE and b.doc.duplicate_choices[r1.uid] == "download"
+    assert r1.reasons == ["No se pudo copiar a este set el archivo de tu biblioteca (No queda espacio en el "
+                          "disco): se descarga de nuevo."]
+    assert r2.state == ResultState.YA_EN_BIBLIOTECA and b.doc.duplicate_choices[r2.uid] == "reuse"
+    ext = ".aiff" if preset == "cdj_antiguos" else ".flac"
+    assert _files(b.set_dir) == sorted(["02 - Kobosil - Aggression" + ext] +
+                                       (["_originales/02 - Kobosil - Aggression.flac"] if ext == ".aiff" else []))
+    assert all(x["committed"] for x in Journal(b.set_dir).batches())
+    events, _ = h.run(b, rb)
+    assert events[-1].kind == "finished" and not any(e.kind == "error" for e in events)
+    assert [p.uids for p in b.doc.passes if p.uids] and all(p.uids == [r1.uid] for p in b.doc.passes)
+    assert _res(b, 1).state == ResultState.VERIFICADO and _res(b, 1).file == "01 - Fjaak - Spirit" + ext
+    assert _res(b, 2).state == ResultState.YA_EN_BIBLIOTECA
+    if ext == ".aiff":                                    # no stray "(2)": the half reuse was reverted
+        assert sorted(p.name for p in (b.set_dir / "_originales").iterdir()) == [
+            "01 - Fjaak - Spirit.flac", "02 - Kobosil - Aggression.flac"]
+    _no_row_left_running_and_journal_closed(b)
+
+
 def test_r2_n3_the_mp3_question_is_asked_once_per_set(tmp_path):
     h = Harness(tmp_path)
     s, runner = h.session("sin_resultados")

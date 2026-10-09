@@ -25,7 +25,7 @@ from tracklister.engine.credentials import Credentials
 from tracklister.engine.csvwriter import ManifestItem, engine_artist, engine_title
 from tracklister.engine.presets import FormatPass, build_preset
 from tracklister.engine.runner import EngineError, EngineRunner
-from tracklister.verify.identity import artist_similarity, parse_name, row_artists, title_similarity
+from tracklister.verify.identity import artist_match, parse_name, row_artists, title_similarity
 from tracklister.verify.verifier import ACCEPT_SCORE, HARD_DOUBT_MAX_SCORE
 
 MAX_CANDIDATES = 15
@@ -95,10 +95,12 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     # same title/artist rules as the verification (verify.identity): other numbers in the title are
     # another track, and a one-word partial artist does not count
     title, numbers_ok = title_similarity(row.title, base)
-    art = artist_similarity(row_artists(row), artist)
+    # the artist must match word by word: 'Adam Port' is not 'Adam Beyer' (audit round 3, B1)
+    m = artist_match(row_artists(row), artist)
+    art, same_artist = m.score, m.same
     folders = {norm_key(p) for p in parts[:-1]}
     if any(norm_key(c) in folders for c in row_artists(row) if norm_key(c)):
-        art = 100.0          # a folder named exactly like the artist ("Music\Fjaak\Live\03 Spirit.flac")
+        art, same_artist = 100.0, True   # a folder named exactly like the artist ("Music\Fjaak\Live\03 Spirit.flac")
     problems: list[str] = []
     ext = _ext(filename)
     if fmt.formats and ext not in fmt.formats:
@@ -117,9 +119,11 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     score = round(0.35 * art + 0.45 * title + 20 * d, 1)
     if art < 60:
         problems.append(f"artista distinto ({art:.0f}%)")
+    elif not same_artist:
+        problems.append(f"otro artista con un nombre parecido ('{artist}', {art:.0f}%)")
     if title < 70:
         problems.append(f"título distinto ({title:.0f}%)" if numbers_ok else "título con otros números (otra pista)")
-    identity_doubt = not ok_v or art < 60 or title < 70 or d == 0.0
+    identity_doubt = not ok_v or art < 60 or not same_artist or title < 70 or d == 0.0
     if identity_doubt:
         score = min(score, HARD_DOUBT_MAX_SCORE)    # same rule as the verifier (DECISIONES N.6)
     if problems:

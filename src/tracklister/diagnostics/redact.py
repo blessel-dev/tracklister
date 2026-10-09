@@ -5,7 +5,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 - Secrets (own username/password) -> "[censurado]" (the engines print the login username).
 - Any IPv4/IPv6 literal (validated with `ipaddress`, so "23:51:27" or "3.0.5" stay) and the
-  user's own IPs -> "[censurado]".
+  user's own IPs -> "[censurado]". IPv4 has its own pass first, so "1.2.3.4:2242", "IP:1.2.3.4"
+  and "1.2.3.4." are caught too (the port stays).
 - Peer names registered with peer() -> "peer-1", "peer-2"... (stable per Redactor).
 - The Windows user profile path -> "%USERPROFILE%" (it contains the Windows account name).
 """
@@ -18,7 +19,19 @@ from pathlib import Path
 from typing import Iterable
 
 CENSORED = "[censurado]"
+# Dedicated IPv4 pass (audit round 3, B2), before the generic one: also an endpoint 'ip:port' (how .NET
+# prints it), 'IP:1.2.3.4' and an address at the end of a sentence ('...1.2.3.4.'). Four dotted numbers,
+# not part of a longer dotted number; ipaddress.IPv4Address decides. '3.0.5', '01:02:03' never match.
+_IPV4_CANDIDATE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?!\d|\.\d)")
 _IP_CANDIDATE = re.compile(r"(?<![\w.:])[0-9A-Fa-f:.]*[.:][0-9A-Fa-f:.]*(?![\w.:])")
+
+
+def _ipv4_or_same(m: re.Match) -> str:
+    try:
+        ipaddress.IPv4Address(m.group(0))
+    except ValueError:
+        return m.group(0)
+    return CENSORED
 
 
 def _is_ip(token: str) -> bool:
@@ -77,6 +90,7 @@ class Redactor:
                 out = self._sub_ci(out, variant, "%USERPROFILE%")
         for ip in self._own_ips:
             out = out.replace(ip, CENSORED)
+        out = _IPV4_CANDIDATE.sub(_ipv4_or_same, out)
         out = _IP_CANDIDATE.sub(lambda m: CENSORED if _is_ip(m.group(0)) else m.group(0), out)
         for name in sorted(self._peers, key=len, reverse=True):
             out = re.sub(r"(?<![\w-])" + re.escape(name) + r"(?![\w-])", lambda _m, n=name: self._peers[n], out)

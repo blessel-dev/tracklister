@@ -28,6 +28,13 @@ _FULL = (VersionKind.ORIGINAL, VersionKind.EXTENDED)
 # A title with other numbers ("Dust 1" / "Dust 2", "Untitled 1" / "Untitled 2", "A1" / "B2") is another
 # track, however close the rest of the text is: its score is capped well below every acceptance threshold.
 NUMBER_MISMATCH_MAX = 50.0
+# Two artist names are the same artist only when they match word by word, not just in most letters
+# (audit round 3, B1): 'Adam Beyer' / 'Adam Port' (63 %), 'Chris Liebing' / 'Chris Lake' (70 %) and
+# 'Len Faki' / 'Ken Faki' (88 %) are other artists. A whole-name similarity under SAME_ARTIST_MIN is
+# never the same artist either.
+SAME_ARTIST_MIN = 85.0
+TOKEN_MIN = 85.0          # a word of 5+ letters may differ by a typo ('Liebing' / 'Leibing')
+SHORT_TOKEN = 4           # words of up to 4 letters must be equal ('Len' / 'Ken', 'Duff' / 'Duffy')
 
 
 @dataclass(frozen=True)
@@ -41,6 +48,13 @@ class IdentityScore:
     got_title: str = ""
     got_version: str | None = None
     numbers_ok: bool = True       # False: the titles carry different numbers (another track)
+    same_artist: bool = True      # False: a different artist, even with a similar name (round 3, B1)
+
+
+@dataclass(frozen=True)
+class ArtistMatch:
+    score: float                  # 0-100, best whole-name similarity
+    same: bool                    # the names match word by word: the same artist
 
 
 def number_tokens(key: str) -> list[str]:
@@ -86,22 +100,77 @@ def _artist_keys(names: Iterable[str | None]) -> set[str]:
     return keys
 
 
-def artist_similarity(wanted: Iterable[str | None], got: str | None) -> float:
-    """Best 0-100 match between the row's artists and the file's, artist by artist.
+def _fold(word: str) -> str:
+    """German transliterations: 'vaeth' -> 'vath', like 'Väth' once its accent is gone."""
+    return word.replace("ae", "a").replace("oe", "o").replace("ue", "u")
 
+
+def _word_close(a: str, b: str) -> bool:
+    """Two words of norm_key() texts: equal (also as 'ae'/'a'), or, for words of 5+ letters with the
+    same digits, a typo away (ratio >= TOKEN_MIN). Short words must be equal: 'len' is not 'ken'."""
+    if a == b or _fold(a) == _fold(b):
+        return True
+    if min(len(a), len(b)) <= SHORT_TOKEN:
+        return False
+    if re.sub(r"\D", "", a) != re.sub(r"\D", "", b):
+        return False
+    return fuzz.ratio(a, b) >= TOKEN_MIN
+
+
+def _same_words(w: str, g: str) -> bool:
+    """Word-by-word rule of two single-artist keys: every word of the shorter name has its own close
+    word in the other one, the surname included. A shorter name of 1 word must be the whole other
+    name ('Systems' is not 'Planetary Assault Systems'); 'DVS 1' / 'DVS1' are the same."""
+    if w.replace(" ", "") == g.replace(" ", ""):
+        return True
+    tw, tg = w.split(), g.split()
+    short, other = (tw, tg) if len(tw) <= len(tg) else (tg, tw)
+    if len(short) < len(other) and len(short) < 2:
+        return False
+    pool = list(other)
+    for word in short:
+        hit = next((p for p in pool if _word_close(word, p)), None)
+        if hit is None:
+            return False
+        pool.remove(hit)
+    return True
+
+
+def _artist_pair(w: str, g: str) -> ArtistMatch:
+    if w.replace(" ", "") == g.replace(" ", ""):
+        return ArtistMatch(100.0, True)
+    s = float(fuzz.ratio(w, g))
+    if min(len(w.split()), len(g.split())) >= 2:
+        s = max(s, float(fuzz.token_set_ratio(w, g)))
+    return ArtistMatch(s, s >= SAME_ARTIST_MIN and _same_words(w, g))
+
+
+def better_artist(a: ArtistMatch, b: ArtistMatch) -> ArtistMatch:
+    """A same-artist match always wins over a merely similar name; then the higher score."""
+    return max(a, b, key=lambda m: (m.same, m.score))
+
+
+def artist_match(wanted: Iterable[str | None], got: str | None) -> ArtistMatch:
+    """Best match between the row's artists and the file's, artist by artist.
+
+    The same artist needs the names to match word by word (round 3, B1): 'Adam Port' is not 'Adam
+    Beyer' and 'Ken Faki' is not 'Len Faki', even with similar letters; case, accents, 'Ø'/'O',
+    'A & B'/'B & A' and an extra co-artist or label ('Roll Dann & Laster Records') do not matter.
     A partial or subset match ('Planetary Assault Systems' / 'Systems') only counts when the shorter
-    name has 2 words or more; otherwise the plain ratio decides. 'Fjaak' against a tag
-    'Fjaak, Chris Liebing' still scores 100 (exact on one of the split artists)."""
-    best = 0.0
+    name has 2 words or more. 'Fjaak' against a tag 'Fjaak, Chris Liebing' is 100 (exact on one of
+    the split artists)."""
+    best = ArtistMatch(0.0, False)
     gots = _artist_keys([got])
     gots |= {k for k in map(_without_track_number, gots) if k}     # '01 Fjaak - Spirit.mp3' -> 'fjaak'
     for w in _artist_keys(wanted):
         for g in gots:
-            s = float(fuzz.ratio(w, g))
-            if min(len(w.split()), len(g.split())) >= 2:
-                s = max(s, float(fuzz.token_set_ratio(w, g)))
-            best = max(best, s)
+            best = better_artist(best, _artist_pair(w, g))
     return best
+
+
+def artist_similarity(wanted: Iterable[str | None], got: str | None) -> float:
+    """0-100 score of artist_match() (whether it is the same artist is in artist_match().same)."""
+    return artist_match(wanted, got).score
 
 
 def strip_track_number(stem: str) -> str:
@@ -159,12 +228,12 @@ def identity_score(row: TrackRow, info: AudioInfo, source_path_tail: str | None)
     # the version can also be written only in the file name: both sources count
     _, name_version = split_title_version(name_title)
     versions = [v for v in (got_version, name_version) if v]
-    artist = artist_similarity(row_artists(row), got_artist)
+    artist = artist_match(row_artists(row), got_artist)
     # an artist folder with the artist's name helps when the name has no "Artist - " part
     if parent and "nombre" in used:
-        artist = max(artist, artist_similarity(row_artists(row), parent))
+        artist = better_artist(artist, artist_match(row_artists(row), parent))
     title, numbers_ok = title_similarity(row.title, got_base or got_title_full)
     ok, reason = _version_ok(row.version, versions)
     evidence = "tags+nombre" if used == {"tags", "nombre"} else ("tags" if used == {"tags"} else "nombre")
-    return IdentityScore(round(artist, 1), round(title, 1), ok, reason, evidence, got_artist, got_title_full,
-                         got_version or name_version, numbers_ok)
+    return IdentityScore(round(artist.score, 1), round(title, 1), ok, reason, evidence, got_artist, got_title_full,
+                         got_version or name_version, numbers_ok, artist.same)

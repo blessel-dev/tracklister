@@ -20,7 +20,7 @@ from tracklister.core.textnorm import nfc, norm_key, split_title_version, versio
 from tracklister.organize.journal import Journal
 from tracklister.organize.naming import pad_width, track_filename, win_long
 from tracklister.verify.audioinfo import read_tags
-from tracklister.verify.identity import artist_similarity, parse_name, row_artists, title_similarity
+from tracklister.verify.identity import artist_match, parse_name, row_artists, title_similarity
 
 AUDIO_EXTS = (".flac", ".wav", ".aiff", ".aif", ".mp3", ".m4a", ".ogg", ".opus")
 MATCH_MIN = 75.0
@@ -61,13 +61,16 @@ def _file_identity(f: Path) -> tuple[str, str, str | None]:
 
 def _pair_score(row: TrackRow, ident: tuple[str, str, str | None]) -> float:
     """Same title/artist rules as the download verification (verify.identity): a title with other
-    numbers ('Dust 1' / 'Dust 2') scores at most 0.4*100 + 0.6*50 = 70 < MATCH_MIN, and a partial
-    one-word artist ('Systems' for 'Planetary Assault Systems') is not a match."""
+    numbers ('Dust 1' / 'Dust 2') scores at most 0.4*100 + 0.6*50 = 70 < MATCH_MIN; a partial
+    one-word artist ('Systems' for 'Planetary Assault Systems') or another artist with a similar name
+    ('Adam Port' for 'Adam Beyer', 'Ken Faki' for 'Len Faki') counts as no artist at all, so even the
+    same title scores at most 0.6*100 = 60 < MATCH_MIN: never a match (audit round 3, B1)."""
     artist, base, version = ident
     if not norm_key(base):
         return 0.0
     title, _ = title_similarity(row.title, base)
-    art = artist_similarity(row_artists(row), artist) if norm_key(artist) else 0.0
+    m = artist_match(row_artists(row), artist) if norm_key(artist) else None
+    art = m.score if m is not None and m.same else 0.0
     score = 0.4 * art + 0.6 * title
     if not versions_compatible(row.version, version)[0]:
         score *= 0.5

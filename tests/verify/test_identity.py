@@ -10,8 +10,8 @@ from tests.fakes.synth import make_track
 from tracklister.core.model import TrackRow
 from tracklister.verify.audioinfo import probe
 from tracklister.verify.identity import (
-    NUMBER_MISMATCH_MAX, artist_similarity, identity_score, number_tokens, parse_name, strip_track_number,
-    title_similarity,
+    NUMBER_MISMATCH_MAX, SAME_ARTIST_MIN, ArtistMatch, artist_match, artist_similarity, identity_score,
+    number_tokens, parse_name, strip_track_number, title_similarity,
 )
 
 
@@ -127,3 +127,56 @@ def test_strip_track_number(stem, out):
 def test_parse_name():
     assert parse_name("01 - A - B (X Remix).flac", "Folder") == ("A", "B (X Remix)")
     assert parse_name("Title Only.flac", "Artist Folder") == ("Artist Folder", "Title Only")
+
+
+# ---- external audit, round 3 (claude-audit-raw-r3-1.txt), B1 ----------------------------------------
+
+# The auditor's namesakes: similar letters, other artists (whole-name similarity 63 / 70 / 88 %).
+NAMESAKES = [("Adam Beyer", "Adam Port"), ("Chris Liebing", "Chris Lake"), ("Len Faki", "Ken Faki")]
+# Genuine variants of the same artist: case, 'DJ'/'Dj', 'Ø'/'O', the order of a duo, a label as
+# co-artist (the row has it stripped), accents, a German transliteration, a typo in a long word.
+SAME_ARTIST = [("Chris Liebing", "CHRIS LIEBING"), ("DJ Rush", "Dj Rush"), ("\u00d8 [Phase]", "O [Phase]"),
+               ("A & B", "B & A"), ("Blasha & Allatt", "Allatt & Blasha"),
+               ("Roll Dann", "Roll Dann & Laster Records"), ("H\u00e9ctor Oaks", "Hector Oaks"),
+               ("R\u00f8dh\u00e5d", "Rodhad"), ("Sven V\u00e4th", "Sven Vaeth"), ("Chris Liebing", "Chris Leibing"),
+               ("DVS1", "DVS 1")]
+
+
+@pytest.mark.parametrize("want,got", NAMESAKES)
+def test_r3_b1_a_similar_name_is_another_artist(tmp_path, want, got):
+    m = artist_match(_row(want, "Rush").artists + [want], got)
+    assert not m.same and 60 <= m.score < 90                    # similar letters, but not the same artist
+    s = identity_score(_row(want, "Rush"), _info(tmp_path, "x.flac", {"artist": got, "title": "Rush"}), None)
+    assert not s.same_artist and s.title == 100 and s.got_artist == got
+    # the same rule without tags (file name) and with the artist only in the folder
+    by_name = identity_score(_row(want, "Rush"), _info(tmp_path, "y.flac"), f"{got}\\{got} - Rush.flac")
+    assert by_name.evidence == "nombre" and not by_name.same_artist
+    by_folder = identity_score(_row(want, "Rush"), _info(tmp_path, "z.flac"), f"{got}\\Rush.flac")
+    assert not by_folder.same_artist
+
+
+@pytest.mark.parametrize("want,got", SAME_ARTIST)
+def test_r3_b1_genuine_variants_are_the_same_artist(tmp_path, want, got):
+    row = _row(want, "Rush")
+    m = artist_match(row.artists + [want], got)
+    assert m.same and m.score >= SAME_ARTIST_MIN, m
+    s = identity_score(row, _info(tmp_path, "x.flac", {"artist": got, "title": "Rush"}), None)
+    assert s.same_artist and s.artist >= SAME_ARTIST_MIN
+
+
+def test_r3_b1_word_rule_details():
+    # 'Duff' is not 'Duffy' (the P3 sandbox case): short words must be equal
+    assert not artist_match(["Duff"], "Duffy").same
+    # a whole-name similarity between 60 and 85 % is never the same artist
+    for want, got in NAMESAKES + SAME_ARTIST + [("Ben Klock", "Klock"), ("Amelie Lens", "Amelie Lenz"),
+                                                ("Chris Liebing", "Chris Liebingers Band"), ("Fjaak", "Fjak")]:
+        m = artist_match([want], got)
+        assert not (m.same and m.score < SAME_ARTIST_MIN), (want, got, m)
+    # rounds 1-2 still hold: a one-word part of a longer name, numbers, collabs, folders, track numbers
+    assert not artist_match(["Planetary Assault Systems"], "Systems").same
+    assert not artist_match(["DJ Rush"], "Rush").same
+    assert artist_match(["Chris Liebing"], "Chris Liebing Speedy J").same          # 2+ words: subset counts
+    assert artist_match(["Fjaak"], "Fjaak, Chris Liebing") == ArtistMatch(100.0, True)
+    assert artist_match(["Fjaak"], "Fjaak - Live 2026").same and artist_match(["Fjaak"], "01 Fjaak").same
+    assert artist_match(["808 State"], "808 State").same and not artist_match(["808 State"], "909 State").same
+    assert artist_similarity(["Adam Beyer"], "Adam Port") == artist_match(["Adam Beyer"], "Adam Port").score
