@@ -163,6 +163,26 @@ def test_v100_rerun_upgrades_once_without_downloading_anything(v):
     assert s2.doc.migrations == [UPGRADE_MARKER] and len(Journal(v.set_dir).batches()) == journal_len
 
 
+@pytest.mark.parametrize("dur", [None, 17])
+def test_v101_b1clase_the_upgrade_leaves_an_unconfirmed_name_in_dudosos(v, dur):
+    """Addendum 10 on the set 1.0.0 wrote: row 2's untagged '04-red_rooms-trip.flac' (a scene name: the artist is
+    cut off without ' - ') is in _dudosos. With the row's 12 s it is confirmed and moves (test above). Without an
+    expected duration, or with one 5 s off, nothing confirms the name: the one-time check leaves it there."""
+    rows = _reimported_rows(v)
+    next(r for r in rows if r.pos == 2).expected_duration_s = dur
+    s = _session(v, rows)
+    passes = len(s.doc.passes)
+    s.run(_runner(v.network), CREDS, lambda e: None, threading.Event(), lambda rows: set())
+    assert len(s.doc.passes) == passes and s.doc.migrations == [UPGRADE_MARKER]
+    r = _res(s, 2)
+    assert (r.state, r.doubt) == (ResultState.DUDOSO, DoubtKind.IDENTIDAD), r.reasons
+    assert r.file == "_dudosos/02 - Red Rooms - Trip.flac" and (v.set_dir / r.file).is_file()
+    assert not (v.set_dir / "02 - Red Rooms - Trip.flac").exists()
+    assert UPGRADED_FROM_DUDOSOS_ES not in r.reasons
+    # the watermark row (its artist and title tags confirm it) still moves to its number
+    assert _res(s, 9).file == "09 - 13130 Space Project - Talitha.flac"
+
+
 def test_v100_retry_finds_better_copies_of_the_marked_files(v):
     """«Reintentar fallos» on the upgraded 1.0.0 set: clean copies of Border One and Rene Wise from other users
     replace the marked ones, which go to _dudosos; the radio edit in _dudosos is looked for again."""

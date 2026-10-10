@@ -32,7 +32,8 @@ from tracklister.engine.csvwriter import ManifestItem, SearchQuery, engine_artis
 from tracklister.engine.presets import FormatPass, build_preset
 from tracklister.engine.runner import EngineError, EngineRunner
 from tracklister.verify.identity import (
-    artist_match, name_artist_fits, name_readings, row_artists, title_similarity,
+    artist_match, duration_confirms, file_identities, name_artist_fits, name_readings, row_artists, title_similarity,
+    unconfirmed_es,
 )
 from tracklister.verify.verifier import ACCEPT_SCORE, HARD_DOUBT_MAX_SCORE
 
@@ -121,13 +122,16 @@ def _ext(filename: str) -> str:
 
 def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: float | None,
                     bitrate: int | None) -> tuple[float, bool, str]:
-    """Score a search result from its path alone (no audio yet) and say why it passes or not."""
+    """Score a search result from its path alone (no audio yet) and say why it passes or not. A name that only
+    fits after leaving words out needs the duration the result reports to confirm it (Addendum 10)."""
     parts = [p for p in PureWindowsPath(filename.replace("/", "\\")).parts if p not in ("\\",)]
     name = parts[-1] if parts else filename
     parent = parts[-2] if len(parts) >= 2 else None
     first = name_readings(name, parent)[0]           # the first reading of the name (parse_name)
     artist, title_full = first.artist, first.title
     base, version = split_title_version(title_full)
+    # Addendum 10: what that reading left out of the name (a search result has no tags), as in the download
+    guess = unconfirmed_es(row, file_identities(name, parent, None, None)[0])
     # same title/artist rules as the verification (verify.identity): other numbers in the title are
     # another track, and a one-word partial artist does not count
     title, numbers_ok = title_similarity(row.title, base)
@@ -168,7 +172,13 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
         problems.append(f"otro artista con un nombre parecido ('{artist}', {art:.0f}%)")
     if title < 70:
         problems.append(f"título distinto ({title:.0f}%)" if numbers_ok else "título con otros números (otra pista)")
-    identity_doubt = not ok_v or art < 60 or not same_artist or title < 70 or d == 0.0
+    # the name only fits after leaving words out (or cutting without ' - '): the duration the result reports
+    # must confirm it, within 3 s of the row's, as the verification asks of the file (Addendum 10)
+    unconfirmed = bool(guess) and art >= 60 and same_artist and title >= 70 \
+        and not duration_confirms(row.expected_duration_s, duration)
+    if unconfirmed:
+        problems.append(f"{guess}, sin una duración que lo confirme")
+    identity_doubt = not ok_v or art < 60 or not same_artist or title < 70 or d == 0.0 or unconfirmed
     if identity_doubt:
         score = min(score, HARD_DOUBT_MAX_SCORE)    # same rule as the verifier (DECISIONES N.6)
     if problems:

@@ -27,6 +27,13 @@ tagged 'Rush' is Adam Port's, B2). The review of that fix (B1-R, DECISIONES X.41
 glued hyphen or of a scene name is such a guess, the first one too, so 'Adam Beyer Space-Time.flac'
 (no dash between artist and title) is never 'Adam Beyer Space' + 'Time'; a credit with a joiner word
 ('Fjaak & Kai-Spirit') still fits «Fjaak». The Diagnóstico applies it to its first reading.
+
+Addendum 10 (B1-CLASE, DECISIONES X.42): the readings stay as they are, and each one records what it left
+out of the name (a scene '-group', the scene folder's group, the parts before ' - 06 - ', a bracket group
+that is no version) and whether it cut the artist off without ' - '. Such a reading only fits by a guess:
+'underworld_-_born_slippy-nuxx' is «Born Slippy» only once 'nuxx' is gone, and «Born Slippy .NUXX» is
+another track. IdentityScore.unconfirmed_es says why, and the verifier, Reordenar and the Diagnóstico
+accept it only with a confirmation: the file's artist and title tags, or a duration within 3 s.
 """
 from __future__ import annotations
 
@@ -41,7 +48,7 @@ from tracklister.core.aliases import artist_aliases
 from tracklister.core.model import TrackRow, VersionKind
 from tracklister.core.textnorm import (
     VERSION_KW, classify_version, is_version_group, nfc, norm_key, split_artists, split_title_version,
-    version_is_original, versions_compatible,
+    title_dropped_groups, version_is_original, versions_compatible,
 )
 from tracklister.verify.audioinfo import AudioInfo
 
@@ -79,6 +86,9 @@ class IdentityScore:
     numbers_ok: bool = True       # False: the titles carry different numbers (another track)
     same_artist: bool = True      # False: a different artist, even with a similar name (round 3, B1)
     title_words_ok: bool = True   # False: a word more or less in the title ('Feel It All'): another track (round 4, B2)
+    # Addendum 10: the reading only fits after leaving words of the name out (or cutting without ' - '):
+    # why, in Spanish (unconfirmed_es). The verifier then needs the tags or a matching duration. None: no.
+    unconfirmed_es: str | None = None
 
 
 @dataclass(frozen=True)
@@ -428,17 +438,19 @@ def strip_track_number(stem: str) -> str:
     return re.sub(r"\s+", " ", s.replace("_", " ")).strip()
 
 
-def _drop_scene_group(stem: str) -> str:
-    """'plug_trax_-_zoned_out-psy' -> 'plug_trax_-_zoned_out': a scene-style name (underscores for
+def _drop_scene_group(stem: str) -> tuple[str, str | None]:
+    """'plug_trax_-_zoned_out-psy' -> ('plug_trax_-_zoned_out', 'psy'): a scene-style name (underscores for
     spaces) ends with its release group glued by a hyphen. It is not a word of the title, which now
-    must match word by word (audit round 4, B2). A version word ('-remix', '-live', '-radio') stays."""
+    must match word by word (audit round 4, B2). A version word ('-remix', '-live', '-radio') stays.
+    The token may as well be the title's last word ('underworld_-_born_slippy-nuxx'), so the reading
+    keeps it as a word it left out (Addendum 10, DECISIONES X.42): only a confirmation lets it verify."""
     if "_" not in stem or " " in stem:
-        return stem
+        return stem, None
     m = _SCENE_GROUP.search(stem)
     if not m or not re.search(r"[A-Za-z]", m.group(1)) or VERSION_KW.search(m.group(1)) \
             or classify_version(m.group(1)) != VersionKind.OTHER:
-        return stem
-    return stem[:m.start()]
+        return stem, None
+    return stem[:m.start()], m.group(1)
 
 
 # ---- folders (plan D10) --------------------------------------------------------------------------------
@@ -487,30 +499,35 @@ class NameReading:
     from_folder: bool = False     # the artist is the parent folder's: the name has no artist part here
     cut: bool = False             # the artist part comes from cutting the name at a glued hyphen or a scene
                                   # name ('Kwartz-Show me...', '04-red_rooms-trip'), not at ' - ' (B1-R)
+    dropped: tuple[str, ...] = () # what this reading left out of the name besides numbers, watermarks and
+                                  # BPM: a scene '-group', the parts before a ' - 06 - ' (Addendum 10)
 
 
 def _tidy(s: str | None) -> str:
     return re.sub(r"\s+", " ", nfc(s)).strip(" -\u2013\u2014_,;")
 
 
-def _components(comps: list[str]) -> tuple[str, str] | None:
-    """' - ' parts of a name -> (artist, title). A middle part that is only a track number marks where
-    the title starts ('Phil Berg - Darin - 06 - Seiko' -> 'Seiko'); otherwise everything after the
-    first part is the title, as in v1.0 ('Artist - Album - Title' is never read as 'Title')."""
+def _components(comps: list[str]) -> tuple[str, str, tuple[str, ...]] | None:
+    """' - ' parts of a name -> (artist, title, the parts left out). A middle part that is only a track
+    number marks where the title starts ('Phil Berg - Darin - 06 - Seiko' -> 'Seiko', leaving 'Darin' out);
+    otherwise everything after the first part is the title, as in v1.0 ('Artist - Album - Title' is never
+    read as 'Title')."""
     comps = [c.strip() for c in comps if c.strip()]
     if len(comps) < 2:
         return None
     for i in range(1, len(comps) - 1):
         if _NUM_PART.match(comps[i]):
-            return comps[0], " - ".join(comps[i + 1:])
-    return comps[0], " - ".join(comps[1:])
+            return comps[0], " - ".join(comps[i + 1:]), tuple(comps[1:i])
+    return comps[0], " - ".join(comps[1:]), ()
 
 
-def _scene_readings(stem: str, group: str | None) -> list[tuple[str, str]]:
-    """'04-red_rooms-trip' -> [('red rooms', 'trip')]; '04-kwartz-show_me_that_light_(cleric_remix)-7d94e2e9'
-    -> [('kwartz', 'show me that light (cleric remix)')]. Leading track numbers ('04', '1-04') and a
+def _scene_readings(stem: str, group: str | None) -> list[tuple[str, str, tuple[str, ...]]]:
+    """'04-red_rooms-trip' -> [('red rooms', 'trip', ())]; '04-kwartz-show_me_that_light_(cleric_remix)-7d94e2e9'
+    -> [('kwartz', 'show me that light (cleric remix)', ())]. Leading track numbers ('04', '1-04') and a
     trailing hash (6-10 hex characters with letters and digits) go; a trailing token equal to the scene
-    folder's release group goes. Every split point is a reading, the first one first ('x-ray_spex-...')."""
+    folder's release group goes, as a word the reading left out (it may be the title's: a group 'TIME' and
+    '...-space-time', Addendum 10), and the name with it is read too. Every split point is a reading, the
+    first one first ('x-ray_spex-...')."""
     tokens = [t for t in _split_top(stem, _HYPHEN)]
     if any(not t for t in tokens):
         return []
@@ -521,22 +538,24 @@ def _scene_readings(stem: str, group: str | None) -> list[tuple[str, str]]:
     variants.append(t)
     if t != tokens:
         variants.append(list(tokens))              # '808-state-pacific_state': the number is the artist's
-    out: list[tuple[str, str]] = []
+    out: list[tuple[str, str, tuple[str, ...]]] = []
     for v in variants:
         v = list(v)
         if len(v) > 2 and _HASH.match(v[-1]):
             v.pop()
+        tries: list[tuple[list[str], tuple[str, ...]]] = [(v, ())]
         if group and len(v) > 2 and v[-1].lower() == group:
-            v.pop()
-        v = [re.sub(r"\s+", " ", x.replace("_", " ")).strip() for x in v]
-        if len(v) < 2 or not all(v):
-            continue
-        for k in range(1, len(v)):
-            left, right = "-".join(v[:k]), "-".join(v[k:])
-            if _BRACKET.search(left) or left.isdigit():
+            tries = [(v[:-1], (v[-1],)), (v, ())]
+        for vv, dropped in tries:
+            vv = [re.sub(r"\s+", " ", x.replace("_", " ")).strip() for x in vv]
+            if len(vv) < 2 or not all(vv):
                 continue
-            if (left, right) not in out:
-                out.append((left, right))
+            for k in range(1, len(vv)):
+                left, right = "-".join(vv[:k]), "-".join(vv[k:])
+                if _BRACKET.search(left) or left.isdigit():
+                    continue
+                if not any((left, right) == (a, b) for a, b, _ in out):
+                    out.append((left, right, dropped))
     return out
 
 
@@ -561,23 +580,33 @@ def _tight_readings(s: str) -> tuple[list[tuple[str, str]], bool]:
     return out, len(left.split()) >= 2 or len(base.split()) >= 2
 
 
-def _split_readings(stem: str, group: str | None) -> tuple[list[tuple[str, str]], bool, str, bool]:
-    """(readings with an artist part, whether they come before the folder reading, the whole title, whether
-    those readings cut the name at a glued hyphen or a scene name: their artist part is a guess, B1-R)."""
+Reading = tuple[str, str, tuple[str, ...]]          # (artist part, title, the words the reading left out)
+
+
+def _split_readings(stem: str, group: str | None) -> tuple[list[Reading], bool, str, tuple[str, ...], bool]:
+    """(readings with an artist part, whether they come before the folder reading, the whole title, what the
+    whole title left out, whether those readings cut the name at a glued hyphen or a scene name: their artist
+    part is a guess, B1-R)."""
     if " " not in stem and "_-_" in stem:              # old scene style 'artist_-_title-group' (v1.0 rule)
-        s = strip_track_number(_drop_scene_group(stem))
+        short, gone = _drop_scene_group(stem)
+        dropped = (gone,) if gone else ()
+        s = strip_track_number(short)
         r = _components(_split_top(s, _TOP_DASH))
-        return ([r] if r else []), True, s, False
+        readings = [(r[0], r[1], dropped + r[2])] if r else []
+        full = _components(_split_top(strip_track_number(stem), _TOP_DASH)) if gone else None
+        if full and readings and full[:2] != readings[0][:2]:
+            readings.append(full)                      # the '-group' may be the title's (Addendum 10)
+        return readings, True, s, dropped, False
     if " " not in stem and "-" in stem and ("_" in stem or _LEAD_NUM_TOKEN.match(stem)):
-        return _scene_readings(stem, group), True, strip_track_number(stem), True
+        return _scene_readings(stem, group), True, strip_track_number(stem), (), True
     s = strip_track_number(stem)
     r = _components(_split_top(s, _TOP_DASH))
     if r:
         raw = re.sub(r"\s+", " ", stem.replace("_", " ")).strip()
         alt = _components(_split_top(raw, _TOP_DASH)) if raw != s else None
-        return [r] + ([alt] if alt and alt != r else []), True, s, False   # '2-4 Grooves - ...': a name
+        return [r] + ([alt] if alt and alt != r else []), True, s, (), False   # '2-4 Grooves - ...': a name
     tight, likely = _tight_readings(s)
-    return tight, likely, s, True
+    return [(a, t, ()) for a, t in tight], likely, s, (), True
 
 
 def name_readings(file_name: str, parent: str | None) -> list[NameReading]:
@@ -588,26 +617,31 @@ def name_readings(file_name: str, parent: str | None) -> list[NameReading]:
     group = _folder_group(parent)
     out: list[NameReading] = []
 
-    def add(artist: str, title: str, from_folder: bool = False, cut: bool = False) -> None:
+    def add(artist: str, title: str, from_folder: bool = False, cut: bool = False,
+            dropped: tuple[str, ...] = ()) -> None:
         t = clean_title(title).strip(" -\u2013\u2014_,;")
         if not t:
             return
-        r = NameReading(_tidy(artist), t, from_folder, cut)
-        if not any((o.artist, o.title, o.from_folder) == (r.artist, r.title, r.from_folder) for o in out):
-            out.append(r)
+        r = NameReading(_tidy(artist), t, from_folder, cut, tuple(_tidy(d) for d in dropped if _tidy(d)))
+        for i, o in enumerate(out):
+            if (o.artist, o.title, o.from_folder) == (r.artist, r.title, r.from_folder):
+                if (len(r.dropped), r.cut) < (len(o.dropped), o.cut):
+                    out[i] = r                         # the same reading with less guessing (Addendum 10)
+                return
+        out.append(r)
 
     m = _DISC_TRACK.match(stem)
     stems = [stem[m.end():], stem] if m else [stem]   # '1-04-Kwartz-...': then as written ('2-4 Grooves')
     for s in stems:
-        readings, first, whole, cut = _split_readings(s, group)
+        readings, first, whole, whole_dropped, cut = _split_readings(s, group)
         if first:
-            for a, t in readings:
-                add(a, t, cut=cut)
-            add(folder, whole, True)
+            for a, t, d in readings:
+                add(a, t, cut=cut, dropped=d)
+            add(folder, whole, True, dropped=whole_dropped)
         else:
-            add(folder, whole, True)
-            for a, t in readings:
-                add(a, t, cut=cut)
+            add(folder, whole, True, dropped=whole_dropped)
+            for a, t, d in readings:
+                add(a, t, cut=cut, dropped=d)
     if not out:
         out.append(NameReading(folder, stem or nfc(file_name), True))
     return out
@@ -656,6 +690,13 @@ class FileIdentity:
     name_artist: str = ""         # the artist part the NAME gives in this reading ('' for the folder reading)
     alternative: bool = False     # not the name's first reading: a later guess of where the artist ends
     cut: bool = False             # name_artist comes from a glued hyphen or a scene name (NameReading.cut)
+    # Addendum 10: what this reading left out (both empty when the artist AND title tags give the identity).
+    # `dropped`: words of the name's parse (a scene '-group', the parts before ' - 06 - ') or, for the folder
+    # reading with only a title tag, the name's words that tag does not have (B2-R). `dropped_groups`: the
+    # bracket groups split_title_version took out of title_full without making them the version.
+    dropped: tuple[str, ...] = ()
+    dropped_groups: tuple[str, ...] = ()
+    groups_from_tag: bool = False  # dropped_groups come from a title tag (no artist tag), not from the name
 
 
 def clean_artist(text: str | None) -> str | None:
@@ -669,6 +710,20 @@ def _same_base_words(tag_title: str, reading_title: str) -> bool:
     tag_base = split_title_version(tag_title)[0] or tag_title
     got_base = split_title_version(reading_title)[0] or reading_title
     return title_words_match(tag_base, got_base)
+
+
+def _words_beyond(name_title: str, tag_title: str) -> tuple[str, ...]:
+    """B2-R: the words of a name's base title that the title tag's base title does not have, paired one to one
+    with the word rule of the titles ('Adam Port Rush' against the tag 'Rush' -> ('adam', 'port'))."""
+    pool = _title_words(norm_key(split_title_version(tag_title)[0] or tag_title, drop_original=False))
+    extra: list[str] = []
+    for w in _title_words(norm_key(split_title_version(name_title)[0] or name_title, drop_original=False)):
+        hit = w if w in pool else next((p for p in pool if _word_close(w, p)), None)
+        if hit is None:
+            extra.append(w)
+        else:
+            pool.remove(hit)
+    return tuple(extra)
 
 
 def file_identities(file_name: str, parent: str | None, tag_artist: str | None,
@@ -693,11 +748,102 @@ def file_identities(file_name: str, parent: str | None, tag_artist: str | None,
         name_version = split_title_version(r.title)[1]
         used = {"tags" if ta else "nombre", "tags" if tt else "nombre"}
         evidence = "tags+nombre" if used == {"tags", "nombre"} else used.pop()
+        # Addendum 10: what the reading left out, unless the artist AND title tags give the identity: the words
+        # its parse dropped when the name gives the title (rules 1-3), the bracket groups that are no version
+        # in the title it uses (rule 5), and for the folder reading with only a title tag, the name's words
+        # beyond that tag (B2-R)
+        dropped: tuple[str, ...] = ()
+        groups: tuple[str, ...] = ()
+        if not (ta and tt):
+            groups = tuple(title_dropped_groups(title_full))
+            if not tt:
+                dropped = r.dropped
+            elif r.from_folder:
+                dropped = _words_beyond(r.title, tt)
         fi = FileIdentity(artist, title_full, base or title_full, version, name_version, evidence,
-                          "" if r.from_folder else r.artist, i > 0, r.cut and not r.from_folder)
+                          "" if r.from_folder else r.artist, i > 0, r.cut and not r.from_folder, dropped, groups,
+                          bool(tt))
         if fi not in out:
             out.append(fi)
     return out
+
+
+# ---- Addendum 10: a reading that left words out (or cut without ' - ') needs a confirmation ------------
+# Not title words, so a reading may leave them out freely (DECISIONES X.42): release tokens and catalogue
+# numbers (_SCENE_MARK: WEB, FLAC, 16BIT, EP, LENSKE001...), a hash with digits (_HASH), a Camelot key
+# ('8A') or a 'bpm'/'key' mark and the key it names ('key: Am'). Numbers and years have no letter.
+_NOT_TITLE_TOKEN = re.compile(r"(?i)^(?:bpm|key|\d{1,2}[ab])$")
+_KEY_VALUE = re.compile(r"(?i)^(?:[a-g](?:m|min|maj)?|m|min|maj|minor|major|sharp|flat)$")
+_FEAT_START = re.compile(r"(?i)^(?:feat|ft|featuring)\b")
+# a group shaped like a label (06 R5): 2 words or more ending in one of these (inputs.clean.LABEL_LIKE)
+_LABEL_SHAPE = re.compile(r"\s(?:records|recordings|rec|label|records ltd|recordings ltd)$")
+_LABEL_TAIL = re.compile(r"\s+(?:records|recordings|rec|music|label|digital|records ltd)$")
+DURATION_CONFIRM_S = 3        # C.5 duration_ok_s: 3-10 s apart is "revisar", never a confirmation
+
+
+def _title_like_words(item: str) -> list[str]:
+    """The words of a left-out item that could belong to a real title or version (Addendum 10): with a
+    letter, and not a release token, a catalogue number, a hash or a BPM/key mark."""
+    toks = re.findall(r"[^\W_]+", nfc(item))
+    marked = any(t.lower() in ("bpm", "key") for t in toks)
+    out = []
+    for t in toks:
+        if not re.search(r"[^\W\d_]", t) or _SCENE_MARK.match(t) or _HASH.match(t) or _NOT_TITLE_TOKEN.match(t):
+            continue
+        if marked and _KEY_VALUE.match(t):
+            continue
+        out.append(t)
+    return out
+
+
+def _label_group(group: str, label: str | None) -> bool:
+    """A left-out bracket group that is the row's label ('[Phorum]' for the label 'Phorum Records') or has the
+    shape of one ('[Phorum Records]'): rule 5 never asks for a confirmation for it."""
+    k = norm_key(group)
+    if not k:
+        return False
+    if len(k.split()) >= 2 and _LABEL_SHAPE.search(k):
+        return True
+    lk = norm_key(label)
+    keys = {lk, _LABEL_TAIL.sub("", lk)} - {""}
+    return k in keys or _LABEL_TAIL.sub("", k) in keys
+
+
+def _quoted(words: list[str]) -> str:
+    q = [f"'{w}'" for w in words]
+    return q[0] if len(q) == 1 else ", ".join(q[:-1]) + " y " + q[-1]
+
+
+def unconfirmed_es(row: TrackRow, fi: FileIdentity) -> str | None:
+    """Addendum 10 (DECISIONES X.42): why this reading of a file can only verify with an independent
+    confirmation, as a Spanish fragment («el nombre solo encaja quitando 'nuxx'»), or None.
+
+    A reading needs one when it left alphabetic words of the name out: a scene '-group' (rule 1), the scene
+    folder's group (rule 2), the parts before a ' - 06 - ' (rule 3), a bracket group that is no version in the
+    title it uses (rule 5: the name's, or a title tag without the artist tag; not a feat credit, the row's
+    label or a label-shaped group), or the name's words beyond a title tag when the folder is the artist
+    (B2-R); and when it cut the artist off the title without ' - ' (rule 4: a glued hyphen or a scene name).
+    Release tokens, catalogue numbers, hashes, BPM/key marks, numbers and watermarks are no title words. The
+    file's own artist AND title tags (evidence 'tags') are the identity themselves: no confirmation needed.
+    The other confirmation is a duration that matches (duration_confirms)."""
+    if fi.evidence == "tags":
+        return None
+    words = [w for w in fi.dropped if _title_like_words(w)]
+    groups = [g for g in fi.dropped_groups
+              if not _FEAT_START.match(nfc(g)) and not _label_group(g, row.label) and _title_like_words(g)]
+    cut = fi.cut and bool(fi.name_artist)
+    if not words and not groups and not cut:
+        return None
+    parts = (["quitando " + _quoted(words + groups)] if words or groups else []) + \
+        ([f"leyendo '{fi.name_artist}' como artista, sin « - » entre artista y título"] if cut else [])
+    subject = "la etiqueta de título" if groups and fi.groups_from_tag and not words and not cut else "el nombre"
+    return f"{subject} solo encaja " + " y ".join(parts)
+
+
+def duration_confirms(expected_s: float | None, got_s: float | None, ok_s: float = DURATION_CONFIRM_S) -> bool:
+    """Addendum 10: the expected duration (enrichment or a Duración column) and the file's, or the one a
+    search result reports, at most ok_s apart (duration_ok_s, 3 s by default). Without either, no."""
+    return bool(expected_s) and got_s is not None and abs(float(got_s) - float(expected_s)) <= ok_s
 
 
 # a track number glued to the artist part with a space ('01 Kwartz-Show me that light'); never '04-red rooms'
@@ -783,11 +929,14 @@ def _score(row: TrackRow, wanted: list[str], fi: FileIdentity) -> tuple[tuple, I
     title, numbers_ok = title_similarity(row.title, fi.base)
     words_ok = title_words_match(row.title, fi.base)
     ok, reason = _version_ok(row.version, versions)
+    guess = unconfirmed_es(row, fi)
     ident = IdentityScore(round(artist.score, 1), round(title, 1), ok, reason, fi.evidence, fi.artist,
-                          fi.title_full, fi.version or fi.name_version, numbers_ok, artist.same, words_ok)
+                          fi.title_full, fi.version or fi.name_version, numbers_ok, artist.same, words_ok, guess)
     same_song = artist.same and artist.score >= ARTIST_MIN and title >= TITLE_MIN
-    # a reading that fits ranks before one that does not, so a doubt names the name's own reading
-    key = (same_song and ok, same_song, fits, ok, 0.35 * artist.score + 0.45 * title)
+    # a reading that fits ranks before one that does not, so a doubt names the name's own reading; among the
+    # readings that fit the row, one that needs no confirmation wins (Addendum 10)
+    match = same_song and ok
+    key = (match, match and guess is None, same_song, fits, ok, 0.35 * artist.score + 0.45 * title)
     return key, ident
 
 
@@ -812,5 +961,5 @@ def identity_from_names(row: TrackRow, file_name: str, parent: str | None, tag_a
         if not ok:
             best = IdentityScore(best.artist, best.title, False, reason, best.evidence, best.got_artist,
                                  best.got_title, best.got_version, best.numbers_ok, best.same_artist,
-                                 best.title_words_ok)
+                                 best.title_words_ok, best.unconfirmed_es)
     return best

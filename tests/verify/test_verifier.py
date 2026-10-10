@@ -227,10 +227,20 @@ def test_r4_b3_the_extended_mix_of_the_wanted_remix_is_still_verified(tmp_path, 
     tags = {"artist": "Fjaak", "title": got} if by == "tags" else None
     v = _v(tmp_path, f"Fjaak - {got}.flac", row=_row(version="Kai Remix", dur=None), tags=tags)
     assert v.state == ResultState.VERIFICADO and v.score == 95, v.reasons_es
+    # the row's label in brackets is no title word (Addendum 10, DECISIONES X.42)
+    labelled = TrackRow(pos=1, title="Spirit", artists=["Fjaak"], artist_display="Fjaak", label="Drumcode")
     for plain in ("Spirit (Extended Mix) [Drumcode]", "Spirit (Original Mix)"):
-        p = _v(tmp_path, f"Fjaak - {plain}.flac", row=_row(dur=None),
+        p = _v(tmp_path, f"Fjaak - {plain}.flac", row=labelled,
                tags={"artist": "Fjaak", "title": plain} if by == "tags" else None)
         assert p.state == ResultState.VERIFICADO, (plain, p.reasons_es)
+    if by == "nombre":
+        # an unknown group in brackets may be a title word: by its name alone, without the label in the row and
+        # without a duration, the file only fits once '[Drumcode]' is gone, so it needs a confirmation
+        p = _v(tmp_path, "Fjaak - Spirit (Extended Mix) [Drumcode].flac", row=_row(dur=None))
+        assert p.state == ResultState.DUDOSO and p.doubt == DoubtKind.IDENTIDAD, p.reasons_es
+        assert any("quitando 'Drumcode'" in r for r in p.reasons_es), p.reasons_es
+        assert _v(tmp_path, "Fjaak - Spirit (Extended Mix) [Drumcode].flac", row=_row(dur=20)).state == \
+            ResultState.VERIFICADO
 
 
 @pytest.mark.parametrize("by", ["tags", "nombre"])
