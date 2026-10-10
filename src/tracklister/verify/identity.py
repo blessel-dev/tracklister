@@ -682,8 +682,15 @@ def identity_score(row: TrackRow, info: AudioInfo, source_path_tail: str | None)
     tail_parts = [p for p in PureWindowsPath(source_path_tail.replace("/", "\\")).parts] if source_path_tail else []
     file_name = tail_parts[-1] if tail_parts else info.path.name
     parent = tail_parts[-2] if len(tail_parts) >= 2 else None
+    return identity_from_names(row, file_name, parent, info.tag_artist, info.tag_title)
+
+
+def identity_from_names(row: TrackRow, file_name: str, parent: str | None, tag_artist: str | None = None,
+                        tag_title: str | None = None) -> IdentityScore:
+    """identity_score() without an audio file: from a file name, its parent folder and the tags if known (a
+    search result of the Diagnóstico has no tags). The best reading of the name for the row counts."""
     wanted = row_artists(row)
-    idents = file_identities(file_name, parent, info.tag_artist, info.tag_title)
+    idents = file_identities(file_name, parent, tag_artist, tag_title)
     best_key, best = max((_score(row, wanted, fi) for fi in idents), key=lambda kv: kv[0])
     if version_is_original(row.version) and best.version_ok:
         # an original row: a remix written in ANY reading of the name still counts (both sources, v1.0)

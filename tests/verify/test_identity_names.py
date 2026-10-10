@@ -17,8 +17,8 @@ from tracklister.core.textnorm import split_title_version
 from tracklister.engine.presets import build_preset
 from tracklister.verify.audioinfo import probe
 from tracklister.verify.identity import (
-    artist_match, clean_title, identity_score, name_readings, parse_folder, parse_name, strip_trailing_metadata,
-    strip_watermarks,
+    artist_match, clean_title, identity_from_names, identity_score, name_readings, parse_folder, parse_name,
+    strip_trailing_metadata, strip_watermarks,
 )
 from tracklister.verify.verifier import verify_file
 
@@ -227,6 +227,9 @@ def test_r3_the_folder_counts_only_without_an_artist_part(untagged):
     assert not identity_score(row, untagged, "Adam Beyer\\Adam Port - Rush.flac").same_artist
     assert identity_score(row, untagged, "Adam Beyer\\Rush.flac").same_artist
     assert identity_score(row, untagged, "Adam Beyer - Album Inventado\\03 Rush.flac").same_artist
+    # the same judgement without an audio file (a search result: name and folder only)
+    assert not identity_from_names(row, "Adam Port - Rush.flac", "Adam Beyer").same_artist
+    assert identity_from_names(row, "Rush.flac", "Adam Beyer") == identity_score(row, untagged, "Adam Beyer\\Rush.flac")
 
 
 def test_r3_tag_artist_wins_over_the_folder(tmp_path):
