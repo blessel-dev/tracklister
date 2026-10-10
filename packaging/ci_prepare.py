@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
-    python packaging/ci_prepare.py --tag v1.0.0 --owner <repository owner> [--repo tracklister]
+    python packaging/ci_prepare.py --tag v1.0.1 --owner <repository owner> [--repo tracklister]
 
 - The tag must be exactly "v" + tracklister.__version__, and pyproject.toml must say the same
   version. Otherwise the job stops: an exe that reports another version would make the in-app
@@ -93,7 +93,7 @@ def check_repo_name(config_text: str, repo_name: str | None) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--tag", required=True, help="the pushed tag, e.g. v1.0.0 (GITHUB_REF_NAME)")
+    ap.add_argument("--tag", required=True, help="the pushed tag, e.g. v1.0.1 (GITHUB_REF_NAME)")
     ap.add_argument("--owner", required=True, help="the repository owner (github.repository_owner)")
     ap.add_argument("--repo", default=None, help="the repository name (github.event.repository.name)")
     ap.add_argument("--placeholder", default=PLACEHOLDER, help="the placeholder value of GITHUB_OWNER")

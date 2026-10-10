@@ -1,7 +1,7 @@
 # Build Tracklister.exe on Windows and publish a GitHub Release when a version tag is pushed.
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Publish from the home PC:   git tag v1.0.0   then   git push origin v1.0.0
+# Publish from the home PC:   git tag v1.0.1   then   git push origin v1.0.1
 # - The tag must be "v" + __version__ (src/tracklister/__init__.py); otherwise the job stops.
 # - The GitHub owner lives in ONE place: GITHUB_OWNER in src/tracklister/config.py. While it is
 #   still the placeholder below, packaging/ci_prepare.py fills it in with this repository's owner
