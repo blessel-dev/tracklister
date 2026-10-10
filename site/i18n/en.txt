@@ -110,7 +110,7 @@ text pasted from 1001tracklists, MixesDB or a comment;
 a YouTube or SoundCloud link: it picks the best tracklist from the description, the chapters and the comments, and you can swap it for another one.
 
 == que.lee.tabla
-It all goes into a table you can correct before downloading.
+If you have two lists of the same set, “{{es:Añadir otra fuente del mismo set}}” (Add another source for the same set) merges them by each track's start time. It all goes into a table you can correct before downloading.
 
 == que.comprueba.titulo
 Checks every file
@@ -137,7 +137,7 @@ If a track is already in an earlier set, it asks: “{{es:Usar el que ya tengo (
 Retries, report and tracklist
 
 == que.reintentos.p1
-“{{es:Reintentar fallos}}” (Retry failed) looks for another copy, leaving out the user who sent the rejected file. Each set comes with its report, and “{{es:Copiar tracklist}}” (Copy tracklist) gives you the text with timestamps for Mixcloud or Instagram.
+“{{es:Reintentar fallos}}” (Retry failed) looks for another copy, leaving out the user who sent the rejected file, and tries the engine's deep search for the tracks that still don't turn up. Each set comes with its report, and “{{es:Copiar tracklist}}” (Copy tracklist) gives you the text with timestamps for Mixcloud or Instagram.
 
 == porque.titulo
 Why
@@ -167,7 +167,7 @@ Wrong formats
 A lower-quality or VBR MP3, a FLAC your CDJs can't read, a WAV that isn't lossless inside, or a FLAC that actually comes from an MP3.
 
 == porque.p2.solucion
-You pick a format and it's checked in the file itself: an MP3 must be 320 kbps CBR (in “{{es:Personalizado}}” you choose the minimum), a WAV or AIFF must hold PCM, and in “{{es:CDJ antiguos}}” FLACs are converted to AIFF. If a file doesn't comply, it shows “{{es:No cumple formato}}” (Doesn't meet the format). The spectrum analysis flags a “{{es:posible lossless falso}}” (possible fake lossless) so you can decide whether it's good enough for you.
+You pick a format and it's checked in the file itself: an MP3 must be 320 kbps CBR (in “{{es:Personalizado}}” you choose the minimum), a WAV or AIFF must hold PCM, and in “{{es:CDJ antiguos}}” FLACs are converted to AIFF. If a file doesn't comply, it shows “{{es:No cumple formato}}” (Doesn't meet the format). The spectrum analysis flags likely converted MP3s: the file shows “{{es:Verificado · revisar calidad}}” (Verified · check quality), stays in the set, and “{{es:Reintentar fallos}}” looks for another copy.
 
 == porque.p3.titulo
 Files out of order
@@ -194,13 +194,13 @@ A trackid.net CSV, an Excel or CSV file, pasted text or a YouTube or SoundCloud 
 Fill in the details
 
 == como.paso2.texto
-iTunes, then Deezer, then MusicBrainz give each track's duration and exact version. Only the artist and the title are sent.
+iTunes, then Deezer, then MusicBrainz give each track's duration and exact version. Only the artist and the title are sent. That duration is also used to measure the unidentified gaps in a trackid.net CSV.
 
 == como.paso3.titulo
 Search Soulseek
 
 == como.paso3.texto
-With the Sockseek engine and your own account, filtering by artist, title, duration and format.
+With the Sockseek engine and your own account, filtering by artist, title, duration and format. If a track doesn't turn up, it tries other spellings, such as each name of an “X aka Y”, or “TR440” as “TR 440”.
 
 == como.paso4.titulo
 Check every file
@@ -227,7 +227,7 @@ Plus the report and the tracklist with timestamps.
 Screenshots
 
 == capt.lead
-The real window of version 1.0.0, in Spanish, with a public set. The app has two themes, {{es:Hormigón}} (concrete, light) and {{es:Noche}} (night, dark): the screenshots that exist in both change with this website's theme.
+The real window of version 1.0.1, in Spanish, with a public set. The app has two themes, {{es:Hormigón}} (concrete, light) and {{es:Noche}} (night, dark): the screenshots that exist in both change with this website's theme.
 
 == capt.nuevo.alt_hormigon
 The “Nuevo set” (New set) screen in the Hormigón theme: the tracklist of a public Fjaak set in an editable table, with the set name filled in and the button to download.
@@ -242,13 +242,13 @@ The “Nuevo set” (New set) screen in the Noche theme: the tracklist of a publ
 You import the tracklist, review the table, give the set a name and press “{{es:Descargar}}” (Download).
 
 == capt.descarga.alt
-The “Descarga” (Download) screen when a set has finished: each track with its state, as an icon and text (Verificado, Dudoso, No encontrado, Ya en biblioteca, No cumple formato, Fallida, Omitida: verified, doubtful, not found, already in library, doesn't meet the format, failed, skipped), and below, the reasons for the selected track.
+The “Descarga” (Download) screen when a set has finished: each track with its state, as an icon and text (Verificado, Verificado · revisar calidad, Dudoso, No encontrado, Ya en biblioteca, No cumple formato, Fallida, Omitida: verified, verified · check quality, doubtful, not found, already in library, doesn't meet the format, failed, skipped), and below, the reasons for the selected track.
 
 == capt.descarga.titulo
 {{es:Descarga}} (Download)
 
 == capt.descarga.texto
-Each track with its state and, below, the reasons for the one you select. Example made with a test engine, offline.
+Each track with its state and, below, the reasons for the one you select. While it downloads, the “{{es:Estado}}” (Status) column shows how each track is going, with a bar. Example made with a test engine, offline.
 
 == capt.inicio.alt
 The first-run screen, “Bienvenido a Tracklister” (Welcome to Tracklister): your Soulseek account, your library folder, the format and the listening port.
@@ -295,11 +295,20 @@ The file matches its row: confidence of 80 or more.
 == est.verificado.donde
 In the set folder, with its number.
 
+== est.revisar_calidad.nombre
+{{es:Verificado · revisar calidad}} <span class="gloss">(Verified · check quality)</span>
+
+== est.revisar_calidad.texto
+It's the track, but its spectrum has the cutoff of an MP3 at 256 kbps or less: it may be a converted MP3. Listening won't settle it, because it can sound the same.
+
+== est.revisar_calidad.donde
+In the set, with its number. “{{es:Reintentar fallos}}” looks for another copy: if a better one arrives, it replaces this one, which moves to <code>_dudosos</code>.
+
 == est.dudoso.nombre
 {{es:Dudoso}} <span class="gloss">(Doubtful)</span>
 
 == est.dudoso.texto
-Something doesn't match, and the reason says what: a different song, a different version, the duration, “{{es:posible lossless falso}}” or “{{es:revisar}}” (check it).
+Something doesn't match, and the reason says what: a different song, a different version, the duration, or “{{es:revisar}}” (check it).
 
 == est.dudoso.donde
 A different song, version or duration: in <code>_dudosos</code>. Anything else: in the set, flagged.
@@ -326,7 +335,7 @@ Copied to this set, with its number.
 {{es:En curso}} <span class="gloss">(In progress)</span>
 
 == est.en_curso.texto
-It's being searched for or downloaded.
+It's being searched for, downloaded or checked. The “{{es:Estado}}” column says which, with text and a bar: “{{es:Buscando…}}” (Searching…), “{{es:Descargando 25,9 MB}}” (Downloading 25.9 MB) or “{{es:Comprobando…}}” (Checking…).
 
 == est.en_curso.donde
 Not in the set folder yet.
@@ -425,7 +434,7 @@ Tracklister isn't digitally signed, so Windows may say “Windows protected your
 Check the zip (optional)
 
 == descargar.paso3.texto
-In PowerShell, in the zip's folder, this command must give the same value as <code>SHA256SUMS.txt</code>:
+In PowerShell, in the zip's folder, the output of this command must match the value in <code>SHA256SUMS.txt</code>:
 
 == descargar.paso3.nota
 PowerShell prints it in uppercase; that doesn't matter.
@@ -449,7 +458,7 @@ Allow the engine through the Firewall
 The first time it searches Soulseek, Windows Firewall may ask about <code>sockseek.exe</code>, the download engine. Tick “Private networks” and click “Allow access”.
 
 == descargar.paso5.nota
-While you use Tracklister, don't have the same account open in Nicotine+ or any other Soulseek program: Soulseek would cut one of the two off.
+While you use Tracklister, don't have the same account open in Nicotine+ or any other Soulseek program: Soulseek would disconnect one of them.
 
 == descargar.guia
 The full guide, with a first set step by step and what to do if something fails: <a href="https://github.com/blessel-dev/tracklister/blob/main/docs/GUIA.md" hreflang="es" rel="noopener">Guide (in Spanish)</a>, docs/GUIA.md on GitHub.
@@ -459,6 +468,9 @@ Diagnostics
 
 == diag.texto
 “{{es:Diagnóstico}}” searches Soulseek for a few tracks without downloading them (5 by default, 20 at most) and explains which candidates turn up and why it accepts or rejects each one. It's the first thing to do when you start using Tracklister, and every time a track doesn't come out right.
+
+== diag.grafias
+If a track gets no results, it tries the track's other spellings, as the download does, and says which one found the candidates. It doesn't use the engine's deep search, to keep it short: “{{es:Reintentar fallos}}” tries that when you download.
 
 == diag.lleva
 It includes the Tracklister version, the engine, the Windows version, the port and, for each track, its candidates: folder and file, size, kbps, duration, score and reason.
@@ -560,19 +572,22 @@ What does “{{es:Dudoso}}” mean, and what's in the <code>_dudosos</code> fold
 “{{es:otra canción}}” (different song), “{{es:otra versión}}” (different version) or “{{es:duración}}” (duration): the file is in <code>_dudosos</code>. Fix the row in “{{es:Nuevo set}}” and download again, or press “{{es:Reintentar fallos}}”, which searches for it again, leaving out the user who sent you that file. The rejected file is never deleted.
 
 == faq.dudoso.set
-“{{es:posible lossless falso}}” (possible fake lossless) or “{{es:revisar}}” (check it): the file stays in the set, with its number, and you decide. With “{{es:revisar}}”, listen to it to confirm it's the song. With “{{es:posible lossless falso}}”, listening doesn't always settle it: a 320 MP3 converted to FLAC can sound the same.
+“{{es:revisar}}” (check it): the file stays in the set, with its number, and you decide: listen to it to confirm it's the song.
 
 == faq.buena.q
 Why did a good track end up in <code>_dudosos</code>?
 
 == faq.buena.a
-Because the artist and the title are compared word by word, so that “Adam Port” never passes for “Adam Beyer”. The flip side: a typo in a short word, or a tag with only the surname or without the “DJ”, ends up in <code>_dudosos</code> even when it's the right song. Nothing is ever accepted silently: look at the file and decide.
+Because the artist and the title are compared word by word, so that “Adam Port” never passes for “Adam Beyer”. The flip side: a typo in a short word, a tag with only the surname or without the “DJ”, or an untagged file whose name only fits once words are dropped (with no duration to confirm it) ends up in <code>_dudosos</code> even when it's the right song. The reason says what doesn't fit. Nothing is ever accepted silently: look at the file and decide.
 
-== faq.falso.q
-What does “{{es:posible lossless falso}}” mean?
+== faq.calidad.q
+What does “{{es:Verificado · revisar calidad}}” mean?
 
-== faq.falso.a
-That the file's spectrum looks like that of an MP3 converted to FLAC or WAV (“possible fake lossless”). It's a hint, not proof: the file is never rejected for it; it stays in the set with its number, flagged in the report. The analysis can be turned off in “{{es:Ajustes}}”.
+== faq.calidad.a1
+That the file is the track you asked for, but the spectrum of that FLAC, WAV or AIFF cuts off sharply below 19.5 kHz, like that of an MP3 at 256 kbps or less: it may be a converted MP3. Listening won't settle it, because it can sound the same. That's why the file is never rejected: it stays in the set, with its number, and “{{es:Reintentar fallos}}” looks for another copy, leaving out the user who sent that one. If one arrives without the flag, or with a cutoff at least 1 kHz higher, it replaces it, and the flagged file moves to <code>_dudosos</code> without being deleted.
+
+== faq.calidad.a2
+A cutoff between 19.5 and 20.8 kHz is as common in a 320 MP3 as in a legitimate master, so the spectrum alone can't tell: it gets no flag, just a line in the report. The analysis can be turned off in “{{es:Ajustes}}”.
 
 == faq.vbr.q
 Why won't it accept my VBR MP3?
@@ -585,6 +600,9 @@ Why does an “ID” row keep its number?
 
 == faq.id.a
 Because each file's number is its row number in the tracklist, so the folder follows the real order of the set. “ID” rows (unidentified tracks) are left unchecked and aren't downloaded, but they keep their place: if one day you find out what it was, you type it into the table and it goes in with its number.
+
+== faq.id.hueco
+A trackid.net CSV can also give “{{es:ID (hueco)}}” (ID, gap) rows: a stretch of the set that trackid.net didn't identify. Its Start and End columns say when trackid.net recognized each track in the set, not how long it lasts. So the gap is measured with the real duration of the previous track (from iTunes, Deezer or MusicBrainz): it only appears if, even with that track playing in full, more than 90 s are left uncovered before the next one. Its note shows the math.
 
 == faq.trackid.q
 Can I paste a trackid.net link?
@@ -655,7 +673,7 @@ En español
 Tracklister es una app de escritorio gratuita para DJs, para Windows 10 y 11 (64 bits). Le das la tracklist de un set (el CSV de trackid.net, un Excel o CSV, un texto pegado o un enlace de YouTube o SoundCloud) y completa la duración y la versión exacta de cada pista con iTunes, Deezer y MusicBrainz, busca en Soulseek con tu propia cuenta y comprueba cada archivo: duración, artista, título, versión, formato y espectro.
 
 == otro.p2
-Te deja una carpeta numerada en el orden del set. Nunca acepta un archivo dudoso sin decírtelo: si puede ser otra canción u otra versión, va a <code>_dudosos</code> con el motivo. Software libre, GPL-3.0-or-later.
+Te deja una carpeta numerada en el orden del set. Nunca acepta un archivo dudoso sin decírtelo: si puede ser otra canción u otra versión, o la duración no cuadra, va a <code>_dudosos</code> con el motivo. Software libre, GPL-3.0-or-later.
 
 == otro.descarga
 <a href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">Descarga la última versión en GitHub</a>.

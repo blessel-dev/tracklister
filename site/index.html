@@ -47,8 +47,8 @@
       </a>
       <nav class="lang-switch" aria-label="{{attr:lang.label}}">
         <ul>
-          <li><a href="{{v:href_es}}" hreflang="es" lang="es"{{v:current_es}}>ES</a></li>
-          <li><a href="{{v:href_en}}" hreflang="en" lang="en"{{v:current_en}}>EN</a></li>
+          <li><a href="{{v:href_es}}" hreflang="es" lang="es"{{v:current_es}}>ES<span class="vh"> · Español</span></a></li>
+          <li><a href="{{v:href_en}}" hreflang="en" lang="en"{{v:current_en}}>EN<span class="vh"> · English</span></a></li>
         </ul>
       </nav>
       <div class="theme-toggle" role="group" aria-labelledby="tema-etiqueta" hidden>
@@ -261,6 +261,9 @@
           <li class="state">{{icon:state-verificado}}<span class="state-name st-verificado">{{t:est.verificado.nombre}}</span>
             <p>{{t:est.verificado.texto}}</p>
             <p class="where">{{t:est.verificado.donde}}</p></li>
+          <li class="state">{{icon:state-revisar_calidad}}<span class="state-name st-revisar-calidad">{{t:est.revisar_calidad.nombre}}</span>
+            <p>{{t:est.revisar_calidad.texto}}</p>
+            <p class="where">{{t:est.revisar_calidad.donde}}</p></li>
           <li class="state">{{icon:state-dudoso}}<span class="state-name st-dudoso">{{t:est.dudoso.nombre}}</span>
             <p>{{t:est.dudoso.texto}}</p>
             <p class="where">{{t:est.dudoso.donde}}</p></li>
@@ -369,6 +372,7 @@
           </div>
           <div class="prose">
             <p>{{t:diag.texto}}</p>
+            <p>{{t:diag.grafias}}</p>
             <ul>
               <li>{{t:diag.lleva}}</li>
               <li>{{t:diag.no_lleva}}</li>
@@ -379,12 +383,16 @@
         <figure class="report">
           <pre lang="es"><code>Diagnóstico de Tracklister
 
-Tracklister 1.0.0  |  Motor sockseek-3.0.5  |  Windows 11 (build 10.0.26100)
+Tracklister 1.0.1  |  Motor sockseek-3.0.5  |  Windows 11 (build 10.0.26100)
 Puerto de escucha: 49998
 
 01. Blasha &amp; Allatt - 8AM in Salford  (duración esperada 6:01)
     - peer-1 | …\Blasha &amp; Allatt - 8AM in Salford (Radio Edit).flac | 24.6 MB | ? kbps | ? | 49/100 | rechazado: otra versión (se pedía la original y el archivo es 'Radio Edit')
     - peer-2 | …\02 - Blasha &amp; Allatt - 8AM in Salford.flac | 41.3 MB | ? kbps | 6:01 | 100/100 | elegido: aceptable: confianza 100/100
+
+04. Komplex aka Jeroen Search - Inject  (duración esperada 4:21)
+    Encontrado buscando «Jeroen Search - Inject» (sin resultados buscando «Komplex aka Jeroen Search - Inject»).
+    - peer-5 | …\Jeroen Search - Inject.flac | 29.8 MB | ? kbps | 4:21 | 100/100 | elegido: aceptable: confianza 100/100
 
 Comprobación: este informe no contiene tu usuario, tu contraseña ni direcciones IP; los usuarios de Soulseek aparecen como peer-1, peer-2...</code></pre>
           <figcaption class="muted">{{t:diag.pie}}</figcaption>
@@ -469,9 +477,10 @@ Comprobación: este informe no contiene tu usuario, tu contraseña ni direccione
             </div>
           </details>
           <details>
-            <summary><span>{{t:faq.falso.q}}</span></summary>
+            <summary><span>{{t:faq.calidad.q}}</span></summary>
             <div class="answer">
-              <p>{{t:faq.falso.a}}</p>
+              <p>{{t:faq.calidad.a1}}</p>
+              <p>{{t:faq.calidad.a2}}</p>
             </div>
           </details>
           <details>
@@ -484,6 +493,7 @@ Comprobación: este informe no contiene tu usuario, tu contraseña ni direccione
             <summary><span>{{t:faq.id.q}}</span></summary>
             <div class="answer">
               <p>{{t:faq.id.a}}</p>
+              <p>{{t:faq.id.hueco}}</p>
             </div>
           </details>
           <details>

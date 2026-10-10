@@ -197,6 +197,21 @@ kbd {
   top: 1rem;
 }
 
+/* text only for screen readers: the full language names after «ES» / «EN» in the switch, so the
+   accessible name still starts with what is seen («ES · Español»; WCAG 2.5.3) */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ---- buttons ------------------------------------------------------------------------------- */
 .btn {
   display: inline-flex;
@@ -823,6 +838,7 @@ kbd {
 }
 
 .st-verificado { color: var(--state-verificado); }
+.st-revisar-calidad { color: var(--state-revisar-calidad); }
 .st-dudoso { color: var(--state-dudoso); }
 .st-no-encontrado { color: var(--state-no-encontrado); }
 .st-ya-en-biblioteca { color: var(--state-ya-en-biblioteca); }

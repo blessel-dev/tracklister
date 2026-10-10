@@ -95,7 +95,32 @@
     return "#" + encodeURIComponent(twin ? twin.getAttribute("data-other-id") : id);
   }
 
+  // The links name «index.html» so they also work in a local preview (file://). On the website
+  // (http/https) they drop it, so the address bar shows /tracklister/en/ like the canonical URL.
+  function cleanHref(href) {
+    if (!/^https?:$/.test(window.location.protocol) || !href || /^[a-z][a-z0-9+.\-]*:/i.test(href) ||
+        href.charAt(0) === "/") {
+      return href;
+    }
+    var cut = href.indexOf("#");
+    var path = cut < 0 ? href : href.slice(0, cut);
+    var hash = cut < 0 ? "" : href.slice(cut);
+    if (!/(^|\/)index\.html$/.test(path)) {
+      return href;
+    }
+    return (path.slice(0, -"index.html".length) || "./") + hash;
+  }
+
   function initLangSwitch() {
+    // every link to the other language's page (the switch, section 12) and the current one
+    var langLinks = document.querySelectorAll("a[hreflang]");
+    for (var n = 0; n < langLinks.length; n++) {
+      var href = langLinks[n].getAttribute("href");
+      var clean = cleanHref(href);
+      if (clean !== href) {
+        langLinks[n].setAttribute("href", clean);
+      }
+    }
     var links = document.querySelectorAll(".lang-switch a[hreflang]:not([aria-current])");
     if (!links.length) {
       return;

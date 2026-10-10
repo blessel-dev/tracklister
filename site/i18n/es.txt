@@ -105,7 +105,7 @@ texto pegado de 1001tracklists, MixesDB o un comentario;
 un enlace de YouTube o SoundCloud: elige la mejor tracklist entre la descripción, los capítulos y los comentarios, y puedes cambiarla por otra.
 
 == que.lee.tabla
-Todo pasa por una tabla que puedes corregir antes de descargar.
+Si tienes dos listas del mismo set, «Añadir otra fuente del mismo set» las junta por la hora de cada pista. Todo pasa por una tabla que puedes corregir antes de descargar.
 
 == que.comprueba.titulo
 Comprueba cada archivo
@@ -132,7 +132,7 @@ Si una pista ya está en un set anterior, te pregunta: «Usar el que ya tengo (c
 Reintentos, informe y tracklist
 
 == que.reintentos.p1
-«Reintentar fallos» busca otra copia sin el usuario que dio el archivo rechazado. Cada set lleva su informe, y «Copiar tracklist» te da el texto con tiempos para Mixcloud o Instagram.
+«Reintentar fallos» busca otra copia sin el usuario que dio el archivo rechazado y, para las pistas que siguen sin salir, prueba la búsqueda a fondo del motor. Cada set lleva su informe, y «Copiar tracklist» te da el texto con tiempos para Mixcloud o Instagram.
 
 == porque.titulo
 Por qué
@@ -162,7 +162,7 @@ Formatos equivocados
 Un MP3 de menos calidad o VBR, un FLAC que tus CDJ no leen, un WAV que por dentro no es lossless o un FLAC que en realidad viene de un MP3.
 
 == porque.p2.solucion
-Eliges un formato y se comprueba en el propio archivo: un MP3 tiene que ser CBR de 320 kbps (en «Personalizado» eliges el mínimo), un WAV o AIFF tiene que llevar PCM, y en «CDJ antiguos» los FLAC se convierten a AIFF. Si no cumple, sale «No cumple formato». El análisis de espectro marca un «posible lossless falso» para que decidas tú si te vale.
+Eliges un formato y se comprueba en el propio archivo: un MP3 tiene que ser CBR de 320 kbps (en «Personalizado» eliges el mínimo), un WAV o AIFF tiene que llevar PCM, y en «CDJ antiguos» los FLAC se convierten a AIFF. Si no cumple, sale «No cumple formato». El análisis de espectro marca los probables MP3 convertidos: el archivo sale «Verificado · revisar calidad», se queda en el set y «Reintentar fallos» busca otra copia.
 
 == porque.p3.titulo
 Archivos desordenados
@@ -189,13 +189,13 @@ El CSV de trackid.net, un Excel o CSV, un texto pegado o un enlace de YouTube o 
 Completar datos
 
 == como.paso2.texto
-iTunes, luego Deezer y luego MusicBrainz dan la duración y la versión exacta de cada pista. Solo se envían el artista y el título.
+iTunes, luego Deezer y luego MusicBrainz dan la duración y la versión exacta de cada pista. Solo se envían el artista y el título. Con esa duración se miden también los huecos sin identificar del CSV de trackid.net.
 
 == como.paso3.titulo
 Busca en Soulseek
 
 == como.paso3.texto
-Con el motor Sockseek y tu propia cuenta, filtrando por artista, título, duración y formato.
+Con el motor Sockseek y tu propia cuenta, filtrando por artista, título, duración y formato. Si una pista no sale, prueba otras grafías, como cada nombre de un «X aka Y» o «TR440» como «TR 440».
 
 == como.paso4.titulo
 Comprueba cada archivo
@@ -222,7 +222,7 @@ Y el informe y la tracklist con tiempos.
 Capturas
 
 == capt.lead
-La ventana real de la versión 1.0.0, con un set público. La app tiene dos temas, Hormigón y Noche: las capturas que existen en los dos cambian con el tema de esta web.
+La ventana real de la versión 1.0.1, con un set público. La app tiene dos temas, Hormigón y Noche: las capturas que existen en los dos cambian con el tema de esta web.
 
 == capt.nuevo.alt_hormigon
 La pantalla «Nuevo set» en el tema Hormigón: la tracklist de un set público de Fjaak en una tabla editable, con el nombre del set escrito y el botón para descargar.
@@ -237,13 +237,13 @@ Nuevo set
 Importas la tracklist, revisas la tabla, le pones nombre al set y pulsas «Descargar».
 
 == capt.descarga.alt
-La pantalla «Descarga» al terminar un set: cada pista con su estado, con icono y texto (Verificado, Dudoso, No encontrado, Ya en biblioteca, No cumple formato, Fallida, Omitida), y debajo los motivos de la pista seleccionada.
+La pantalla «Descarga» al terminar un set: cada pista con su estado, con icono y texto (Verificado, Verificado · revisar calidad, Dudoso, No encontrado, Ya en biblioteca, No cumple formato, Fallida, Omitida), y debajo los motivos de la pista seleccionada.
 
 == capt.descarga.titulo
 Descarga
 
 == capt.descarga.texto
-Cada pista con su estado y, debajo, los motivos de la que selecciones. Ejemplo hecho con un motor de prueba, sin conexión.
+Cada pista con su estado y, debajo, los motivos de la que selecciones. Mientras descarga, la columna Estado muestra con una barra cómo va cada pista. Ejemplo hecho con un motor de prueba, sin conexión.
 
 == capt.inicio.alt
 La pantalla de primer inicio, «Bienvenido a Tracklister»: tu cuenta de Soulseek, la carpeta de tu biblioteca, el formato y el puerto de escucha.
@@ -290,11 +290,20 @@ El archivo cuadra con su fila: confianza de 80 o más.
 == est.verificado.donde
 En la carpeta del set, con su número.
 
+== est.revisar_calidad.nombre
+Verificado · revisar calidad
+
+== est.revisar_calidad.texto
+Es la pista, pero su espectro tiene el corte de un MP3 de 256 kbps o menos: puede ser un MP3 convertido. Escucharlo no lo resuelve, porque puede sonar igual.
+
+== est.revisar_calidad.donde
+En el set, con su número. «Reintentar fallos» busca otra copia: si llega una mejor, la sustituye y esta pasa a <code>_dudosos</code>.
+
 == est.dudoso.nombre
 Dudoso
 
 == est.dudoso.texto
-Algo no cuadra, y el motivo lo dice: otra canción, otra versión, la duración, «posible lossless falso» o «revisar».
+Algo no cuadra, y el motivo lo dice: otra canción, otra versión, la duración o «revisar».
 
 == est.dudoso.donde
 Otra canción, versión o duración: en <code>_dudosos</code>. Lo demás: en el set, marcado.
@@ -321,7 +330,7 @@ Copiada a este set, con su número.
 En curso
 
 == est.en_curso.texto
-Se está buscando o descargando.
+Se está buscando, descargando o comprobando. La columna Estado lo dice con texto y una barra: «Buscando…», «Descargando 25,9 MB» o «Comprobando…».
 
 == est.en_curso.donde
 Aún no está en la carpeta del set.
@@ -455,6 +464,9 @@ Diagnóstico
 == diag.texto
 Busca unas pocas pistas en Soulseek sin descargarlas (5 de serie, como mucho 20) y explica qué candidatos aparecen y por qué acepta o rechaza cada uno. Es lo primero que conviene hacer al estrenar Tracklister, y cada vez que una pista no sale bien.
 
+== diag.grafias
+Si una pista no da resultados, prueba sus otras grafías, igual que la descarga, y dice con cuál encontró los candidatos. No usa la búsqueda a fondo del motor, para no tardar: esa la prueba «Reintentar fallos» al descargar.
+
 == diag.lleva
 Lleva la versión de Tracklister, el motor, la versión de Windows, el puerto y, por cada pista, sus candidatos: carpeta y archivo, tamaño, kbps, duración, puntuación y motivo.
 
@@ -555,19 +567,22 @@ si tu operador usa CGNAT, no podrás abrir el puerto: pídele una IP pública.
 «otra canción», «otra versión» o «duración»: el archivo está en <code>_dudosos</code>. Corrige la fila en «Nuevo set» y vuelve a descargar, o pulsa «Reintentar fallos», que la busca otra vez sin el usuario que te dio ese archivo. El archivo rechazado nunca se borra.
 
 == faq.dudoso.set
-«posible lossless falso» o «revisar»: el archivo se queda en el set, con su número, y decides tú. Con «revisar», escúchalo para confirmar que es la canción. Con «posible lossless falso», escucharlo no siempre lo resuelve: un MP3 de 320 convertido a FLAC puede sonar igual.
+«revisar»: el archivo se queda en el set, con su número, y decides tú: escúchalo para confirmar que es la canción.
 
 == faq.buena.q
 ¿Por qué una pista buena ha acabado en <code>_dudosos</code>?
 
 == faq.buena.a
-Porque el artista y el título se comparan palabra por palabra, para que «Adam Port» nunca pase por «Adam Beyer». A cambio, una errata en una palabra corta, una etiqueta con solo el apellido o sin el «DJ» acaban en <code>_dudosos</code> aunque sea la canción buena. Nunca se acepta nada en silencio: mira el archivo y decide tú.
+Porque el artista y el título se comparan palabra por palabra, para que «Adam Port» nunca pase por «Adam Beyer». A cambio, una errata en una palabra corta, una etiqueta con solo el apellido o sin el «DJ», o un archivo sin etiquetas cuyo nombre solo encaja quitándole palabras (sin una duración que lo confirme), acaban en <code>_dudosos</code> aunque sea la canción buena. El motivo dice qué no encaja. Nunca se acepta nada en silencio: mira el archivo y decide tú.
 
-== faq.falso.q
-¿Qué significa «posible lossless falso»?
+== faq.calidad.q
+¿Qué significa «Verificado · revisar calidad»?
 
-== faq.falso.a
-Que el espectro del archivo parece el de un MP3 convertido a FLAC o WAV. Es una pista, no una prueba: el archivo nunca se rechaza por eso, se queda en el set con su número y la marca en el informe. El análisis se puede apagar en «Ajustes».
+== faq.calidad.a1
+Que el archivo es la pista que pedías, pero el espectro de ese FLAC, WAV o AIFF se corta de golpe por debajo de 19,5 kHz, como el de un MP3 de 256 kbps o menos: puede ser un MP3 convertido. Escucharlo no lo resuelve, porque puede sonar igual. Por eso nunca se rechaza el archivo: se queda en el set, con su número, y «Reintentar fallos» busca otra copia sin el usuario que mandó esa. Si llega una sin la marca, o con un corte al menos 1 kHz más alto, la sustituye, y la marcada pasa a <code>_dudosos</code> sin borrarse.
+
+== faq.calidad.a2
+Un corte entre 19,5 y 20,8 kHz es tan habitual en un MP3 de 320 como en un máster legítimo, así que no se puede saber solo con el espectro: no lleva marca, solo una línea en el informe. El análisis se puede apagar en «Ajustes».
 
 == faq.vbr.q
 ¿Por qué no acepta mi MP3 VBR?
@@ -580,6 +595,9 @@ Porque en los formatos con MP3 se exige CBR, leído en el propio archivo: un VBR
 
 == faq.id.a
 Porque el número de cada archivo es el de su fila en la tracklist, así la carpeta sigue el orden real del set. Las filas «ID» (pistas sin identificar) van desmarcadas y no se descargan, pero guardan su sitio: si un día sabes cuál era, la escribes en la tabla y entra con su número.
+
+== faq.id.hueco
+Con el CSV de trackid.net también salen filas «ID (hueco)»: un tramo del set que trackid.net no identificó. Sus columnas Start y End dicen cuándo reconoció trackid.net cada pista en el set, no cuánto dura. Por eso el hueco se mide con la duración real de la pista anterior (la de iTunes, Deezer o MusicBrainz): solo sale si, aunque esa pista sonara entera, quedan más de 90 s sin cubrir hasta la siguiente. Su nota explica la cuenta.
 
 == faq.trackid.q
 ¿Puedo pegar el enlace de trackid.net?
@@ -644,7 +662,7 @@ In English
 Tracklister is a free desktop app for DJs, for Windows 10 and 11 (64-bit). Give it a DJ-set tracklist (a trackid.net CSV, an Excel or CSV file, pasted text, or a YouTube or SoundCloud link) and it fills in each track's duration and exact version from iTunes, Deezer and MusicBrainz, searches Soulseek with your own account, and checks every file: duration, artist, title, version, format and spectrum.
 
 == otro.p2
-You get a folder numbered in set order. It never accepts a doubtful file without telling you: a possible wrong song or version goes to <code>_dudosos</code> with the reason. The interface is in Spanish. Free software, GPL-3.0-or-later.
+You get a folder numbered in set order. It never accepts a doubtful file without telling you: a possible wrong song or version, or a duration that doesn't match, goes to <code>_dudosos</code> with the reason. The interface is in Spanish. Free software, GPL-3.0-or-later.
 
 == otro.descarga
 <a href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">Download the latest release on GitHub</a>.
