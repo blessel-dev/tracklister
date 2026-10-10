@@ -9,9 +9,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
   rewritten redacted when the process ends. The unredacted argv is never stored or logged.
 - Cancel kills the whole process tree.
 - Search budget: one search per item, DESPERATE_SEARCHES_PER_ITEM per item with --desperate (1.0.1, R4).
+- --print json-all (Diagnóstico): the JSON array is also read from the RAW line, in memory only
+  (EngineRunResult.json_all), before the line is redacted for stdout.txt. Redacting first broke the JSON
+  when the account was called like one of its words: a username 'file', a password 'true' (audit r4-3 N7).
+  Nothing unredacted is written to disk or sent as an event.
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -62,6 +67,7 @@ class EngineRunResult:
     stdout_path: Path
     argv_redacted: list[str] = field(default_factory=list)
     fatal_es: str | None = None      # login failed, port busy... (Spanish, for every unfinished row)
+    json_all: list | None = None     # --print json-all: the last JSON array, parsed before redaction (memory only)
 
 
 def _kill_tree(proc: subprocess.Popen) -> None:
@@ -134,11 +140,19 @@ class EngineRunner:
 
         banned = threading.Event()
         fatal: list[str] = []
+        arrays: list[list] = []
 
         def reader() -> None:
             with open(job.stdout_path, "w", encoding="utf-8", newline="\n") as out:
                 assert proc.stdout is not None
                 for raw in proc.stdout:
+                    if job.print_json_all and raw.lstrip().startswith("["):
+                        try:
+                            parsed = json.loads(raw)
+                        except ValueError:
+                            parsed = None
+                        if isinstance(parsed, list):
+                            arrays.append(parsed)
                     line = redactor.redact(raw.rstrip("\r\n"))
                     out.write(line + "\n")
                     out.flush()
@@ -170,4 +184,5 @@ class EngineRunner:
         _redact_file(job.log_path, redactor)
         outcomes = collect_outputs(job, manifest, self.spec.dialect)
         return EngineRunResult(None if cancelled else proc.returncode, cancelled, banned.is_set(), outcomes,
-                               job.log_path, job.stdout_path, argv_red, fatal[0] if fatal else None)
+                               job.log_path, job.stdout_path, argv_red, fatal[0] if fatal else None,
+                               arrays[-1] if arrays else None)

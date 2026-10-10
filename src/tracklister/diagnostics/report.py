@@ -5,29 +5,22 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 No own username/password/IP, peers as peer-1, peer-2... Checked with assert_no_secrets before
 it is returned.
+
+1.0.1 (R7): the pseudonym goes in the peer column only; the rest of the text is redacted without the
+peer names (a peer called "50" left «título distinto (peer-6%)» in his report). A candidate line seen
+several times (the same peer, folder, file, size...) is printed once with «(×N)».
 """
 from __future__ import annotations
 
 from datetime import datetime
 
 from tracklister.diagnostics.redact import Redactor, assert_no_secrets
-from tracklister.diagnostics.run import DiagRow
+from tracklister.diagnostics.run import DiagRow, mb_text as _mb, mmss_text as _mmss
 from tracklister.engine.spec import DEFAULT_ENGINE_ID, ENGINE_PINS
 from tracklister.pipeline.report import row_label
 
 SELF_CHECK = ("Comprobación: este informe no contiene tu usuario, tu contraseña ni direcciones IP; "
               "los usuarios de Soulseek aparecen como peer-1, peer-2...")
-
-
-def _mmss(s: float | None) -> str:
-    if not s:
-        return "?"
-    s = int(round(s))
-    return f"{s // 60}:{s % 60:02d}"
-
-
-def _mb(n: int | None) -> str:
-    return f"{n / (1024 * 1024):.1f} MB" if n else "? MB"
 
 
 def engine_exe(engine_id: str) -> str:
@@ -59,8 +52,9 @@ def build_report(diag: list[DiagRow], *, app_version: str, engine_id: str, windo
         for c in d.candidates:
             peer = redactor.peer(c.peer)
             br = f"{c.bitrate} kbps" if c.bitrate else "? kbps"
+            times = f" (\u00d7{c.repeats})" if c.repeats > 1 else ""
             lines.append(f"    - {peer} | {c.path_tail} | {_mb(c.size)} | {br} | {_mmss(c.duration_s)} | "
-                         f"{c.score:.0f}/100 | {c.why_es}")
+                         f"{c.score:.0f}/100 | {c.why_es}{times}")
         if d.result_es:
             lines.append(f"    Descarga: {d.result_es}")
         lines.append("")
@@ -73,6 +67,7 @@ def build_report(diag: list[DiagRow], *, app_version: str, engine_id: str, windo
                   "  4. Si otro amigo usa Tracklister en tu misma red, usad puertos distintos (Ajustes).",
                   "  5. Comprueba tu usuario y contraseña de Soulseek en Ajustes.", ""]
     lines.append(SELF_CHECK)
-    text = redactor.redact("\n".join(lines) + "\n")
+    # the peer column already holds the pseudonyms: never search the free text for peer names (R7)
+    text = redactor.redact("\n".join(lines) + "\n", peers=False)
     assert_no_secrets(text, redactor.secrets)
     return text

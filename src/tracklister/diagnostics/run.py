@@ -5,6 +5,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Search-only by default: one `--print json-all` engine process per row (keyed string input).
 Downloads happen only when the user opted in; then a normal SetSession runs on a temporary set.
+
+1.0.1 (R7): candidates that would print the same line (same peer, folder and file, size, bitrate,
+duration and verdict) are listed once, with CandidateLine.repeats; his report showed one peer's file
+three times. The results come from the engine's JSON as read before redaction (EngineRunResult.json_all,
+audit r4-3 N7); the report censors the text afterwards.
 """
 from __future__ import annotations
 
@@ -42,6 +47,20 @@ class CandidateLine:
     accepted: bool
     why_es: str
     samplerate: int | None = None
+    repeats: int = 1                 # identical lines merged into this one (the report adds «(×N)»)
+
+
+def mb_text(n: int | None) -> str:
+    """A size as the report shows it: '41.0 MB', or '? MB'."""
+    return f"{n / (1024 * 1024):.1f} MB" if n else "? MB"
+
+
+def mmss_text(s: float | None) -> str:
+    """A duration as the report shows it: '6:24', or '?'."""
+    if not s:
+        return "?"
+    s = int(round(s))
+    return f"{s // 60}:{s % 60:02d}"
 
 
 @dataclass
@@ -179,29 +198,41 @@ def run_diagnostic(rows: list[TrackRow], runner: EngineRunner, creds: Credential
         if res.banned:
             d.error_es = "Soulseek cortó la sesión durante la búsqueda."
             break
-        arr = _parse_json_line(res.stdout_path)
+        arr = res.json_all if res.json_all is not None else _parse_json_line(res.stdout_path)
         if arr is None:
             d.error_es = ("El motor no devolvió resultados (sin conexión, usuario o contraseña incorrectos, "
                           "o búsqueda cancelada).")
         else:
             accepted_one = False
-            for c in arr[:MAX_CANDIDATES]:
-                user = (c.get("User") or {}).get("Username") or "?"
+            shown: dict[tuple, CandidateLine] = {}
+            for c in arr:
+                if not isinstance(c, dict):
+                    continue
+                user = str((c.get("User") or {}).get("Username") or "?")
                 f = c.get("File") or {}
-                filename = f.get("Filename") or ""
+                filename = str(f.get("Filename") or "")
                 parts = [p for p in filename.replace("/", "\\").split("\\") if p]
                 tail = "\\".join(parts[-2:])
                 dur = f.get("Length")
+                dur = float(dur) if dur else None
                 br = f.get("Bitrate")
-                score, ok, why = judge_candidate(row, fmt, filename, float(dur) if dur else None, br)
+                score, ok, why = judge_candidate(row, fmt, filename, dur, br)
+                # what the line will show, before 'elegido'/'aceptable, pero...': the same file of the same peer
+                # listed again (another share folder, the same folder twice) is one line with «(×N)»
+                key = (user, tail, mb_text(f.get("Size")), br, mmss_text(dur), round(score), ok, why)
+                if key in shown:
+                    shown[key].repeats += 1
+                    continue
+                if len(d.candidates) >= MAX_CANDIDATES:
+                    continue
                 if ok and accepted_one:
                     why = "aceptable, pero el motor se queda con el primero que cumple"
                     ok = False
                 if ok:
                     accepted_one = True
                     why = "elegido: " + why
-                d.candidates.append(CandidateLine(user, tail, f.get("Size"), br, float(dur) if dur else None,
-                                                  score, ok, why, f.get("SampleRate")))
+                shown[key] = CandidateLine(user, tail, f.get("Size"), br, dur, score, ok, why, f.get("SampleRate"))
+                d.candidates.append(shown[key])
             if not arr:
                 d.error_es = "Sin resultados en Soulseek para esta búsqueda."
         shutil.rmtree(work, ignore_errors=True)

@@ -101,6 +101,29 @@ def test_runner_cancel_kills_the_process(tmp_path):
     assert res.outcomes[1].file is None
 
 
+def test_r7_n7_json_all_is_read_before_redaction_and_kept_in_memory_only(tmp_path):
+    """Audit r4-3 N7: with the password 'true' and the username 'file', the redacted line is no longer JSON
+    ('"HasFreeUploadSlot":[censurado]', '"[censurado]":{...}'). The runner parses the raw line in memory;
+    stdout.txt and engine.log stay redacted."""
+    rows, net = build_scenario("correcto", tmp_path / "net")
+    creds = Credentials("file", "true")
+    work = tmp_path / "w"
+    item = write_engine_csv(rows[:1], work / "input.csv")
+    job = EngineJob(work, build_preset("lossless").passes[0], True, 49998, print_json_all=True,
+                    input_override="artist=Fjaak, title=Spirit, length=30")
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(tmp_path / "b.json"),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    res = runner.run(job, item, creds, lambda e: None, threading.Event())
+    assert [c["File"]["Filename"] for c in res.json_all] == ["@@musica\\Fjaak\\Live 2026\\Fjaak - Spirit.flac"]
+    on_disk = (res.stdout_path.read_text(encoding="utf-8") + res.log_path.read_text(encoding="utf-8")).lower()
+    assert "true" not in on_disk and "file" not in on_disk and "[censurado]" in on_disk
+    # a normal pass keeps nothing in memory
+    plain = runner.run(EngineJob(tmp_path / "w2", build_preset("lossless").passes[0], True, 49998),
+                       write_engine_csv(rows[:1], tmp_path / "w2" / "input.csv"), CREDS, lambda e: None,
+                       threading.Event())
+    assert plain.json_all is None
+
+
 def test_r4_desperate_reserves_seven_searches_per_item(tmp_path):
     """1.0.1, R4: --desperate makes up to 7 searches per item; all of them go in the app-wide budget."""
     from tracklister.core.jsonio import read_json

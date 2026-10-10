@@ -175,6 +175,81 @@ def test_r4_v_diagnostic_rejects_the_originals_radio_edit_for_the_remixs_radio_e
     assert ok and score >= 80, why
 
 
+def _his_report(diag, redactor=None):
+    return build_report(diag, app_version="1.0.1", engine_id="sockseek-3.0.5", windows_version="Windows 11",
+                        listen_port=49998, redactor=redactor or Redactor(secrets=[CREDS.username, CREDS.password]))
+
+
+def test_r7_pseudonyms_only_in_the_peer_column(tmp_path):
+    """1.0.1, R7 (audit r4-3 N8), with his Diagnóstico: peers whose names are numbers or '?' used to turn
+    «título distinto (50%)» into «(peer-6%)» and «? MB» into «peer-1 MB». Invented folder names."""
+    from tracklister.diagnostics.run import CandidateLine, DiagRow
+    from tests.fakes.scenarios import row
+    trip = DiagRow(row(3, "Red Rooms", "Trip", dur=305), candidates=[
+        CandidateLine("29", "Carpeta Ejemplo\\Red Rooms - Trip.flac", 31_352_422, None, 305, 100, True,
+                      "elegido: aceptable: confianza 100/100"),
+        CandidateLine("50", "Otra Carpeta\\04-red_rooms-trip.flac", None, None, 305, 49, False,
+                      "rechazado: título distinto (50%)"),
+        CandidateLine("?", "Lista Ejemplo\\Red Rooms - Trip (Original Mix) 140.flac", None, None, 305, 49, False,
+                      "rechazado: título distinto (29%)")])
+    kwartz = DiagRow(row(5, "Kwartz", "Show me that light", "Cleric Remix", dur=385), candidates=[
+        CandidateLine("6", "Kwartz - Show Me That Light EP\\Kwartz - Show me that light.flac", 42_991_616, 1411, 384,
+                      49, False, "rechazado: otra versión (se pedía 'Cleric Remix' y el archivo es la original)")])
+    text = _his_report([trip, kwartz])
+    assert ("    - peer-1 | Carpeta Ejemplo\\Red Rooms - Trip.flac | 29.9 MB | ? kbps | 5:05 | 100/100 | "
+            "elegido: aceptable: confianza 100/100") in text
+    assert "    - peer-2 | Otra Carpeta\\04-red_rooms-trip.flac | ? MB | ? kbps | 5:05 | 49/100 | " \
+           "rechazado: título distinto (50%)" in text
+    assert "    - peer-3 | Lista Ejemplo\\Red Rooms - Trip (Original Mix) 140.flac | ? MB | ? kbps | 5:05 | 49/100 | " \
+           "rechazado: título distinto (29%)" in text
+    assert "    - peer-4 | Kwartz - Show Me That Light EP\\Kwartz - Show me that light.flac | 41.0 MB | 1411 kbps | " \
+           "6:24 | 49/100 | rechazado: otra versión" in text
+    assert "peer-6%" not in text and "peer-1 MB" not in text and "(×" not in text
+    assert "duración esperada 5:05" in text and "duración esperada 6:25" in text
+
+
+def test_r7_identical_candidate_lines_become_one(tmp_path):
+    """1.0.1, R7: his report listed the same file of one peer 3 times (the same folder under 3 shares)."""
+    _, net = build_scenario("sin_resultados", tmp_path / "net")
+    data = json.loads(net.read_text(encoding="utf-8"))
+    tail = "Kwartz - Show Me That Light EP\\Kwartz - Show me that light (Cleric Remix).flac"
+    other = "Kwartz Picks\\Other Artist - Show me that light (Cleric Remix).flac"
+    data["files"] = ([file("peerG", f"@@{root}\\{tail}", "Kwartz", "Show me that light (Cleric Remix)", 384,
+                           size=42_991_616) for root in ("a\\Musica", "b\\Copia", "c\\Otra")]
+                     + [file("peerH", f"@@d\\{tail}", "Kwartz", "Show me that light (Cleric Remix)", 384, size=42_991_616)]
+                     + [file("peerK", f"@@{root}\\{other}", "Other Artist", "Show me that light (Cleric Remix)", 384,
+                             size=42_000_000) for root in ("e", "f", "g")])
+    net.write_text(json.dumps(data), encoding="utf-8")
+    paths = app_paths().ensure()
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    from tests.fakes.scenarios import row
+    diag = run_diagnostic([row(5, "Kwartz", "Show me that light", "Cleric Remix", dur=385)], runner, CREDS,
+                          paths=paths, settings=Settings())
+    c = diag[0].candidates
+    assert [(x.peer, x.repeats) for x in c] == [("peerG", 3), ("peerH", 1), ("peerK", 3)]
+    assert c[0].why_es.startswith("elegido") and not c[1].accepted and "primero que cumple" in c[1].why_es
+    assert not c[2].accepted
+    text = _his_report(diag)
+    assert text.count(tail) == 2 and text.count(other) == 1
+    line = next(x for x in text.splitlines() if tail in x and "elegido" in x)
+    assert line.startswith("    - peer-1 | ") and line.endswith(" (×3)")
+    assert next(x for x in text.splitlines() if other in x).endswith(" (×3)")
+    assert not next(x for x in text.splitlines() if "primero que cumple" in x).endswith(")")
+
+
+def test_r7_n7_an_account_named_like_a_word_of_the_engines_json(tmp_path):
+    """Audit r4-3 N7: the JSON was parsed after redaction, so a password 'true' or a username 'file'
+    broke it and the Diagnóstico said «El motor no devolvió resultados». Now it is read before."""
+    rows, runner, paths = _setup(tmp_path)
+    creds = Credentials("file", "true")
+    diag = run_diagnostic(rows, runner, creds, paths=paths, settings=Settings())
+    assert [len(d.candidates) for d in diag] == [2, 1] and all(d.error_es is None for d in diag)
+    assert diag[0].candidates[1].path_tail == "Live 2026\\Fjaak - Spirit.flac"
+    text = _his_report(diag, Redactor(secrets=[creds.username, creds.password]))
+    assert "elegido" in text and "true" not in text.lower() and "file" not in text.lower()
+
+
 def test_download_only_when_opted_in(tmp_path):
     rows, runner, paths = _setup(tmp_path)
     diag = run_diagnostic(rows, runner, CREDS, download=True, max_rows=1, paths=paths, settings=Settings())
