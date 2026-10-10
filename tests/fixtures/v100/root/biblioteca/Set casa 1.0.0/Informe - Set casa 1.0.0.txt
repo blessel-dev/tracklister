@@ -1,0 +1,45 @@
+Informe de Tracklister - Set casa 1.0.0
+
+Preset: Lossless   Motor: fake:sockseek-3.0.5
+Actualizado: 2026-10-10T13:14:37
+
+Resumen: verificado 4, dudoso 6, no encontrado 1, omitida 1
+
+01. Komplex aka Jeroen Search - Inject  [No encontrado]
+    - Soulseek no devolvió ningún resultado para esta búsqueda. (formatos: flac, wav, aiff, aif)
+02. Red Rooms - Trip  [Dudoso: otra canción (en _dudosos), confianza 49/100]
+    Archivo: _dudosos/02 - Red Rooms - Trip.flac
+    - Sin etiquetas: identificado por el nombre del archivo.
+    - Otro título: 'red rooms' no tiene las mismas palabras que 'Trip', así que es otra pista.
+03. Kwartz - Show Me That Light (Cleric Remix)  [Verificado, confianza 100/100]
+    Archivo: 03 - Kwartz - Show Me That Light (Cleric Remix).flac
+04. Rene Wise - Dynamic  [Dudoso: posible lossless falso (se queda en el set), confianza 79/100]
+    Archivo: 04 - Rene Wise - Dynamic.flac
+    - Posible lossless falso: corte brusco a 18.8 kHz (cae 84 dB y no hay nada por encima). Se queda en el set, marcado.
+    ! Marca: posible lossless falso. Escúchalo antes de pincharlo.
+05. Justine Perry - Nova Voyager  [Dudoso: posible lossless falso (se queda en el set), confianza 79/100]
+    Archivo: 05 - Justine Perry - Nova Voyager.flac
+    - Posible lossless falso: corte brusco a 20.2 kHz (cae 84 dB y no hay nada por encima). Se queda en el set, marcado.
+    ! Marca: posible lossless falso. Escúchalo antes de pincharlo.
+06. Border One - Spectral Tension  [Dudoso: posible lossless falso (se queda en el set), confianza 79/100]
+    Archivo: 06 - Border One - Spectral Tension.flac
+    - Posible lossless falso: corte brusco a 16.2 kHz (cae 84 dB y no hay nada por encima). Se queda en el set, marcado.
+    ! Marca: posible lossless falso. Escúchalo antes de pincharlo.
+07. GCOD & KYSH Records - Incentive Systems  [Verificado, confianza 100/100]
+    Archivo: 07 - GCOD & KYSH Records - Incentive Systems.flac
+08. ID - ID  [Omitida]
+    - Fila desmarcada (ID o revisar): no se descarga.
+09. 13130 Space Project - Talitha  [Dudoso: otra canción (en _dudosos), confianza 49/100]
+    Archivo: _dudosos/09 - 13130 Space Project - Talitha.flac
+    - Otro título: 'Talitha (Original Mix) electronicfresh.com' no tiene las mismas palabras que 'Talitha', así que es otra pista.
+10. Confusion & Tino Machauer - Interchange III  [Dudoso: otra versión (en _dudosos), confianza 49/100]
+    Archivo: _dudosos/10 - Confusion & Tino Machauer - Interchange III.flac
+    - Otra versión: se pedía la original y el archivo es 'Radio Edit'.
+    - Duración 5 s; se esperaban 12 s (7 s de diferencia).
+11. Miss Kittin & The Hacker - 1982  [Verificado, confianza 100/100]
+    Archivo: 11 - Miss Kittin & The Hacker - 1982.flac
+12. Fjaak - Spirit (Radio Edit - Kai Remix)  [Verificado, confianza 100/100]
+    Archivo: 12 - Fjaak - Spirit (Radio Edit - Kai Remix).flac
+
+Las dudas de identidad, versión o duración están en la carpeta _dudosos.
+Los FLAC originales convertidos para CDJ antiguos están en _originales.

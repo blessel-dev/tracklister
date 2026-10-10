@@ -1,0 +1,754 @@
+{
+  "schema": "tracklister.set/1",
+  "set_id": "eca75c21f365",
+  "name": "Set casa 1.0.0",
+  "preset_id": "lossless",
+  "preset_snapshot": {
+    "id": "lossless",
+    "label_es": "Lossless",
+    "passes": [
+      {
+        "name": "lossless",
+        "formats": [
+          "flac",
+          "wav",
+          "aiff",
+          "aif"
+        ],
+        "min_bitrate": null,
+        "max_samplerate": null,
+        "lossy": false,
+        "strict_artist": true,
+        "strict_title": true,
+        "length_tol_s": 3
+      },
+      {
+        "name": "mp3_320",
+        "formats": [
+          "mp3"
+        ],
+        "min_bitrate": 320,
+        "max_samplerate": null,
+        "lossy": true,
+        "strict_artist": true,
+        "strict_title": true,
+        "length_tol_s": 3
+      }
+    ],
+    "accept": {
+      "containers": [
+        "aiff",
+        "flac",
+        "wav"
+      ],
+      "convert_to_aiff": [],
+      "mp3_min_kbps": 320,
+      "max_samplerate": null,
+      "max_bitdepth": null
+    }
+  },
+  "created_at": "2026-10-10T13:14:34",
+  "updated_at": "2026-10-10T13:14:37",
+  "app_version": "1.0.0",
+  "sources": [
+    {
+      "kind": "youtube_comment",
+      "ref": "comentario.txt",
+      "detail": "youtube_comment:@ejemplo",
+      "imported_at": null
+    }
+  ],
+  "rows": [
+    {
+      "pos": 1,
+      "title": "Inject",
+      "artists": [
+        "Komplex aka Jeroen Search"
+      ],
+      "artist_display": "Komplex aka Jeroen Search",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "7f3ac7f7a5c7"
+    },
+    {
+      "pos": 2,
+      "title": "Trip",
+      "artists": [
+        "Red Rooms"
+      ],
+      "artist_display": "Red Rooms",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "98c0396a7b7d"
+    },
+    {
+      "pos": 3,
+      "title": "Show Me That Light",
+      "artists": [
+        "Kwartz"
+      ],
+      "artist_display": "Kwartz",
+      "version": "Cleric Remix",
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "d7014da4084f"
+    },
+    {
+      "pos": 4,
+      "title": "Dynamic",
+      "artists": [
+        "Rene Wise"
+      ],
+      "artist_display": "Rene Wise",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "ada0cb807e2e"
+    },
+    {
+      "pos": 5,
+      "title": "Nova Voyager",
+      "artists": [
+        "Justine Perry"
+      ],
+      "artist_display": "Justine Perry",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "3f9c329e7728"
+    },
+    {
+      "pos": 6,
+      "title": "Spectral Tension",
+      "artists": [
+        "Border One"
+      ],
+      "artist_display": "Border One",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "fe84028cfd1b"
+    },
+    {
+      "pos": 7,
+      "title": "Incentive Systems",
+      "artists": [
+        "GCOD",
+        "KYSH Records"
+      ],
+      "artist_display": "GCOD & KYSH Records",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "031180d7e880"
+    },
+    {
+      "pos": 8,
+      "title": "ID",
+      "artists": [],
+      "artist_display": "ID",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": null,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.0,
+      "is_id": true,
+      "status": "id",
+      "notes": [],
+      "raw": "",
+      "download": false,
+      "enrich_source": null,
+      "uid": "368c0914b7c1"
+    },
+    {
+      "pos": 9,
+      "title": "Talitha",
+      "artists": [
+        "13130 Space Project"
+      ],
+      "artist_display": "13130 Space Project",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "56c8e24456ef"
+    },
+    {
+      "pos": 10,
+      "title": "Interchange III",
+      "artists": [
+        "Confusion",
+        "Tino Machauer"
+      ],
+      "artist_display": "Confusion & Tino Machauer",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "f9f0ea50735a"
+    },
+    {
+      "pos": 11,
+      "title": "1982",
+      "artists": [
+        "Miss Kittin",
+        "The Hacker"
+      ],
+      "artist_display": "Miss Kittin & The Hacker",
+      "version": null,
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "1b425f2b0a0b"
+    },
+    {
+      "pos": 12,
+      "title": "Spirit",
+      "artists": [
+        "Fjaak"
+      ],
+      "artist_display": "Fjaak",
+      "version": "Radio Edit - Kai Remix",
+      "feat": null,
+      "label": null,
+      "ts_start": null,
+      "ts_end": null,
+      "expected_duration_s": 12,
+      "ids": {
+        "isrc": null,
+        "itunes": null,
+        "deezer": null,
+        "mbid": null
+      },
+      "source": "youtube_comment",
+      "source_url": null,
+      "confidence": 0.9,
+      "is_id": false,
+      "status": "ok",
+      "notes": [],
+      "raw": "",
+      "download": true,
+      "enrich_source": null,
+      "uid": "1c1767a815a4"
+    }
+  ],
+  "results": {
+    "7f3ac7f7a5c7": {
+      "uid": "7f3ac7f7a5c7",
+      "pos": 1,
+      "state": "no_encontrado",
+      "doubt": null,
+      "score": null,
+      "reasons": [
+        "Soulseek no devolvió ningún resultado para esta búsqueda. (formatos: flac, wav, aiff, aif)"
+      ],
+      "flags": [],
+      "file": null,
+      "original_file": null,
+      "source_path_tail": null,
+      "peer": null,
+      "format": null,
+      "duration_s": null,
+      "bitrate_kbps": null,
+      "samplerate": null,
+      "bitdepth": null,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:36",
+      "rejected_peers": []
+    },
+    "98c0396a7b7d": {
+      "uid": "98c0396a7b7d",
+      "pos": 2,
+      "state": "dudoso",
+      "doubt": "identidad",
+      "score": 49,
+      "reasons": [
+        "Sin etiquetas: identificado por el nombre del archivo.",
+        "Otro título: 'red rooms' no tiene las mismas palabras que 'Trip', así que es otra pista."
+      ],
+      "flags": [
+        "sin_tags"
+      ],
+      "file": "_dudosos/02 - Red Rooms - Trip.flac",
+      "original_file": null,
+      "source_path_tail": "Red_Rooms-Blind_Spot-(PHORUM004)-16BIT-WEB-FLAC-2026-PTC\\04-red_rooms-trip.flac",
+      "peer": "peerA",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:36",
+      "rejected_peers": [
+        "peerA"
+      ]
+    },
+    "d7014da4084f": {
+      "uid": "d7014da4084f",
+      "pos": 3,
+      "state": "verificado",
+      "doubt": null,
+      "score": 100,
+      "reasons": [],
+      "flags": [],
+      "file": "03 - Kwartz - Show Me That Light (Cleric Remix).flac",
+      "original_file": null,
+      "source_path_tail": "Musica Inventada\\Kwartz - Show Me That Light (Cleric Remix).flac",
+      "peer": "peerB",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:36",
+      "rejected_peers": []
+    },
+    "ada0cb807e2e": {
+      "uid": "ada0cb807e2e",
+      "pos": 4,
+      "state": "dudoso",
+      "doubt": "espectro",
+      "score": 79,
+      "reasons": [
+        "Posible lossless falso: corte brusco a 18.8 kHz (cae 84 dB y no hay nada por encima). Se queda en el set, marcado."
+      ],
+      "flags": [
+        "posible_falso_lossless"
+      ],
+      "file": "04 - Rene Wise - Dynamic.flac",
+      "original_file": null,
+      "source_path_tail": "Musica Inventada\\Rene Wise - Dynamic.flac",
+      "peer": "peerC",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:36",
+      "rejected_peers": []
+    },
+    "3f9c329e7728": {
+      "uid": "3f9c329e7728",
+      "pos": 5,
+      "state": "dudoso",
+      "doubt": "espectro",
+      "score": 79,
+      "reasons": [
+        "Posible lossless falso: corte brusco a 20.2 kHz (cae 84 dB y no hay nada por encima). Se queda en el set, marcado."
+      ],
+      "flags": [
+        "posible_falso_lossless"
+      ],
+      "file": "05 - Justine Perry - Nova Voyager.flac",
+      "original_file": null,
+      "source_path_tail": "Musica Inventada\\Justine Perry - Nova Voyager.flac",
+      "peer": "peerC",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:36",
+      "rejected_peers": []
+    },
+    "fe84028cfd1b": {
+      "uid": "fe84028cfd1b",
+      "pos": 6,
+      "state": "dudoso",
+      "doubt": "espectro",
+      "score": 79,
+      "reasons": [
+        "Posible lossless falso: corte brusco a 16.2 kHz (cae 84 dB y no hay nada por encima). Se queda en el set, marcado."
+      ],
+      "flags": [
+        "posible_falso_lossless"
+      ],
+      "file": "06 - Border One - Spectral Tension.flac",
+      "original_file": null,
+      "source_path_tail": "Otra Carpeta\\Border One - Spectral Tension.flac",
+      "peer": "peerD",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:37",
+      "rejected_peers": []
+    },
+    "031180d7e880": {
+      "uid": "031180d7e880",
+      "pos": 7,
+      "state": "verificado",
+      "doubt": null,
+      "score": 100,
+      "reasons": [],
+      "flags": [],
+      "file": "07 - GCOD & KYSH Records - Incentive Systems.flac",
+      "original_file": null,
+      "source_path_tail": "Musica Inventada\\GCOD & KYSH Records - Incentive Systems.flac",
+      "peer": "peerB",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:37",
+      "rejected_peers": []
+    },
+    "368c0914b7c1": {
+      "uid": "368c0914b7c1",
+      "pos": 8,
+      "state": "omitida",
+      "doubt": null,
+      "score": null,
+      "reasons": [
+        "Fila desmarcada (ID o revisar): no se descarga."
+      ],
+      "flags": [],
+      "file": null,
+      "original_file": null,
+      "source_path_tail": null,
+      "peer": null,
+      "format": null,
+      "duration_s": null,
+      "bitrate_kbps": null,
+      "samplerate": null,
+      "bitdepth": null,
+      "pass_name": null,
+      "attempts": 0,
+      "updated_at": null,
+      "rejected_peers": []
+    },
+    "56c8e24456ef": {
+      "uid": "56c8e24456ef",
+      "pos": 9,
+      "state": "dudoso",
+      "doubt": "identidad",
+      "score": 49,
+      "reasons": [
+        "Otro título: 'Talitha (Original Mix) electronicfresh.com' no tiene las mismas palabras que 'Talitha', así que es otra pista."
+      ],
+      "flags": [],
+      "file": "_dudosos/09 - 13130 Space Project - Talitha.flac",
+      "original_file": null,
+      "source_path_tail": "Musica Inventada\\13130 Space Project - Talitha (Original Mix).flac",
+      "peer": "peerE",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:37",
+      "rejected_peers": [
+        "peerE"
+      ]
+    },
+    "f9f0ea50735a": {
+      "uid": "f9f0ea50735a",
+      "pos": 10,
+      "state": "dudoso",
+      "doubt": "version",
+      "score": 49,
+      "reasons": [
+        "Otra versión: se pedía la original y el archivo es 'Radio Edit'.",
+        "Duración 5 s; se esperaban 12 s (7 s de diferencia)."
+      ],
+      "flags": [],
+      "file": "_dudosos/10 - Confusion & Tino Machauer - Interchange III.flac",
+      "original_file": null,
+      "source_path_tail": "Musica Inventada\\Confusion & Tino Machauer - Interchange III (Radio Edit).flac",
+      "peer": "peerF",
+      "format": "flac",
+      "duration_s": 5.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:37",
+      "rejected_peers": [
+        "peerF"
+      ]
+    },
+    "1b425f2b0a0b": {
+      "uid": "1b425f2b0a0b",
+      "pos": 11,
+      "state": "verificado",
+      "doubt": null,
+      "score": 100,
+      "reasons": [],
+      "flags": [],
+      "file": "11 - Miss Kittin & The Hacker - 1982.flac",
+      "original_file": null,
+      "source_path_tail": "Musica Inventada\\Miss Kittin & The Hacker - 1982.flac",
+      "peer": "peerB",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:37",
+      "rejected_peers": []
+    },
+    "1c1767a815a4": {
+      "uid": "1c1767a815a4",
+      "pos": 12,
+      "state": "verificado",
+      "doubt": null,
+      "score": 100,
+      "reasons": [],
+      "flags": [],
+      "file": "12 - Fjaak - Spirit (Radio Edit - Kai Remix).flac",
+      "original_file": null,
+      "source_path_tail": "Musica Inventada\\Fjaak - Spirit (Kai Remix) (Radio Edit).flac",
+      "peer": "peerG",
+      "format": "flac",
+      "duration_s": 12.0,
+      "bitrate_kbps": null,
+      "samplerate": 44100,
+      "bitdepth": 16,
+      "pass_name": "lossless",
+      "attempts": 1,
+      "updated_at": "2026-10-10T13:14:37",
+      "rejected_peers": []
+    }
+  },
+  "passes": [
+    {
+      "index": 1,
+      "name": "lossless",
+      "engine": "fake:sockseek-3.0.5",
+      "uids": [
+        "7f3ac7f7a5c7",
+        "98c0396a7b7d",
+        "d7014da4084f",
+        "ada0cb807e2e",
+        "3f9c329e7728",
+        "fe84028cfd1b",
+        "031180d7e880",
+        "56c8e24456ef",
+        "f9f0ea50735a",
+        "1b425f2b0a0b",
+        "1c1767a815a4"
+      ],
+      "started_at": "2026-10-10T13:14:34",
+      "finished_at": "2026-10-10T13:14:36",
+      "exit_code": 1,
+      "work_dir": "{ROOT}\\home\\data\\work\\eca75c21\\p01"
+    }
+  ],
+  "lossy_approved": [],
+  "duplicate_choices": {},
+  "lossy_asked": [
+    "7f3ac7f7a5c7",
+    "98c0396a7b7d",
+    "56c8e24456ef",
+    "f9f0ea50735a"
+  ]
+}

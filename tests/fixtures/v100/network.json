@@ -1,0 +1,199 @@
+{
+ "schema": "tracklister.fakenet/1",
+ "search_delay_ms": 0,
+ "ban_after_searches": null,
+ "peers": {},
+ "files": [
+  {
+   "peer": "peerA",
+   "path": "@@inventado\\Red_Rooms-Blind_Spot-(PHORUM004)-16BIT-WEB-FLAC-2026-PTC\\04-red_rooms-trip.flac",
+   "artist": "Red Rooms",
+   "title": "Trip",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": null,
+    "truncate_to_s": null,
+    "tags": false,
+    "tag_title": null,
+    "tag_artist": null
+   }
+  },
+  {
+   "peer": "peerB",
+   "path": "@@inventado\\Musica Inventada\\Kwartz - Show Me That Light (Cleric Remix).flac",
+   "artist": "Kwartz",
+   "title": "Show Me That Light (Cleric Remix)",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": null,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": null,
+    "tag_artist": null
+   }
+  },
+  {
+   "peer": "peerC",
+   "path": "@@inventado\\Musica Inventada\\Rene Wise - Dynamic.flac",
+   "artist": "Rene Wise",
+   "title": "Dynamic",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": 19000,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": null,
+    "tag_artist": null
+   }
+  },
+  {
+   "peer": "peerC",
+   "path": "@@inventado\\Musica Inventada\\Justine Perry - Nova Voyager.flac",
+   "artist": "Justine Perry",
+   "title": "Nova Voyager",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": 20500,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": null,
+    "tag_artist": null
+   }
+  },
+  {
+   "peer": "peerD",
+   "path": "@@inventado\\Otra Carpeta\\Border One - Spectral Tension.flac",
+   "artist": "Border One",
+   "title": "Spectral Tension",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": 16500,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": null,
+    "tag_artist": null
+   }
+  },
+  {
+   "peer": "peerB",
+   "path": "@@inventado\\Musica Inventada\\GCOD & KYSH Records - Incentive Systems.flac",
+   "artist": "GCOD & KYSH Records",
+   "title": "Incentive Systems",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": null,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": null,
+    "tag_artist": null
+   }
+  },
+  {
+   "peer": "peerE",
+   "path": "@@inventado\\Musica Inventada\\13130 Space Project - Talitha (Original Mix).flac",
+   "artist": "13130 Space Project",
+   "title": "Talitha",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": null,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": "Talitha (Original Mix) electronicfresh.com",
+    "tag_artist": null
+   }
+  },
+  {
+   "peer": "peerF",
+   "path": "@@inventado\\Musica Inventada\\Confusion & Tino Machauer - Interchange III (Radio Edit).flac",
+   "artist": "Confusion & Tino Machauer",
+   "title": "Interchange III (Radio Edit)",
+   "duration_s": 5,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": null,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": null,
+    "tag_artist": null
+   },
+   "announce_length": false
+  },
+  {
+   "peer": "peerB",
+   "path": "@@inventado\\Musica Inventada\\Miss Kittin & The Hacker - 1982.flac",
+   "artist": "Miss Kittin & The Hacker",
+   "title": "1982",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": null,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": null,
+    "tag_artist": null
+   }
+  },
+  {
+   "peer": "peerG",
+   "path": "@@inventado\\Musica Inventada\\Fjaak - Spirit (Kai Remix) (Radio Edit).flac",
+   "artist": "Fjaak",
+   "title": "Spirit (Kai Remix) (Radio Edit)",
+   "duration_s": 12,
+   "format": "flac",
+   "samplerate": 44100,
+   "bitdepth": 16,
+   "bitrate_kbps": null,
+   "vbr": false,
+   "audio": {
+    "lowpass_hz": null,
+    "truncate_to_s": null,
+    "tags": true,
+    "tag_title": null,
+    "tag_artist": null
+   }
+  }
+ ]
+}
