@@ -90,12 +90,15 @@ def test_diagnostic_waits_for_a_running_download(window, tmp_path):
 
 
 def test_reused_file_shows_its_fake_lossless_mark(window, tmp_path):
+    # 1.0.1 (R6): the mark a reused file carries reads «probable MP3 convertido» (the 1.0.0 flag too)
     m = window.results.model
     res = RowResult(uid="u", pos=1, state=ResultState.YA_EN_BIBLIOTECA, flags=["reutilizado", "posible_falso_lossless"])
-    assert m.state_text(res) == "Ya en biblioteca · posible lossless falso"
+    assert m.state_text(res) == "Ya en biblioteca · probable MP3 convertido"
+    new = RowResult(uid="w", pos=3, state=ResultState.YA_EN_BIBLIOTECA, flags=["reutilizado", "probable_mp3_convertido"])
+    assert m.state_text(new) == "Ya en biblioteca · probable MP3 convertido"
     plain = RowResult(uid="v", pos=2, state=ResultState.YA_EN_BIBLIOTECA, flags=["reutilizado"])
     assert m.state_text(plain) == "Ya en biblioteca"
     e = LibraryEntry(key="k", artist_norm="dj dextro", title_norm="covil dos abutres", version_kind="original",
                      path=str(tmp_path / "x.flac"), set_id="a", set_name="Set A", pos=1, format="flac",
                      flags=["posible_falso_lossless"])
-    assert _entry_text(e).endswith("marcado: posible lossless falso")
+    assert _entry_text(e).endswith("marcado: probable MP3 convertido")

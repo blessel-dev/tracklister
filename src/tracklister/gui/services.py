@@ -160,6 +160,33 @@ class Services:
         from tracklister.inputs.merge import merge_sources
         return merge_sources(base, extra)
 
+    def merge_rows_detailed(self, base: list[TrackRow], extra: list[TrackRow], *, keep_positions: bool = False):
+        """inputs.merge.MergeResult: rows + which uids were inserted, replaced an ID row or were appended."""
+        from tracklister.inputs.merge import merge_sources_detailed
+        return merge_sources_detailed(base, extra, keep_positions=keep_positions)
+
+    def recompute_gaps(self, rows: list[TrackRow], dismissed=()):
+        """inputs.gaps.GapRecompute with the durations the rows have now (R1): only for tables with trackid.net
+        rows; the caller makes sure the set has never been downloaded."""
+        from tracklister.inputs.gaps import recompute_gaps
+        return recompute_gaps(rows, threshold_s=int(self.settings.gap_id_threshold_s), dismissed=dismissed)
+
+    def gap_keys(self, rows: list[TrackRow], indices) -> list:
+        """inputs.gaps.gap_key of the automatic gap rows among `indices` (the window remembers the gaps the
+        user deletes, so 'Completar datos' does not bring them back)."""
+        try:
+            from tracklister.inputs.gaps import gap_key, is_auto_gap
+        except ImportError:
+            return []
+        return [gap_key(rows, i) for i in indices if 0 <= i < len(rows) and is_auto_gap(rows[i])]
+
+    def set_has_files(self, name: str) -> bool:
+        """Does the set folder of this name already hold files of the set? (decision B: from then on its
+        rows are never renumbered on their own)."""
+        from tracklister.pipeline.session import set_has_files
+        d = self.set_dir_for(name) if name else None
+        return d is not None and set_has_files(d)
+
     def is_trackid_csv(self, path: Path) -> bool:
         try:
             from tracklister.inputs.detect import InputKind, detect

@@ -1,0 +1,216 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Confusion Space"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 15,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6798331029,
+     "artistName": "CONFUSION (RASEREI)",
+     "trackName": "Space",
+     "collectionName": "In Cycles",
+     "trackTimeMillis": 335466,
+     "releaseDate": "2026-09-11T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1602612825,
+     "artistName": "Robotiko Rejekto",
+     "trackName": "Confusion",
+     "collectionName": "The Cyper Space",
+     "trackTimeMillis": 181141,
+     "releaseDate": "1990-09-09T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1251190657,
+     "artistName": "Michael Kopelow",
+     "trackName": "Confusion",
+     "collectionName": "Wasted Space",
+     "trackTimeMillis": 59331,
+     "releaseDate": "2017-06-19T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 357823634,
+     "artistName": "Lucky Boys Confusion",
+     "trackName": "Slip",
+     "collectionName": "Throwing the Game",
+     "trackTimeMillis": 475067,
+     "releaseDate": "2001-05-08T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1814454647,
+     "artistName": "Zero 7 & Tina Dico",
+     "trackName": "The Space Between",
+     "collectionName": "When It Falls",
+     "trackTimeMillis": 361960,
+     "releaseDate": "2004-03-01T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 74710613,
+     "artistName": "Eclection",
+     "trackName": "Confusion (LP Version)",
+     "collectionName": "Eclection",
+     "trackTimeMillis": 304227,
+     "releaseDate": "1968-01-01T12:00:00Z",
+     "primaryGenreName": "Rock",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 714239103,
+     "artistName": "Simple Minds",
+     "trackName": "Space",
+     "collectionName": "Silver Box",
+     "trackTimeMillis": 255893,
+     "releaseDate": "2004-01-01T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1815242406,
+     "artistName": "Zero 7 & Tina Dico",
+     "trackName": "The Space Between",
+     "collectionName": "When It Falls (Special Edition)",
+     "trackTimeMillis": 361960,
+     "releaseDate": "2004-03-01T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1742547867,
+     "artistName": "Luna Li",
+     "trackName": "Confusion Song",
+     "collectionName": "Confusion Song - Single",
+     "trackTimeMillis": 161661,
+     "releaseDate": "2024-05-14T12:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1667702431,
+     "artistName": "‎ Stuck In Place",
+     "trackName": "Space",
+     "collectionName": "Mile High",
+     "trackTimeMillis": 194574,
+     "releaseDate": "2023-01-21T12:00:00Z",
+     "primaryGenreName": "Punk",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1682074530,
+     "artistName": "Night Wilds",
+     "trackName": "Confusion",
+     "collectionName": "All That Should Have Been",
+     "trackTimeMillis": 218867,
+     "releaseDate": "2023-09-22T12:00:00Z",
+     "primaryGenreName": "Rock",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1706663524,
+     "artistName": "Night Wilds",
+     "trackName": "Confusion",
+     "collectionName": "Confusion - Single",
+     "trackTimeMillis": 218867,
+     "releaseDate": "2023-09-22T12:00:00Z",
+     "primaryGenreName": "Rock",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1744215909,
+     "artistName": "Luna Li",
+     "trackName": "Confusion Song",
+     "collectionName": "When a Thought Grows Wings",
+     "trackTimeMillis": 161661,
+     "releaseDate": "2024-05-14T12:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1760221601,
+     "artistName": "Luna Li",
+     "trackName": "Confusion Song",
+     "collectionName": "When a Thought Grows Wings",
+     "trackTimeMillis": 161661,
+     "releaseDate": "2024-05-14T12:00:00Z",
+     "primaryGenreName": "Indie Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 73512159,
+     "artistName": "COMBAT WOUNDED VETERAN",
+     "trackName": "Folded Space - Lead Poisoning & Distortion",
+     "collectionName": "I Know a Girl Who Develops Crime Scene Photos",
+     "trackTimeMillis": 78227,
+     "releaseDate": "1999-07-15T12:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

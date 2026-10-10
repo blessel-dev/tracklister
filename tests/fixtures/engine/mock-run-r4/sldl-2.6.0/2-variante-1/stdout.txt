@@ -1,0 +1,17 @@
+Input (CSV): <TMP>\w\2-variante-1\input.csv
+Using columns: artist:"Artist", title:"Title", length:"Length".
+Using Mock Soulseek Client.
+Login usuario-prueba
+Downloading 3 tracks:
+  Komplex - Inject (20s)
+  Vkn modular - Hidden Reason (20s)
+  TR 440 - Somewhen (20s)
+Searching: Komplex - Inject (20s)
+Not found: Komplex - Inject (20s)
+Searching: Vkn modular - Hidden Reason (20s)
+Searching: TR 440 - Somewhen (20s)
+Not found: TR 440 - Somewhen (20s)
+Initialize: local\..\VKN Modular - Hidden Reason.flac [20s/44.1kHz1255kbps/3.0MB]
+None:          local\..\VKN Modular - Hidden Reason.flac [20s/44.1kHz1255kbps/3.0MB]
+
+Completed: 1 succeeded, 2 failed.

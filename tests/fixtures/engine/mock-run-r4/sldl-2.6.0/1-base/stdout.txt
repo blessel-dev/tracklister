@@ -1,0 +1,24 @@
+Input (CSV): <TMP>\w\1-base\input.csv
+Using columns: artist:"Artist", title:"Title", length:"Length".
+Couldn't parse track length "" with format "s" for "Nobody Real - Trip"
+Using Mock Soulseek Client.
+Login usuario-prueba
+Downloading 5 tracks:
+  Komplex aka Jeroen Search - Inject (20s)
+  Vkn.modular - Hidden Reason (20s)
+  TR440 - Somewhen (20s)
+  Red Rooms - Trip (20s)
+  Nobody Real - Trip
+Searching: Komplex aka Jeroen Search - Inject (20s)
+Not found: Komplex aka Jeroen Search - Inject (20s)
+Searching: Vkn.modular - Hidden Reason (20s)
+Searching: TR440 - Somewhen (20s)
+Not found: Vkn.modular - Hidden Reason (20s)
+Not found: TR440 - Somewhen (20s)
+Searching: Nobody Real - Trip
+Searching: Red Rooms - Trip (20s)
+Not found: Nobody Real - Trip
+Not found: Red Rooms - Trip (20s)
+Downloaded 0, Failed 5 of Total 5 (100.00 %)
+
+Completed: 0 succeeded, 5 failed.

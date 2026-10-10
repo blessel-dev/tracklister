@@ -124,15 +124,23 @@ def _tags(mf) -> tuple[str | None, str | None, str | None]:
 
 def read_tags(path: Path) -> tuple[str | None, str | None]:
     """(artist, title) from the tags only: fast, no decoding (used to scan whole folders)."""
+    a, t, _ = read_tags_and_length(path)
+    return a, t
+
+
+def read_tags_and_length(path: Path) -> tuple[str | None, str | None, float | None]:
+    """read_tags() plus the duration the header says, still without decoding. «Reordenar» uses it to confirm
+    a file name that only fits its row after leaving words out (1.0.1, Addendum 10)."""
     import mutagen
     try:
         mf = mutagen.File(str(path))
     except Exception:  # noqa: BLE001
-        return None, None
+        return None, None, None
     if mf is None:
-        return None, None
+        return None, None, None
     a, t, _ = _tags(mf)
-    return a, t
+    length = float(getattr(getattr(mf, "info", None), "length", 0) or 0) or None
+    return a, t, length
 
 
 _SUBTYPE_BITS = {"PCM_S8": 8, "PCM_U8": 8, "PCM_16": 16, "PCM_24": 24, "PCM_32": 32, "FLOAT": 32, "DOUBLE": 64}

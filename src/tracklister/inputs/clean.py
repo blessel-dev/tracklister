@@ -22,7 +22,7 @@ import re
 from tracklister.core.model import RowStatus, TrackRow, VersionKind
 from tracklister.core.textnorm import (
     classify_version, is_version_group, merge_versions, nfc, norm_key, split_artists, split_title_version,
-    version_is_original,
+    version_key,
 )
 from tracklister.inputs.tlparse import FEAT_KW, FEAT_THEN_VERSION, TRAILING_GROUPS, VERSION_KW, is_id_text
 
@@ -31,6 +31,10 @@ _DUP_PREFIX = "repetida (fila "
 _FEAT_TAIL = re.compile(r"\s*[\(\[]?\s*\b(?:feat\.?|ft\.?|featuring)\s+([^()\[\]]+?)\s*[\)\]]?\s*$", re.I)
 _TRAILING_GROUP = re.compile(r"\s*[\(\[]\s*([^()\[\]]*?)\s*[\)\]]\s*$")
 _LABEL_SUFFIX = re.compile(r"\s+(?:records|recordings|rec|music|label|digital|records ltd)$")
+# A name that is a label by its own shape (06 R5), on norm_key(): "KYSH Records", "Demolate Records",
+# "X Recordings", "X Rec.", "X Label", "X Records Ltd". Narrower than _LABEL_SUFFIX ("Music" and
+# "Digital" also end real artist names), and only ever used on a store's extra credits.
+LABEL_LIKE = re.compile(r"\s+(?:records|recordings|rec|label|records ltd|recordings ltd)$")
 
 
 def renumber(rows: list[TrackRow]) -> list[TrackRow]:
@@ -49,6 +53,19 @@ def label_keys(label: str | None) -> set[str]:
     if short:
         keys.add(short)
     return keys
+
+
+def looks_like_label(name: str | None) -> bool:
+    """'KYSH Records' -> True; 'Records' (one word), 'Kollektiv Turmstrasse' -> False."""
+    k = norm_key(name)
+    return len(k.split()) >= 2 and bool(LABEL_LIKE.search(k))
+
+
+def is_label_credit(name: str | None, keys: set[str]) -> bool:
+    """A credited name that is a label: one of `keys` (label_keys() of the row's or the store's label),
+    the same with a 'Records'-style suffix ('KYSH Records' for the label 'KYSH'), or label-shaped."""
+    k = norm_key(name)
+    return bool(k) and (k in keys or _LABEL_SUFFIX.sub("", k) in keys or looks_like_label(name))
 
 
 def _join_artists(names: list[str]) -> str:
@@ -155,9 +172,10 @@ def clean_row(row: TrackRow) -> TrackRow:
 
 
 def duplicate_key(row: TrackRow) -> str:
-    """Artist, base title and version: 'Kai Remix', 'Radio Edit' and 'Kai Remix - Radio Edit' are three tracks."""
-    version = "original" if version_is_original(row.version) else norm_key(merge_versions([row.version]))
-    return f"{norm_key(row.search_artist)}|{norm_key(row.title)}|{version}"
+    """Artist, base title and version: 'Kai Remix', 'Radio Edit' and 'Kai Remix - Radio Edit' are three tracks.
+    The version part is core.textnorm.version_key (1.0.1, audit r4-3 N1): the order of the groups does not
+    matter, so '(Radio Edit) (Kai Remix)' repeats '(Kai Remix) (Radio Edit)', as in the library."""
+    return f"{norm_key(row.search_artist)}|{norm_key(row.title)}|{version_key(row.version)}"
 
 
 def mark_duplicates(rows: list[TrackRow]) -> None:

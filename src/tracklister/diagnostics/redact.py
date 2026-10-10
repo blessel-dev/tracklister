@@ -9,6 +9,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
   and "1.2.3.4." are caught too (the port stays).
 - Peer names registered with peer() -> "peer-1", "peer-2"... (stable per Redactor).
 - The Windows user profile path -> "%USERPROFILE%" (it contains the Windows account name).
+
+redact(text, peers=False) skips the peer names (1.0.1, R7): the Diagnóstico puts the pseudonym in the
+peer column itself, and a peer called "50", "6" or "?" must never turn «título distinto (50%)» into
+«(peer-6%)» or «? MB» into «peer-1 MB» (audit r4-3 N8). Secrets, IPs and the profile path still go.
 """
 from __future__ import annotations
 
@@ -79,7 +83,8 @@ class Redactor:
     def _sub_ci(self, text: str, needle: str, repl: str) -> str:
         return re.sub(re.escape(needle), lambda _m: repl, text, flags=re.IGNORECASE)
 
-    def redact(self, text: str) -> str:
+    def redact(self, text: str, *, peers: bool = True) -> str:
+        """Censor secrets, IPs and the profile path; with peers=True also the registered peer names."""
         if not text:
             return text
         out = text
@@ -92,8 +97,9 @@ class Redactor:
             out = out.replace(ip, CENSORED)
         out = _IPV4_CANDIDATE.sub(_ipv4_or_same, out)
         out = _IP_CANDIDATE.sub(lambda m: CENSORED if _is_ip(m.group(0)) else m.group(0), out)
-        for name in sorted(self._peers, key=len, reverse=True):
-            out = re.sub(r"(?<![\w-])" + re.escape(name) + r"(?![\w-])", lambda _m, n=name: self._peers[n], out)
+        if peers:
+            for name in sorted(self._peers, key=len, reverse=True):
+                out = re.sub(r"(?<![\w-])" + re.escape(name) + r"(?![\w-])", lambda _m, n=name: self._peers[n], out)
         return out
 
 

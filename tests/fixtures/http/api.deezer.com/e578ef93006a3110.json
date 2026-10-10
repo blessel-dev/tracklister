@@ -1,0 +1,46 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "TR440 Somewhen"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 486359832,
+     "type": "track",
+     "title": "TR440",
+     "title_short": "TR440",
+     "title_version": "",
+     "duration": 322,
+     "rank": 72732,
+     "isrc": "DEMM41501676",
+     "artist": {
+      "id": 7873374,
+      "name": "Somewhen"
+     },
+     "album": {
+      "id": 61287742,
+      "title": "6"
+     }
+    }
+   ],
+   "total": 1
+  }
+ }
+}

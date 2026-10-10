@@ -61,8 +61,11 @@ def test_no_tags_identified_by_name(tmp_path):
 
 
 def test_fake_lossless_stays_marked(tmp_path):
+    """1.0.1 (R6): a strong cut is a quality mark, not an identity doubt: its own state, no doubt, the
+    identity score kept, the file in the set with its number."""
     v = _v(tmp_path, "f.flac", lowpass_hz=16000, tags=TAGS)
-    assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.ESPECTRO and "posible_falso_lossless" in v.flags
+    assert v.state == ResultState.REVISAR_CALIDAD and v.doubt is None and "probable_mp3_convertido" in v.flags
+    assert v.score == 100 and "posible_falso_lossless" not in v.flags
     off = verify_file(_row(), tmp_path / "f.flac", LOSSLESS, lossy_allowed=False, source_path_tail=None,
                       spectral=False)
     assert off.state == ResultState.VERIFICADO
@@ -91,8 +94,9 @@ def test_doubtful_never_shows_acceptance_confidence(tmp_path):
     for name, v in hard.items():
         assert v.state == ResultState.DUDOSO, name
         assert v.score < REVIEW_SCORE, (name, v.score)
-    spec = _v(tmp_path, "hs.flac", lowpass_hz=16000, tags=TAGS)       # right song, suspicious spectrum
-    assert spec.doubt == DoubtKind.ESPECTRO and REVIEW_SCORE <= spec.score < ACCEPT_SCORE
+    spec = _v(tmp_path, "hs.flac", lowpass_hz=16000, tags=TAGS)       # right song, probable converted MP3
+    assert spec.state == ResultState.REVISAR_CALIDAD and spec.doubt is None   # not «Dudoso» (1.0.1, R6)
+    assert spec.score >= ACCEPT_SCORE                                  # the score measures identity only
 
 
 @pytest.mark.parametrize("dur", [20, None])
@@ -223,10 +227,20 @@ def test_r4_b3_the_extended_mix_of_the_wanted_remix_is_still_verified(tmp_path, 
     tags = {"artist": "Fjaak", "title": got} if by == "tags" else None
     v = _v(tmp_path, f"Fjaak - {got}.flac", row=_row(version="Kai Remix", dur=None), tags=tags)
     assert v.state == ResultState.VERIFICADO and v.score == 95, v.reasons_es
+    # the row's label in brackets is no title word (Addendum 10, DECISIONES X.42)
+    labelled = TrackRow(pos=1, title="Spirit", artists=["Fjaak"], artist_display="Fjaak", label="Drumcode")
     for plain in ("Spirit (Extended Mix) [Drumcode]", "Spirit (Original Mix)"):
-        p = _v(tmp_path, f"Fjaak - {plain}.flac", row=_row(dur=None),
+        p = _v(tmp_path, f"Fjaak - {plain}.flac", row=labelled,
                tags={"artist": "Fjaak", "title": plain} if by == "tags" else None)
         assert p.state == ResultState.VERIFICADO, (plain, p.reasons_es)
+    if by == "nombre":
+        # an unknown group in brackets may be a title word: by its name alone, without the label in the row and
+        # without a duration, the file only fits once '[Drumcode]' is gone, so it needs a confirmation
+        p = _v(tmp_path, "Fjaak - Spirit (Extended Mix) [Drumcode].flac", row=_row(dur=None))
+        assert p.state == ResultState.DUDOSO and p.doubt == DoubtKind.IDENTIDAD, p.reasons_es
+        assert any("quitando 'Drumcode'" in r for r in p.reasons_es), p.reasons_es
+        assert _v(tmp_path, "Fjaak - Spirit (Extended Mix) [Drumcode].flac", row=_row(dur=20)).state == \
+            ResultState.VERIFICADO
 
 
 @pytest.mark.parametrize("by", ["tags", "nombre"])

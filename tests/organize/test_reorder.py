@@ -66,6 +66,12 @@ def test_case_a_fjaak_folder(tmp_path):
             assert by[14].status == "ambiguous" and by[14].src.name in (
                 "01 Lewis Fautzi - Zona Neutra.mp3", "Lewis Fautzi - Zona Neutra.mp3")
             continue
+        if pos == 7:
+            # Addendum 10: '-psy' may be the title's last word; by its name alone the file only fits once it is
+            # gone, so it is proposed unchecked, with the reason (with tags or a duration it is a match: below)
+            assert by[7].status == "ambiguous" and by[7].src.name == name, by[7]
+            assert "quitando 'psy'" in by[7].reason_es and "confírmalo" in by[7].reason_es, by[7].reason_es
+            continue
         assert by[pos].status == "match", (name, by[pos])
         assert by[pos].src.name == name
     assert by[10].status == "missing"
@@ -76,6 +82,25 @@ def test_case_a_fjaak_folder(tmp_path):
     assert by[5].dst.name == "05 - DJ Dextro - Covil dos Abutres.aif"
     assert by[7].dst.name == "07 - Plug Trax - Zoned Out.mp3" and by[6].dst.name.endswith(".mp3")
     assert by[4].dst.name == "04 - Roll Dann - The Red House (Original).mp3"
+
+
+@pytest.mark.parametrize("how", ["tags", "duracion"])
+def test_v101_b1clase_case_a_with_a_confirmation_is_a_match(tmp_path, how):
+    """Addendum 10 on the 01 section 3 sandbox case A: 'plug_trax_-_zoned_out-psy.mp3' only fits «Plug Trax -
+    Zoned Out» once '-psy' is gone. Its artist and title tags, or its duration within 3 s of the row's, confirm
+    it: a match. A duration 6 s off does not: unchecked, with the reason."""
+    rows = [_row(7, "Plug Trax", "Zoned Out", expected_duration_s=20)]
+    folder = tmp_path / "descargas"
+    tags = {"artist": "Plug Trax", "title": "Zoned Out"} if how == "tags" else None
+    seconds = 30 if how == "tags" else 21                 # the tags confirm it whatever the duration
+    make_track(folder / "plug_trax_-_zoned_out-psy.mp3", fmt="mp3", seconds=seconds, tags=tags)
+    p = _by_pos(propose_reorder(folder, rows))[7]
+    assert p.status == "match" and p.dst.name == "07 - Plug Trax - Zoned Out.mp3", p
+    if how == "duracion":
+        off = tmp_path / "otra"
+        make_track(off / "plug_trax_-_zoned_out-psy.mp3", fmt="mp3", seconds=26)
+        p = _by_pos(propose_reorder(off, rows))[7]
+        assert p.status == "ambiguous" and "quitando 'psy'" in p.reason_es, p
 
 
 def test_apply_then_undo_and_never_overwrite(tmp_path):
@@ -218,6 +243,108 @@ def test_r4_v_the_originals_radio_edit_is_never_proposed_for_the_remixs_radio_ed
     by = _by_pos(propose_reorder(folder, rows))
     assert by[1].status == "match" and by[1].src.name == "Fjaak - Spirit (Kai Remix) (Radio Edit).mp3"
     assert by[1].dst.name == "01 - Fjaak - Spirit (Kai Remix - Radio Edit).mp3"
+
+
+def _audio(folder, names, seconds=20):
+    """Real synthetic audio (no tags) with these names, so «Reordenar» can read each file's duration."""
+    for n in names:
+        make_track(folder / n, fmt={"mp3": "mp3", "wav": "wav"}.get(n.rsplit(".", 1)[-1].lower(), "flac"),
+                   seconds=seconds)
+
+
+def test_v101_r3_reorder_reads_the_real_file_names(tmp_path):
+    """1.0.1 R3: the name patterns of the user's Diagnóstico and report (personal folders invented) are
+    matched by «Reordenar» with the same rules as the download; the must-reject ones stay as they are.
+    Addendum 10: the scene name, the '1-04-' cut and the ' - 06 - ' names only fit by a guess, so they are a
+    match with a confirmation (here each file's duration against the row's), and unchecked without one."""
+    def rows(dur):
+        return [_row(1, "Red Rooms", "Trip", expected_duration_s=dur),
+                _row(2, "Kwartz", "Show me that light", "Cleric Remix", expected_duration_s=dur),
+                _row(3, "Phil Berg", "Seiko", expected_duration_s=dur),
+                _row(4, "Orbe", "Velocity", expected_duration_s=dur),
+                _row(5, "Obscur", "Binary Drive", expected_duration_s=dur),
+                _row(6, "13130 Space Project", "Talitha", expected_duration_s=dur),
+                _row(7, "Truncate", "Dust 1", expected_duration_s=dur),
+                _row(8, "Lucy & Xhin", "Lx2", artists=["Lucy", "Xhin"], expected_duration_s=dur)]
+    folder = tmp_path / "Set casa"
+    _audio(folder / "Red_Rooms-Blind_Spot-(PHORUM004)-16BIT-WEB-FLAC-2026-PTC", ["04-red_rooms-trip.flac"])
+    names = {2: "1-04-Kwartz-Show me that light (Cleric Remix).flac", 3: "Phil Berg - D\u0101rin - 06 - Seiko.flac",
+             4: "Orbe - Velocity (Original Mix) 140.flac", 5: "Obscur - Binary Drive [.wav",
+             6: "13130 Space Project - Talitha (Original Mix) electronicfresh.com.mp3",
+             8: "Lucy & Xhin - Album Inventado - 06 - Lx2.flac"}
+    _audio(folder, list(names.values()))
+    _make(folder, ["Truncate - Dust 2.flac", "Kwartz - Show me that light.flac"])
+    props = propose_reorder(folder, rows(21))
+    by = _by_pos(props)
+    assert by[1].status == "match" and by[1].src.name == "04-red_rooms-trip.flac"
+    for pos, name in names.items():
+        assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
+    assert by[1].dst == folder / "01 - Red Rooms - Trip.flac"
+    assert by[5].dst.name == "05 - Obscur - Binary Drive.wav"
+    assert by[7].status == "missing"                                   # 'Dust 2' is another track
+    assert {p.src.name for p in props if p.status == "extra"} == {"Truncate - Dust 2.flac",
+                                                                   "Kwartz - Show me that light.flac"}
+    # without a duration in the rows, the guessed readings start unchecked, each with what it left out
+    by = _by_pos(propose_reorder(folder, rows(None)))
+    for pos, why in ((1, "leyendo 'red rooms' como artista"), (2, "leyendo 'Kwartz' como artista"),
+                     (3, "quitando 'D\u0101rin'"), (8, "quitando 'Album Inventado'")):
+        assert by[pos].status == "ambiguous" and why in by[pos].reason_es, (pos, by[pos])
+    for pos in (4, 5, 6):                                # a watermark, a BPM, an open bracket: no guess
+        assert by[pos].status == "match", (pos, by[pos])
+
+
+def test_v101_1_b1_b2_reorder_never_proposes_another_track_or_artist(tmp_path):
+    """Audit v101-1, B1 and B2: «Reordenar» proposed 'Planetary Assault Systems-Non-Stop.flac' for the row
+    «Stop» (a later reading of the name took 'Non' into the artist) and 'Adam Beyer\\Adam Port - Rush.flac'
+    tagged only 'Rush' for «Adam Beyer - Rush» (the folder took the title tag). Both stay as they are now;
+    the right files are still found."""
+    rows = [_row(1, "Planetary Assault Systems", "Stop"), _row(2, "Adam Beyer", "Time"),
+            _row(3, "Red Rooms", "Trip", expected_duration_s=20), _row(4, "Adam Beyer", "Rush")]
+    folder = tmp_path / "set"
+    wrong = ["Planetary Assault Systems-Non-Stop.flac", "Adam Beyer-Space-Time.flac",
+             "04-red_rooms-bad-trip-3fa1c09b.flac"]
+    _make(folder, wrong)
+    make_track(folder / "Adam Beyer" / "Adam Port - Rush.flac", fmt="flac", seconds=1, tags={"title": "Rush"})
+    props = propose_reorder(folder, rows)
+    by = _by_pos(props)
+    assert [by[p].status for p in (1, 2, 3, 4)] == ["missing"] * 4, props
+    assert {p.src.name for p in props if p.status == "extra"} == set(wrong) | {"Adam Port - Rush.flac"}
+    right = {1: "Planetary Assault Systems - Stop.flac", 2: "Adam Beyer - Time.flac", 3: "04-red_rooms-trip.flac"}
+    _make(folder, [right[1], right[2]])
+    _audio(folder, [right[3]])               # a scene name: its duration confirms the cut (Addendum 10)
+    make_track(folder / "Adam Beyer" / "Rush.flac", fmt="flac", seconds=1, tags={"title": "Rush"})
+    by = _by_pos(propose_reorder(folder, rows))
+    for pos, name in right.items():
+        assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
+    assert by[4].status == "match" and by[4].src == folder / "Adam Beyer" / "Rush.flac"
+
+
+def test_v101_1r_b1r_reorder_never_proposes_a_title_word_glued_to_the_artist(tmp_path):
+    """Audit v101-1 review, B1-R: with no dash between artist and title, the FIRST cut of 'Adam Beyer
+    Space-Time.flac' ('Adam Beyer Space' + 'Time') made it the «Adam Beyer - Time» match. None of these ten
+    names is proposed now; the right files, also a co-artist credit glued to the title, still are."""
+    rows = [_row(1, "Adam Beyer", "Time", expected_duration_s=20),
+            _row(2, "Planetary Assault Systems", "Stop", expected_duration_s=20),
+            _row(3, "Red Rooms", "Trip", expected_duration_s=20),
+            _row(4, "Chris Liebing", "Matter", expected_duration_s=20),
+            _row(5, "Fjaak", "Spirit", expected_duration_s=20)]
+    folder = tmp_path / "set"
+    wrong = ["Adam Beyer Space-Time.flac", "01 Adam Beyer Space-Time.flac", "01 - Adam Beyer Space-Time.flac",
+             "Adam Beyer -Space-Time.flac", "Adam Beyer\u2013Space-Time.flac", "adam_beyer_space-time.flac",
+             "Adam Beyer Space-Time (Original Mix).flac", "Planetary Assault Systems Non-Stop.flac",
+             "Red Rooms Bad-Trip.flac", "Chris Liebing Anti-Matter.flac", "Fjaak & Kai Holy-Spirit.flac"]
+    _make(folder, wrong)
+    props = propose_reorder(folder, rows)
+    by = _by_pos(props)
+    assert [by[p].status for p in range(1, 6)] == ["missing"] * 5, props
+    assert {p.src.name for p in props if p.status == "extra"} == set(wrong)
+    # cuts at a glued hyphen: a match once their duration confirms them (Addendum 10)
+    right = {1: "Adam Beyer-Time.flac", 2: "Planetary Assault Systems-Stop.flac", 3: "Red Rooms-Trip.flac",
+             4: "Chris Leibing-Matter.flac", 5: "Fjaak & Kai-Spirit.flac"}
+    _audio(folder, right.values())
+    by = _by_pos(propose_reorder(folder, rows))
+    for pos, name in right.items():
+        assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
 
 
 def test_reserved_subdirs_are_ignored(tmp_path):

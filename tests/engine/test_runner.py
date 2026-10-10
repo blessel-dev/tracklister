@@ -58,7 +58,9 @@ def test_runner_sin_resultados_and_timeout(tmp_path):
     res, events, _, _ = _run(tmp_path / "a", "sin_resultados")
     assert res.exit_code == 1 and res.outcomes[1].engine_state == "not_found"
     assert res.outcomes[1].reason == "NoSearchResults"
-    assert [e.kind for e in events if e.snum == 1] == ["searching", "not_found"]
+    assert [e.kind for e in events if e.snum == 1 and e.kind != "progress"] == ["searching", "not_found"]
+    # 1.0.1, R11: each line also moves the row's progress phase
+    assert [e.phase for e in events if e.snum == 1 and e.kind == "progress"] == ["buscando", "sin_resultados"]
     res2, _, _, _ = _run(tmp_path / "b", "peer_timeout")
     assert res2.outcomes[1].engine_state == "failed" and res2.outcomes[1].reason == "AllDownloadsFailed"
 
@@ -99,6 +101,51 @@ def test_runner_cancel_kills_the_process(tmp_path):
     assert res.cancelled and res.exit_code is None
     assert elapsed < 30
     assert res.outcomes[1].file is None
+
+
+def test_r7_n7_json_all_is_read_before_redaction_and_kept_in_memory_only(tmp_path):
+    """Audit r4-3 N7: with the password 'true' and the username 'file', the redacted line is no longer JSON
+    ('"HasFreeUploadSlot":[censurado]', '"[censurado]":{...}'). The runner parses the raw line in memory;
+    stdout.txt and engine.log stay redacted."""
+    rows, net = build_scenario("correcto", tmp_path / "net")
+    creds = Credentials("file", "true")
+    work = tmp_path / "w"
+    item = write_engine_csv(rows[:1], work / "input.csv")
+    job = EngineJob(work, build_preset("lossless").passes[0], True, 49998, print_json_all=True,
+                    input_override="artist=Fjaak, title=Spirit, length=30")
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(tmp_path / "b.json"),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    res = runner.run(job, item, creds, lambda e: None, threading.Event())
+    assert [c["File"]["Filename"] for c in res.json_all] == ["@@musica\\Fjaak\\Live 2026\\Fjaak - Spirit.flac"]
+    on_disk = (res.stdout_path.read_text(encoding="utf-8") + res.log_path.read_text(encoding="utf-8")).lower()
+    assert "true" not in on_disk and "file" not in on_disk and "[censurado]" in on_disk
+    # a normal pass keeps nothing in memory
+    plain = runner.run(EngineJob(tmp_path / "w2", build_preset("lossless").passes[0], True, 49998),
+                       write_engine_csv(rows[:1], tmp_path / "w2" / "input.csv"), CREDS, lambda e: None,
+                       threading.Event())
+    assert plain.json_all is None
+
+
+def test_r4_desperate_reserves_seven_searches_per_item(tmp_path):
+    """1.0.1, R4: --desperate makes up to 7 searches per item; all of them go in the app-wide budget."""
+    from tracklister.core.jsonio import read_json
+    from tracklister.engine.runner import DESPERATE_SEARCHES_PER_ITEM, searches_for
+    rows, net = build_scenario("correcto", tmp_path / "net")
+    fmt = build_preset("lossless").passes[0]
+    for desperate, expected in ((False, 2), (True, 14)):
+        work = tmp_path / f"w{int(desperate)}"
+        manifest = write_engine_csv(rows, work / "input.csv")
+        job = EngineJob(work, fmt, True, 49998, desperate=desperate)
+        assert searches_for(job, manifest) == expected
+        budget_file = tmp_path / f"b{int(desperate)}.json"
+        runner = EngineRunner(fake_engine_spec(), SearchBudget(budget_file),
+                              env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+        res = runner.run(job, manifest, CREDS, lambda e: None, threading.Event())
+        assert len(read_json(budget_file)["events"]) == expected
+        assert all(o.engine_state == "downloaded" for o in res.outcomes.values())
+        assert ("--desperate" in res.argv_redacted) is desperate
+    assert DESPERATE_SEARCHES_PER_ITEM == 7
+    assert searches_for(EngineJob(tmp_path, fmt, False, 49998, desperate=True), []) == 7
 
 
 def test_runner_waits_for_the_search_budget_and_can_be_cancelled(tmp_path):

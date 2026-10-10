@@ -210,14 +210,14 @@ def test_youtube_candidates(window, qtbot, ready_services):
     page = window.new_set
     alt = [TrackRow(pos=1, title="Otra", artists=["X"], artist_display="X")]
     alt_ref = SourceRef("youtube", "https://www.youtube.com/watch?v=x", "youtube_description (1 pistas)")
-    cands = [FakeCandidate("Comentario de @travo1001 · 22 pistas con tiempos · 11 likes", 22, True, 11,
+    cands = [FakeCandidate("Comentario de @oyente-0879 · 22 pistas con tiempos · 11 likes", 22, True, 11,
                            rows=sample_rows()),
              FakeCandidate("Descripción · 1 pista sin tiempos", 1, False, 0, rows=alt, source_ref=alt_ref)]
     ready_services.imports = [fake_import(kind="youtube", candidates=cands, chosen=0)]
     page.import_source("https://www.youtube.com/watch?v=x")
     _wait_rows(qtbot, page, 4)
     assert page.cand_row.isVisible() and page.cand_box.count() == 2
-    assert page.cand_box.itemText(0) == "Comentario de @travo1001 · 22 pistas con tiempos · 11 likes"
+    assert page.cand_box.itemText(0) == "Comentario de @oyente-0879 · 22 pistas con tiempos · 11 likes"
     assert page.cand_box.isEnabled() and page.cand_box.currentIndex() == 0
     page._on_candidate(1)
     assert page.model.rowCount() == 1 and page.model.row_at(0).title == "Otra"

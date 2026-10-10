@@ -47,7 +47,7 @@ Tracklister es una app de escritorio para DJs, para Windows 10 y 11 de 64 bits. 
 - **Comprueba cada archivo.** Duración, artista, título, versión (Original, Extended, Remix, Radio Edit…), formato y espectro. Nunca acepta un archivo dudoso sin decírtelo: si puede ser otra canción u otra versión, lo aparta a `_dudosos` con el motivo.
 - **Respeta tu formato.** Lossless, CDJ antiguos (AIFF o WAV, y convierte los FLAC), Solo MP3 320 (CBR comprobado en el propio archivo) o Personalizado.
 - **Sabe lo que ya tienes.** Si una pista ya la bajaste en un set anterior, te pregunta si la copias a este set o la descargas otra vez.
-- **Lee la tracklist de donde la tengas.** El CSV de trackid.net, un Excel o un CSV, texto pegado (1001tracklists, MixesDB, un comentario) o el enlace de un set de YouTube o SoundCloud, del que elige la mejor tracklist entre la descripción, los capítulos y los comentarios.
+- **Lee la tracklist de donde la tengas.** El CSV de trackid.net, un Excel o un CSV, texto pegado (1001tracklists, MixesDB, un comentario) o el enlace de un set de YouTube o SoundCloud, del que elige la mejor tracklist entre la descripción, los capítulos y los comentarios. Si tienes dos listas del mismo set, las junta por la hora de cada pista.
 - **Y para después:** «Copiar tracklist» con tiempos para Mixcloud o Instagram, un informe por set y «Reordenar» para numerar carpetas que ya tenías.
 
 ## Por qué
@@ -56,8 +56,8 @@ Bajar un set entero de Soulseek, a mano o por lotes, suele acabar en tres proble
 
 | El problema | Lo que hace Tracklister |
 |---|---|
-| **Canciones equivocadas.** El radio edit en vez de la original, un remix que no era, «Dust 2» por «Dust 1» u otro artista con un nombre parecido. | Compara cada archivo con su fila: el artista palabra por palabra, el título, la versión, los números del título y la duración que dan las tiendas. Si puede ser otra canción u otra versión, el archivo va a `_dudosos` con el motivo y nunca entra en el set como si fuera bueno. |
-| **Formatos equivocados.** Un MP3 VBR que se anuncia como 320, un «FLAC» que en realidad salió de un MP3, un FLAC para unos CDJ que no lo leen. | Lee el propio archivo: exige MP3 CBR (de serie, de 320 kbps), comprueba que un WAV o un AIFF lleve audio sin pérdida, marca los posibles lossless falsos por su espectro y, con «CDJ antiguos», convierte los FLAC a AIFF. |
+| **Canciones equivocadas.** El radio edit en vez de la original, un remix que no era, «Dust 2» por «Dust 1» u otro artista con un nombre parecido. | Compara cada archivo con su fila: el artista palabra por palabra, el título, la versión, los números del título y la duración (la de iTunes, Deezer o MusicBrainz, o la de tu tabla). Si puede ser otra canción u otra versión, el archivo va a `_dudosos` con el motivo y nunca entra en el set como si fuera bueno. |
+| **Formatos equivocados.** Un MP3 VBR que se anuncia como 320, un «FLAC» que en realidad salió de un MP3, un FLAC para unos CDJ que no lo leen. | Lee el propio archivo: exige MP3 CBR (de serie, de 320 kbps), comprueba que un WAV o un AIFF lleve audio sin pérdida, marca por su espectro los probables MP3 convertidos y, con «CDJ antiguos», convierte los FLAC a AIFF. |
 | **Archivos desordenados.** Cada archivo llega con el nombre que le puso otro usuario y en el orden en que termina de bajar. | Nombra cada archivo `NN - Artista - Título (Versión).ext` con el número de su fila en el set, nunca con el orden de descarga. Nunca sobrescribe nada, y repetir un set no vuelve a bajar lo que ya está bien. |
 
 ## Cómo funciona
@@ -79,9 +79,12 @@ flowchart TD
 ```
 
 - **«Completar datos»** pregunta a iTunes, luego a Deezer y luego a MusicBrainz la duración y la versión exacta de cada pista, al importar y otra vez al pulsar «Descargar» si falta alguna. Solo envía artista y título. Con esa duración, el motor filtra en Soulseek y Tracklister comprueba después cada archivo.
-- **Todo pasa por una tabla que puedes editar.** Corriges artista, título o versión, y subes, bajas, añades o quitas filas. El número de cada fila es el que llevará su archivo. Las filas «ID» van desmarcadas, y los huecos de más de 90 s del CSV de trackid.net salen como «ID (hueco)», para que la numeración siga la del set.
+- **Todo pasa por una tabla que puedes editar.** Corriges artista, título o versión, y subes, bajas, añades o quitas filas. El número de cada fila es el que llevará su archivo. Las filas «ID» van desmarcadas.
+- **Los huecos del CSV de trackid.net se miden con la duración real.** Sus columnas Start y End dicen cuándo reconoció trackid.net cada pista en el set, no cuánto dura. Un «ID (hueco)» es un tramo del set que trackid.net no identificó: solo sale si, aunque la pista anterior sonara entera (con su duración de iTunes, Deezer o MusicBrainz), quedan más de 90 s sin cubrir hasta la siguiente. Guarda su número, para que la numeración siga la del set, y su nota explica la cuenta: «4:13 sin cubrir aunque «Trip» sonara entero».
+- **Dos listas del mismo set se juntan por tiempo.** Con «Añadir otra fuente del mismo set» (por ejemplo, el CSV de trackid.net y el comentario de YouTube), cada pista que falta en la primera entra en su sitio por su hora de inicio: si en ese tramo hay una fila «ID» o un hueco, ocupa su lugar y su número. La primera lista manda en los nombres. Si el set ya tiene archivos y alguno tendría que cambiar de número, te pregunta antes; con Intro, las añade al final sin cambiar ningún número.
+- **Si una pista no sale en Soulseek, prueba otras grafías.** Busca por separado cada nombre de un «X aka Y», «Vkn.modular» como «Vkn modular» y «TR440» como «TR 440» y «TR-440». El nombre de la tabla y del archivo no cambia, y el motivo dice con cuál la encontró. «Reintentar fallos» prueba además la búsqueda a fondo del motor.
 - **Cada archivo lleva una confianza de 0 a 100.** Con 80 o más es «Verificado». De 50 a 79 se queda en el set, marcado para revisar. Por debajo, o si es otra canción, otra versión o la duración se aleja más de 10 s, va a `_dudosos`.
-- **El análisis de espectro es una pista, no una prueba.** Marca «posible lossless falso» y deja el archivo en el set, con su número, para que decidas tú si te vale.
+- **El análisis de espectro es una pista, no una prueba.** Un corte brusco por debajo de 19,5 kHz es el de un MP3 de 256 kbps o menos convertido a lossless: el archivo sale «Verificado · revisar calidad», se queda en el set con su número y «Reintentar fallos» busca otra copia. Un corte entre 19,5 y 20,8 kHz es tan habitual en un MP3 de 320 como en un máster legítimo, así que no lleva marca: solo una línea en el informe.
 
 ## Capturas
 
@@ -91,9 +94,9 @@ flowchart TD
 
 <sub>El tema se elige en «Ajustes» → «Tema», se aplica al momento y se recuerda para la próxima vez.</sub>
 
-<img src="docs/readme/descarga-hormigon.png" alt="Pantalla «Descarga» al terminar un set: cada pista con el icono y el texto de su estado (Verificado, Dudoso, No encontrado, Ya en biblioteca, No cumple formato, Fallida, Omitida) y, debajo, los motivos de la pista seleccionada">
+<img src="docs/readme/descarga-hormigon.png" alt="Pantalla «Descarga» al terminar un set: cada pista con el icono y el texto de su estado (Verificado, Verificado · revisar calidad, Dudoso, No encontrado, Ya en biblioteca, No cumple formato, Fallida, Omitida) y, debajo, los motivos de la pista seleccionada">
 
-<sub>«Descarga»: cada pista con su estado, con icono y texto. Debajo, los motivos de la pista seleccionada. Al terminar: «Reintentar fallos», «Copiar tracklist», «Abrir informe» y «Abrir carpeta». Captura hecha con el motor de pruebas, sin conectar a Soulseek.</sub>
+<sub>«Descarga»: cada pista con su estado, con icono y texto. Debajo, los motivos de la pista seleccionada. Mientras descarga, la columna Estado muestra con una barra cómo va cada pista. Al terminar: «Reintentar fallos», «Copiar tracklist», «Abrir informe» y «Abrir carpeta». Captura hecha con el motor de pruebas, sin conectar a Soulseek.</sub>
 
 | Primer inicio | Una pista que ya tienes |
 |:---:|:---:|
@@ -105,15 +108,16 @@ Cada estado lleva su icono y su texto; el color nunca va solo.
 
 | Estado | Qué significa | Dónde queda el archivo |
 |---|---|---|
-| <img src="docs/readme/estados/verificado.png" width="20" height="20" alt=""> **Verificado** | Cuadran artista, título, versión, duración y formato (confianza de 80 o más). | En la carpeta del set, con su número. |
+| <img src="docs/readme/estados/verificado.png" width="20" height="20" alt=""> **Verificado** | Cuadran artista, título, versión, duración y formato (confianza de 80 o más). Si ninguna tienda da la duración, se comprueba todo lo demás y el motivo lo dice. | En la carpeta del set, con su número. |
+| <img src="docs/readme/estados/revisar_calidad.png" width="20" height="20" alt=""> **Verificado · revisar calidad** | Es la pista, pero su espectro tiene el corte de un MP3 de 256 kbps o menos: puede ser un MP3 convertido. Escucharlo no lo resuelve, porque puede sonar igual. | En la carpeta del set, con su número. «Reintentar fallos» busca otra copia: si llega una mejor, la sustituye y esta pasa a `_dudosos`. |
 | <img src="docs/readme/estados/ya_en_biblioteca.png" width="20" height="20" alt=""> **Ya en biblioteca** | La tenías de un set anterior y elegiste «Usar el que ya tengo». | Copiada a la carpeta del set, con su número. |
-| <img src="docs/readme/estados/dudoso.png" width="20" height="20" alt=""> **Dudoso** | Puede ser otra canción u otra versión, o la duración no cuadra. O bien parece la buena pero hay algo que revisar: confianza de 50 a 79 o «posible lossless falso». | Si puede ser otra pista, en `_dudosos`, con el motivo. Si solo hay que revisarla, en el set, con su número y marcada en el informe. Nunca se borra. |
+| <img src="docs/readme/estados/dudoso.png" width="20" height="20" alt=""> **Dudoso** | Puede ser otra canción u otra versión, o la duración no cuadra. O bien parece la buena pero hay algo que revisar (confianza de 50 a 79). | Si puede ser otra pista, en `_dudosos`, con el motivo. Si solo hay que revisarla, en el set, con su número y marcada en el informe. Nunca se borra. |
 | <img src="docs/readme/estados/no_encontrado.png" width="20" height="20" alt=""> **No encontrado** | Ningún archivo de Soulseek pasa los filtros. | Ninguno. «Reintentar fallos» vuelve a buscar. |
 | <img src="docs/readme/estados/no_cumple_formato.png" width="20" height="20" alt=""> **No cumple formato** | Llegó un archivo, pero no es lo que pide tu formato: un MP3 VBR o de menos de 320 kbps, un WAV con un códec con pérdida… | No entra en el set. «Reintentar fallos» busca otra copia, sin el usuario que mandó esa. |
 | <img src="docs/readme/estados/fallida.png" width="20" height="20" alt=""> **Fallida** | Un error del motor o de la conexión con Soulseek, un usuario que no responde, una descarga que no termina o un archivo que no se pudo guardar. | Ninguno. «Reintentar fallos» la vuelve a pedir. |
 | <img src="docs/readme/estados/omitida.png" width="20" height="20" alt=""> **Omitida** | Una fila desmarcada, por ejemplo un «ID». | Ninguno; la fila conserva su número. |
 | <img src="docs/readme/estados/pendiente.png" width="20" height="20" alt=""> **Pendiente** | Aún no se ha buscado, o cancelaste la descarga antes de llegar a ella. | Todavía ninguno. |
-| <img src="docs/readme/estados/en_curso.png" width="20" height="20" alt=""> **En curso** | Se está buscando o descargando. | Todavía ninguno. |
+| <img src="docs/readme/estados/en_curso.png" width="20" height="20" alt=""> **En curso** | Se está buscando, descargando o comprobando. La columna Estado lo dice con texto y una barra: «Buscando…», «En cola», «Descargando 25,9 MB» (con el motor alternativo, «Descargando 63 %») y «Comprobando…». | Todavía ninguno. |
 
 La carpeta de un set queda así:
 
@@ -149,13 +153,15 @@ Los `.m4a` no cuentan como lossless en ningún formato, porque pueden ser AAC.
 4. Opcional: comprueba el zip. En PowerShell, en la carpeta donde lo bajaste:
 
    ```powershell
-   Get-FileHash .\Tracklister-1.0.0-win64.zip -Algorithm SHA256
+   Get-FileHash .\Tracklister-1.0.1-win64.zip -Algorithm SHA256
    ```
 
-   El valor tiene que ser el mismo que pone `SHA256SUMS.txt`, que está en la misma Release. PowerShell lo escribe en mayúsculas; eso da igual.
+   Con el nombre de tu zip, si es otra versión. El valor tiene que ser el mismo que pone `SHA256SUMS.txt`, que está en la misma Release. PowerShell lo escribe en mayúsculas; eso da igual.
 5. En el primer inicio pon **tu propia cuenta de Soulseek**: se guarda en el Administrador de credenciales de Windows, nunca en un archivo. Si aún no tienes, elige un usuario y una contraseña nuevos: Soulseek crea la cuenta la primera vez que conectas. Después, la carpeta de tu biblioteca (de serie, `Música\Tracklister`), el formato y el puerto (49998). Lee «Antes de empezar», marca «Entendido» y pulsa «Empezar».
 6. La primera vez que busque, el Firewall de Windows puede preguntar por `sockseek.exe`, el motor de descarga: marca «Redes privadas» y pulsa «Permitir acceso».
 7. Antes de bajar un set entero, haz un [Diagnóstico](#diagnóstico) con 5 pistas: te dice si tu cuenta y tu red funcionan.
+
+**Para actualizar**, cuando la app avise de una versión nueva: descarga el zip nuevo, extráelo y cambia tu carpeta `Tracklister` por la nueva. Tus ajustes, tu cuenta y tu biblioteca están fuera de ella y se conservan, y los sets que ya bajaste se siguen abriendo.
 
 La guía completa, con tu primer set, Ajustes y qué hacer si algo falla, está en [docs/GUIA.md](docs/GUIA.md).
 
@@ -163,16 +169,18 @@ La guía completa, con tu primer set, Ajustes y qué hacer si algo falla, está 
 
 El Diagnóstico busca unas pocas pistas en Soulseek sin descargarlas (5 de serie, hasta 20) y explica cada candidato: carpeta y archivo, tamaño, kbps, duración, puntuación y por qué lo elige o lo rechaza. Úsalo la primera vez y siempre que una pista no salga bien. «Copiar informe» lo copia para pegarlo donde pidas ayuda, y también se guarda en `%LOCALAPPDATA%\Tracklister\logs`.
 
+Si una pista no da resultados, el Diagnóstico prueba sus otras grafías, igual que la descarga, y dice con cuál encontró los candidatos. No usa la búsqueda a fondo del motor, para no tardar: esa la prueba «Reintentar fallos» al descargar.
+
 El informe va censurado: no lleva tu usuario, tu contraseña ni tu IP, y los demás usuarios salen como peer-1, peer-2… Así es uno, hecho con el motor de pruebas:
 
 ```text
 Diagnóstico de Tracklister
 
-Fecha: 2026-10-10 13:16
-Tracklister 1.0.0  |  Motor sockseek-3.0.5  |  Windows 11 (build 10.0.26100)
+Fecha: 2026-10-10 23:23
+Tracklister 1.0.1  |  Motor sockseek-3.0.5  |  Windows 11 (build 10.0.26100)
 Puerto de escucha: 49998
 
-Filas buscadas: 4; con resultados: 3; con un candidato válido: 3; sin resultados o con error: 1.
+Filas buscadas: 5; con resultados: 4; con un candidato válido: 4; sin resultados o con error: 1.
 
 01. Blasha & Allatt - 8AM in Salford  (duración esperada 6:01)
     - peer-1 | Promos\Blasha & Allatt - 8AM in Salford (Radio Edit).flac | 24.6 MB | ? kbps | ? | 49/100 | rechazado: otra versión (se pedía la original y el archivo es 'Radio Edit')
@@ -184,8 +192,13 @@ Filas buscadas: 4; con resultados: 3; con un candidato válido: 3; sin resultado
 03. Chris Liebing - Higher Things (FJAAK Remix)  (duración esperada 4:49)
     - peer-4 | CLR\Chris Liebing - Higher Things (FJAAK Remix).aiff | 66.1 MB | ? kbps | 4:49 | 100/100 | elegido: aceptable: confianza 100/100
 
-04. Exos - Glaður Og Reifur  (duración esperada 5:03)
+04. Komplex aka Jeroen Search - Inject  (duración esperada 4:21)
+    Encontrado buscando «Jeroen Search - Inject» (sin resultados buscando «Komplex aka Jeroen Search - Inject»).
+    - peer-5 | Jeroen Search\Jeroen Search - Inject.flac | 29.8 MB | ? kbps | 4:21 | 100/100 | elegido: aceptable: confianza 100/100
+
+05. Exos - Glaður Og Reifur  (duración esperada 5:03)
     ! Sin resultados en Soulseek para esta búsqueda.
+    Al descargar, «Reintentar fallos» también prueba la búsqueda a fondo del motor (sin la condición de duración, solo por el título y solo por el artista).
 
 Comprobación: este informe no contiene tu usuario, tu contraseña ni direcciones IP; los usuarios de Soulseek aparecen como peer-1, peer-2...
 ```
@@ -235,14 +248,16 @@ Haz un [Diagnóstico](#diagnóstico) y prueba esto:
 
 Los archivos que pueden ser otra canción u otra versión, o cuya duración no cuadra. El motivo está debajo de la tabla y en el informe del set. El archivo nunca se borra: escúchalo, corrige artista, título o versión en «Nuevo set» y vuelve a descargar, o pulsa «Reintentar fallos», que la busca otra vez sin el usuario que te dio ese archivo.
 
-Tracklister prefiere una duda de más a una canción equivocada. Por eso una errata en un nombre corto del artista, o una etiqueta que solo trae el apellido, puede acabar en `_dudosos` aunque sea la buena.
+Tracklister prefiere una duda de más a una canción equivocada. Por eso una errata en un nombre corto del artista, una etiqueta que solo trae el apellido, o un archivo sin etiquetas cuyo nombre solo encaja quitándole palabras (sin una duración que lo confirme), puede acabar en `_dudosos` aunque sea la buena. El motivo dice qué palabras no encajan.
 
 </details>
 
 <details>
-<summary><strong>¿Qué significa «posible lossless falso»?</strong></summary>
+<summary><strong>¿Qué significa «Verificado · revisar calidad»?</strong></summary>
 
-Que el espectro de ese FLAC, WAV o AIFF se corta de golpe en los agudos, como el de un MP3. Es una pista, no una prueba: un MP3 de 320 convertido a FLAC puede sonar igual, así que escucharlo no siempre lo resuelve. Por eso nunca rechaza el archivo: se queda en el set, con su número y una marca en el informe, y decides tú si te vale. El análisis se puede apagar en Ajustes.
+Que el archivo es la pista que pedías, pero el espectro de ese FLAC, WAV o AIFF se corta de golpe por debajo de 19,5 kHz, como el de un MP3 de 256 kbps o menos: puede ser un MP3 convertido. Escucharlo no lo resuelve, porque puede sonar igual. Por eso nunca rechaza el archivo: se queda en el set, con su número, y «Reintentar fallos» busca otra copia sin el usuario que mandó esa. Si llega una sin la marca, o con un corte al menos 1 kHz más alto, la sustituye, y la marcada pasa a `_dudosos` sin borrarse.
+
+Un corte entre 19,5 y 20,8 kHz es tan habitual en un MP3 de 320 como en un máster legítimo, así que no se puede saber solo con el espectro: no lleva marca, solo una línea en el informe. El análisis se puede apagar en Ajustes.
 
 </details>
 
@@ -298,7 +313,7 @@ $env:PYTHONPATH = "src"
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Son 941 y ninguno sale a la red: motor falso, cuenta en memoria en vez del Administrador de credenciales, respuestas HTTP grabadas y un guardián que hace fallar cualquier conexión de fuera.
+Son 1405 y ninguno sale a la red: motor falso, cuenta en memoria en vez del Administrador de credenciales, respuestas HTTP grabadas y un guardián que hace fallar cualquier conexión de fuera.
 
 **El exe:**
 
@@ -310,7 +325,7 @@ Son 941 y ninguno sale a la red: motor falso, cuenta en memoria en vez del Admin
 
 PyInstaller en modo carpeta, sin UPX. `build.py` añade los motores, yt-dlp y todas las licencias, y rechaza el paquete si falta algo o sobra algo que no debe ir.
 
-**Releases.** Al subir una etiqueta `v<versión>`, que tiene que ser la de la app, `.github/workflows/release.yml` pasa los tests en un runner de Windows, construye el exe, lo prueba sin Python y publica la Release con el zip, el código fuente de los dos motores y `SHA256SUMS.txt`. Mientras el código lleve el marcador del propietario de GitHub, el workflow pone el dueño del repo solo en la build que publica.
+**Releases.** Al subir una etiqueta `v<versión>`, que tiene que ser la de la app, `.github/workflows/release.yml` pasa los tests en un runner de Windows, construye el exe, lo prueba sin Python y publica la Release con el zip, el código fuente de los dos motores y `SHA256SUMS.txt`. El propietario del repo (`blessel-dev`) está en el código: de ahí salen el aviso de actualización y el User-Agent que ve MusicBrainz. En un fork, el workflow lo conserva y deja un aviso.
 
 **Arquitectura.** El código está en `src/tracklister/`:
 
@@ -323,13 +338,14 @@ PyInstaller en modo carpeta, sin UPX. `build.py` añade los motores, yt-dlp y to
 - `library` recuerda las pistas de los sets anteriores, y `diagnostics` hace el Diagnóstico y lo censura;
 - `net` es el cliente HTTP compartido y el aviso de actualización, `gui` la interfaz en PySide6 y `core` el modelo, los ajustes y las rutas.
 
-**Calidad.** Además de los 941 tests sin conexión, el repo pasó 6 auditorías externas completas antes de la 1.0.0, y cada fallo que bloqueaba se arregló con su test. `tools\secrets_scan.py` cuenta, sin enseñarlos, los posibles secretos de todo lo que se publicaría, y tiene que dar 0.
+**Calidad.** Además de los 1405 tests sin conexión, el código se sometió a 6 auditorías externas completas antes de la 1.0.0 y a 3 más antes de la 1.0.1. En las dos versiones, la última terminó sin fallos que bloqueen, y cada fallo que bloqueaba se arregló con su test. `tools\secrets_scan.py` cuenta, sin enseñarlos, los posibles secretos de todo lo que se publicaría, y tiene que dar 0.
 
 ## Hoja de ruta
 
 Son planes, no promesas.
 
-- **1.0.1**, en preparación: los arreglos de las primeras pruebas reales con Soulseek y una barra de progreso por pista mientras descarga.
+- **1.0.1**, esta versión: los arreglos de la primera prueba real con Soulseek y una barra de progreso por pista mientras descarga.
+- **1.0.2**: los detalles menores que dejaron anotados las auditorías de la 1.0.1.
 - **Ideas para más adelante:** identificar un set por su audio, publicar la tracklist en Mixcloud, comprobar cada archivo por su huella acústica (AcoustID), firmar el exe para que SmartScreen no avise y una versión para macOS.
 
 ## Créditos y licencias
@@ -345,9 +361,7 @@ Son planes, no promesas.
 
 ## Hecho por Blessel
 
-Tracklister es un proyecto de Blessel, hecho para preparar sus sets y los de sus amigos. Más de Blessel en [Mixcloud](https://www.mixcloud.com/blessel/) y en [MavelPoint](https://www.mavelpoint.com/artist/blessel/overview). La web de Tracklister: https://blessel-dev.github.io/tracklister/
-
-<!-- TODO: Instagram -->
+Tracklister es un proyecto de Blessel, hecho para preparar sus sets y los de sus amigos. Más de Blessel en [Mixcloud](https://www.mixcloud.com/blessel/), en [MavelPoint](https://www.mavelpoint.com/artist/blessel/overview) y en [Instagram](https://www.instagram.com/blessel.live/). La web de Tracklister: https://blessel-dev.github.io/tracklister/
 
 ## In English
 

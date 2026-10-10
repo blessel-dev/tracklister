@@ -1,10 +1,10 @@
 {
  "id": "cmUov7X5Pjc",
  "title": "Funk Tribu | Boiler Room: Ghent",
- "provenance": "fuentes/youtube/parse_cmUov7X5Pjc.json (prototype)",
+ "provenance": "fuentes/youtube/parse_cmUov7X5Pjc.json (prototype); comentarios inventados en la 1.0.1 (06 R9): las líneas de pistas son las del set, el autor y los likes no",
  "chosen": {
   "source": "comment",
-  "author": "@funktribumusic",
+  "author": "@funktribu-ejemplo",
   "rows": 17
  },
  "rows": [

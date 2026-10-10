@@ -1,10 +1,10 @@
 {
  "id": "z6CwInMQF4w",
  "title": "Estella Boersma - Stone Techno 2024 - ARTE Concert",
- "provenance": "fuentes/youtube/parse_z6CwInMQF4w.json (prototype)",
+ "provenance": "fuentes/youtube/parse_z6CwInMQF4w.json (prototype); comentarios inventados en la 1.0.1 (06 R9): las líneas de pistas son las del set, el autor y los likes no",
  "chosen": {
   "source": "comment",
-  "author": "@dakou_cd",
+  "author": "@oyente-1052",
   "rows": 36
  },
  "rows": [

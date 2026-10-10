@@ -7,17 +7,29 @@ Format (01 section 6.3, ENGINE-FACTS.md): header "Artist","Title","Length"; ever
 UTF-8 without BOM; "\\n" line ends. Never an id/url/uri column (the engine reads those as links),
 never an empty title (the engine would turn the row into an album/artist-only search).
 `snum` is the 1-based data-row number the engine exposes as {snum} in --name-format.
+
+Search variants (1.0.1, R4): a row that found nothing can be searched again with another spelling
+(row_variants: its aliases, the dotted and the letter-digit forms). write_engine_csv(queries=...) sends
+that spelling instead; the manifest records what was sent, so the outputs still map to the row.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
+from tracklister.core.aliases import search_variants
 from tracklister.core.model import TrackRow, VersionKind
 from tracklister.core.textnorm import classify_version, merge_versions, nfc, remixer_of, version_groups
 
 HEADER = ("Artist", "Title", "Length")
+
+
+@dataclass(frozen=True)
+class SearchQuery:
+    """What the engine is asked for one row: the Artist and Title columns of its CSV line."""
+    artist: str
+    title: str
 
 
 @dataclass(frozen=True)
@@ -67,22 +79,36 @@ def engine_artist(row: TrackRow) -> str:
     return _clean(row.search_artist)
 
 
+def row_variants(row: TrackRow) -> list[SearchQuery]:
+    """The other spellings to search when the row as written found nothing (R4), best first, at most
+    core.aliases.MAX_VARIANTS and never the row's own query: each alias alone ('Komplex aka Jeroen Search'
+    -> 'Komplex', then 'Jeroen Search'), the dotted form ('Vkn modular') and the letter-digit ones ('TR 440',
+    'TR-440'). The title keeps its version text, so --strict-title still demands the right version.
+    The row itself (its artist display, its file name) never changes."""
+    return [SearchQuery(a, t) for a, t in search_variants(engine_artist(row), engine_title(row))]
+
+
 def _q(s: str) -> str:
     return '"' + s.replace('"', '""') + '"'
 
 
-def write_engine_csv(rows: Sequence[TrackRow], path: Path) -> list[ManifestItem]:
-    """Write the CSV for one pass and return the snum -> row manifest (pos order)."""
+def write_engine_csv(rows: Sequence[TrackRow], path: Path, *,
+                     queries: Mapping[str, SearchQuery] | None = None) -> list[ManifestItem]:
+    """Write the CSV for one pass and return the snum -> row manifest (pos order).
+
+    `queries[uid]` replaces that row's Artist/Title with another spelling (a search variant); the
+    manifest item records what was actually sent. Rows without an entry are written as always."""
     ordered = sorted(rows, key=lambda r: r.pos)
     items: list[ManifestItem] = []
     lines = [",".join(_q(h) for h in HEADER)]
     for snum, row in enumerate(ordered, start=1):
         if not row.download:
             raise ValueError(f"la fila {row.pos} no está marcada para descargar")
-        title = engine_title(row)
+        q = (queries or {}).get(row.uid)
+        title = _clean(q.title) if q is not None else engine_title(row)
         if not title.strip():
             raise ValueError(f"la fila {row.pos} no tiene título: nunca se envía al motor")
-        artist = engine_artist(row)
+        artist = _clean(q.artist) if q is not None else engine_artist(row)
         length = int(row.expected_duration_s) if row.expected_duration_s else None
         lines.append(",".join((_q(artist), _q(title), _q("" if length is None else str(length)))))
         items.append(ManifestItem(snum, row.uid, row.pos, artist, title, length))

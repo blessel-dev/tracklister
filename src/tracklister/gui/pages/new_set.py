@@ -33,9 +33,40 @@ PASTE_PLACEHOLDER = ("Enlace de YouTube/SoundCloud, o la tracklist copiada (1001
                      "01. Artista - Título (Remix)\n02. 05:12 Artista - Título")
 TOP_HEIGHT = 176
 
+# 1.0.1, R2 (plan D8): combining with a set whose folder already holds files. Filling an ID or gap row keeps
+# every number; putting a track between two numbered rows would change later file numbers, so it is asked,
+# and the safe answer (the default button) appends at the end.
+MERGE_TITLE_ES = "Combinar con un set ya descargado"
+MERGE_KEEP_ES = "Añadirlas al final (ningún archivo cambia de número)"
+MERGE_INSERT_ES = "Ponerlas en su sitio (cambia el número de {n})"
+
 
 def _copy_rows(rows) -> list[TrackRow]:
     return [TrackRow.from_dict(r.to_dict()) for r in rows]
+
+
+def _n_es(n: int, one: str, many: str) -> str:
+    return f"{n} {one if n == 1 else many}"
+
+
+def merge_question_es(name: str, inserted: int, shifted: int) -> str:
+    return (f"El set «{name}» ya tiene archivos descargados. "
+            f"{_n_es(inserted, 'pista de la otra fuente va', 'pistas de la otra fuente van')} entre pistas que ya "
+            f"tienen número. Ponerlas en su sitio cambiaría el número, y el nombre del archivo, de "
+            f"{_n_es(shifted, 'pista', 'pistas')}. Añadirlas al final no cambia ningún archivo: cada una lleva una "
+            "nota que dice dónde va en el set.")
+
+
+def gaps_note_es(removed: int, added: int) -> str:
+    """Banner text after the gap rows were measured again with the real durations (R1)."""
+    if not removed and not added:
+        return ""
+    bits = []
+    if removed:
+        bits.append(_n_es(removed, "hueco quitado", "huecos quitados"))
+    if added:
+        bits.append(_n_es(added, "hueco añadido", "huecos añadidos"))
+    return " Huecos medidos con la duración real de cada pista: " + " y ".join(bits) + "."
 
 
 class NewSetPage(QWidget):
@@ -50,6 +81,7 @@ class NewSetPage(QWidget):
         self.last_result = None
         self._busy = False
         self.watcher: DownloadsWatcher | None = None
+        self._dismissed_gaps: set = set()     # gap rows the user deleted (inputs.gaps.gap_key): never re-added
 
         lay = page_layout(self, "Nuevo set",
                           "Trae la tracklist, revisa la tabla y descarga. Cada archivo se comprueba contra su fila.")
@@ -366,13 +398,18 @@ class NewSetPage(QWidget):
         new_sources = list(getattr(result, "sources", None) or [])
         if mode == "merge":
             try:
-                rows = self.services.merge_rows(self.model.rows(), rows)
+                merged = self._merge(self.model.rows(), rows)
             except Exception as e:  # noqa: BLE001
                 self.banner.show_message(f"No se pudieron combinar las dos fuentes: {e}", "error")
                 return
+            if merged is None:
+                self.banner.show_message("No se ha cambiado nada.", "info")
+                return
+            rows = merged
             self.sources += [s for s in new_sources if s not in self.sources]
         else:
             self.sources = new_sources
+            self._dismissed_gaps = set()
             name = getattr(result, "suggested_name", None) or f"Set {datetime.now():%Y-%m-%d %H%M}"
             self.name.setText(str(name))
         self.model.set_rows(rows)
@@ -380,9 +417,49 @@ class NewSetPage(QWidget):
         text = " ".join(x for x in [msg] + warnings if x)
         if mode == "merge":
             text = f"Fuentes combinadas: {len(rows)} pistas. " + text
+            if not self.services.settings.enrichment_enabled:
+                # without the enrichment the gaps are measured now, with the durations the rows already have
+                text += self._recompute_gaps()
         self.banner.show_message(text or f"{len(rows)} pistas.", "warn" if warnings else "ok", actions=actions)
         if self.services.settings.enrichment_enabled:
             self.enrich()
+
+    def _merge(self, base: list[TrackRow], extra: list[TrackRow]) -> list[TrackRow] | None:
+        """«Añadir otra fuente del mismo set» / «Combinar con la actual» (R2). Before the first download the
+        other source goes in time order and the table is renumbered. Once the set folder holds files,
+        inserting between numbered rows would rename files, so the user is asked first, with the safe
+        answer as the default (plan D8). None: the question was closed, nothing changes."""
+        name = self.name.text().strip()
+        if not (name and self.services.set_has_files(name)):
+            return self.services.merge_rows(base, extra)
+        d = self.services.merge_rows_detailed(base, extra)
+        if not d.inserted:
+            return d.rows                 # tracks matched, ID/gap rows filled in place, the rest at the end
+        before = {r.uid: r.pos for r in base}
+        shifted = sum(1 for r in d.rows if r.uid in before and before[r.uid] != r.pos)
+        idx = self.window.prompter.choose(MERGE_TITLE_ES, merge_question_es(name, len(d.inserted), shifted),
+                                          [MERGE_KEEP_ES, MERGE_INSERT_ES.format(n=_n_es(shifted, "pista", "pistas"))],
+                                          default=0)
+        if idx is None:
+            return None
+        if idx == 0:
+            return self.services.merge_rows_detailed(base, extra, keep_positions=True).rows
+        return d.rows
+
+    def _recompute_gaps(self) -> str:
+        """R1: measure the «ID (hueco)» rows again with the durations the rows have now, only while the set
+        has never been downloaded (decision B). Returns the text for the banner ('' when nothing changed)."""
+        name = self.name.text().strip()
+        if name and self.services.set_has_files(name):
+            return ""
+        try:
+            res = self.services.recompute_gaps(self.model.rows(), dismissed=self._dismissed_gaps)
+        except Exception:  # noqa: BLE001 - the gaps are a help, never a reason to lose the table
+            return ""
+        if not res.changed:
+            return ""
+        self.model.set_rows(res.rows)
+        return gaps_note_es(res.removed, res.added)
 
     def _show_candidates(self, result) -> None:
         """YouTube/SoundCloud: 'Comentario de @x · 22 pistas con tiempos · 11 likes', switchable."""
@@ -407,6 +484,7 @@ class NewSetPage(QWidget):
         if not (0 <= i < len(cands)) or not getattr(cands[i], "rows", None):
             return
         c = cands[i]
+        self._dismissed_gaps = set()
         self.model.set_rows(_copy_rows(c.rows))
         ref = getattr(c, "source_ref", None)
         if ref is not None:
@@ -438,6 +516,7 @@ class NewSetPage(QWidget):
     def _on_enriched(self, copies: list[TrackRow], outcomes, then: Callable[[], None] | None = None) -> None:
         self._set_busy(False)
         self.model.replace_rows_by_uid(copies)
+        gaps = self._recompute_gaps()        # R1: with the durations just applied (never once there are files)
         outs = list(outcomes or [])
         ok = [o for o in outs if getattr(o, "accepted", False)]
         by = Counter(ENRICH_ES.get(getattr(o, "provider", None) or "", getattr(o, "provider", None) or "?")
@@ -446,7 +525,7 @@ class NewSetPage(QWidget):
         detail = ", ".join(f"{k} {v}" for k, v in by.most_common())
         self.banner.show_message(
             f"Datos completados: {len(ok)} de {len(outs)} pistas" + (f" ({detail})" if detail else "") +
-            f". {with_dur} con duración esperada.", "ok")
+            f". {with_dur} con duración esperada." + gaps, "ok")
         if then is not None:
             then()
 
@@ -482,10 +561,13 @@ class NewSetPage(QWidget):
             return
         sel = self._selected_rows()
         if sel:
+            # a deleted automatic gap row stays deleted when 'Completar datos' measures the gaps again
+            self._dismissed_gaps.update(self.services.gap_keys(self.model.rows(), sel))
             self.model.remove_rows(sel)
 
     def set_rows(self, rows: list[TrackRow], name: str | None = None, sources: list[SourceRef] | None = None) -> None:
         """Load rows directly (used by 'Abrir un set anterior' and by tools/screenshots.py)."""
+        self._dismissed_gaps = set()
         self.model.set_rows(rows)
         if name is not None:
             self.name.setText(name)

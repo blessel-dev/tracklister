@@ -1,0 +1,48 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Obscur Binary Drive"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 1,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1884633404,
+     "artistName": "Obscur",
+     "trackName": "Binary Drive",
+     "collectionName": "Inside Scoop",
+     "trackTimeMillis": 323160,
+     "releaseDate": "2026-04-17T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

@@ -18,20 +18,22 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Mapping
 
 from tracklister import config
+from tracklister.core.aliases import MAX_VARIANTS, artist_aliases
 from tracklister.core.jsonio import read_json, write_json
 from tracklister.core.layout import DUDOSOS, ORIGINALES, REPORT_TEMPLATE, TRACKLIST_TEMPLATE, set_doc_path
 from tracklister.core.model import (
-    QUARANTINE_DOUBTS, DuplicateChoice, LibraryEntry, PassRecord, ResultState, RowResult, SetDoc, SourceRef,
-    TrackRow, new_uid,
+    QUARANTINE_DOUBTS, DoubtKind, DuplicateChoice, LibraryEntry, PassRecord, ResultState, RowResult, SetDoc,
+    SourceRef, TrackRow, new_uid,
 )
+from tracklister.core.textnorm import norm_key, split_artists, version_key
 from tracklister.core.paths import AppPaths
 from tracklister.core.settings import Settings
 from tracklister.engine.cli import EngineJob, PASS_JSON, bannable_peer
 from tracklister.engine.credentials import Credentials
-from tracklister.engine.csvwriter import write_engine_csv
+from tracklister.engine.csvwriter import SearchQuery, row_variants, write_engine_csv
 from tracklister.engine.outputs import EngineEvent
 from tracklister.engine.presets import FormatPass, Preset, build_preset, relaxed
 from tracklister.engine.runner import EngineError, EngineRunner
@@ -43,11 +45,12 @@ from tracklister.pipeline import report as report_mod
 from tracklister.verify.audioinfo import AudioInfo, probe
 from tracklister.verify.convert import to_aiff_pcm
 from tracklister.verify.quality import QualityCheck, check_quality
+from tracklister.verify.spectral import legacy_cut
 from tracklister.verify.verifier import verify_file
 
 log = logging.getLogger("tracklister.pipeline")
 
-GOOD = (ResultState.VERIFICADO, ResultState.YA_EN_BIBLIOTECA)
+GOOD = (ResultState.VERIFICADO, ResultState.REVISAR_CALIDAD, ResultState.YA_EN_BIBLIOTECA)
 MISSING = (ResultState.PENDIENTE, ResultState.EN_CURSO, ResultState.NO_ENCONTRADO,
            ResultState.NO_CUMPLE_FORMATO, ResultState.FALLIDA)
 RETRYABLE = (ResultState.NO_ENCONTRADO, ResultState.FALLIDA, ResultState.NO_CUMPLE_FORMATO)
@@ -67,6 +70,43 @@ SAME_FILE_ES = (f"Ha vuelto el mismo archivo que ya estaba en {DUDOSOS} (idénti
                 "hay en Soulseek otra copia mejor de esta pista.")
 CONVERT_FAILED_ES = ("No se pudo convertir a AIFF para CDJ antiguos ({err}): el archivo está dañado o incompleto. "
                      "No se pone en el set; pulsa «Reintentar fallos» para volver a descargarla.")
+# 1.0.1, R6: «Reintentar fallos» also looks for another copy of a file marked «probable MP3 convertido»
+NOT_RETRIED_QUALITY_ES = ("No se ha buscado otra copia: no se sabe de qué usuario de Soulseek vino este archivo, así "
+                          "que volvería el mismo. Se queda en el set con su número.")
+SAME_MARKED_FILE_ES = ("Ha vuelto el mismo archivo marcado (idéntico byte a byte): por ahora no hay en Soulseek otra "
+                       "copia mejor de esta pista. Se queda en el set con su número.")
+NOT_BETTER_ES = "{label}: no apareció una copia mejor (se queda la que había, con su número)."
+REPLACED_MARKED_ES = f"Sustituye a una copia marcada como probable MP3 convertido (ahora en {DUDOSOS})."
+BETTER_CUT_HZ = 1000.0          # a still-marked copy replaces the old one only with a clearly higher cut (D7)
+REUSED_MARK_ES = ("Marca que trae del set '{set}': probable MP3 convertido; puede sonar igual y tener menos "
+                  "calidad.")
+# 1.0.1, R8 (plan D6): a set written by 1.0.0 is checked again once with the new rules, when a run starts
+UPGRADE_MARKER = "1.0.1-reverificar"
+UPGRADE_LABEL = "Actualizar a Tracklister 1.0.1"
+UPGRADED_FROM_DUDOSOS_ES = (f"Revisado con Tracklister 1.0.1: antes estaba en {DUDOSOS}; con las reglas nuevas de "
+                            "nombres de archivo es la pista pedida.")
+UPGRADED_SPECTRUM_ES = "Revisado con Tracklister 1.0.1: la marca de espectro de la versión 1.0.0 se ha vuelto a medir."
+# 1.0.1, R4 (plan D4): a row that found nothing is searched again with its other spellings (at most
+# MAX_VARIANTS more engine processes per format pass); «Reintentar fallos» ends with the engine's deep search
+FOUND_AS_ES = "Encontrado buscando «{query}»."
+ALSO_SEARCHED_ES = "También se buscó como {queries}."
+DESPERATE_TRIED_ES = "«Reintentar fallos» también probó la búsqueda a fondo del motor."
+VARIANT_LABEL_ES = " (variante {k})"
+DESPERATE_LABEL_ES = " (búsqueda a fondo)"
+
+# 1.0.1, R11: what a row of the running pass is doing, for the progress bar of its Estado cell
+# (SessionEvent kind "row_progress", field `phase`; the GUI turns it into the text and the bar)
+PHASE_WAITING = "espera"            # in the pass, not touched by the engine yet: «En espera»
+PHASE_CHECKING = "comprobando"      # its file has arrived and is being verified/converted: «Comprobando…»
+
+
+def query_label(q: SearchQuery) -> str:
+    return f"{q.artist} - {q.title}" if q.artist else q.title
+
+
+def _spellings_es(labels: list[str]) -> str:
+    quoted = [f"«{x}»" for x in labels]
+    return quoted[0] if len(quoted) == 1 else ", ".join(quoted[:-1]) + " y " + quoted[-1]
 
 
 def _row_error_es(e: BaseException) -> str:
@@ -100,12 +140,18 @@ def _write_text(path: Path, text: str) -> None:
 
 @dataclass(frozen=True)
 class SessionEvent:
-    kind: str            # "pass_started" | "row_state" | "log" | "pass_finished" | "finished" | "error"
+    kind: str            # "pass_started" | "row_state" | "row_progress" | "log" | "pass_finished" | "finished"
+    #                      | "error"
     uid: str | None = None
     state: ResultState | None = None
     message_es: str = ""
     done: int = 0
     total: int = 0
+    # "row_progress" only (1.0.1, R11): the phase (PHASE_* here, or engine.progress.PHASE_*) and the bytes of
+    # the file being downloaded (bytes_total None = the engine does not say the size)
+    phase: str = ""
+    bytes_done: int | None = None
+    bytes_total: int | None = None
 
 
 @dataclass(frozen=True)
@@ -114,13 +160,50 @@ class DuplicateHit:
     entries: list[LibraryEntry] = field(default_factory=list)
 
 
+def set_has_files(set_dir: Path) -> bool:
+    """Does this set folder already hold files of the set? (its set.json exists and some result's file, or
+    its _originales copy, is on disk). Used by the GUI: gaps are recomputed and rows renumbered only
+    while this is False (06, decision B)."""
+    try:
+        data = read_json(set_doc_path(Path(set_dir)), default=None)
+        doc = SetDoc.from_dict(data) if isinstance(data, dict) else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    if doc is None:
+        return False
+    return any(rel and os.path.exists(win_long(Path(set_dir) / rel))
+               for res in doc.results.values() for rel in (res.file, res.original_file))
+
+
+def _artist_set(row: TrackRow) -> frozenset[str]:
+    """The row's single artists, normalised, with their aliases: 'GCOD & KYSH Records' -> {'gcod', 'kysh
+    records'}, 'Komplex aka Jeroen Search' -> {'komplex aka jeroen search', 'komplex', 'jeroen search'}."""
+    names = split_artists(row.artist_display) + list(row.artists or [])
+    names += [a for n in list(names) for a in artist_aliases(n)]
+    return frozenset(k for k in (norm_key(n) for n in names) if k)
+
+
+def _same_track_other_artists(new: TrackRow, old: TrackRow) -> bool:
+    """1.0.1, R5: only the artist display changed (a label co-artist removed, a co-artist added, the order
+    of a duo): the same title and version, and one set of artists inside the other."""
+    if not (new.title or "").strip() or new.is_id or old.is_id:
+        return False
+    if norm_key(new.title) != norm_key(old.title) or version_key(new.version) != version_key(old.version):
+        return False
+    a, b = _artist_set(new), _artist_set(old)
+    return bool(a) and bool(b) and (a <= b or b <= a)
+
+
 def _merge_rows(old: SetDoc, rows: list[TrackRow]) -> None:
     """Re-run: carry the old uid (and so the old results) over to the same track in the new table.
 
-    Only a row matched by row_key (artist, title and version) inherits an old uid and its result. A row
-    edited in the Nuevo set table keeps the uid it had there, which is the old row's: it gets a new one,
-    so the old result and its file never pass for the corrected track (audit round 4, B1). In the end
-    every uid is unique (a repeated one goes to the lower row)."""
+    A row matched by row_key (artist, title and version) inherits an old uid and its result. 1.0.1 (R5):
+    so does a row that only changed its artists within the same title and version (one set of artists
+    inside the other: 'GCOD & KYSH Records' -> 'GCOD'), when exactly one old row fits; finalize() then
+    renames its file instead of downloading it again. Any other edit in the Nuevo set table (title,
+    version, another artist) gets a new uid, so the old result and its file never pass for the
+    corrected track (audit round 4, B1). In the end every uid is unique (a repeated one goes to the
+    lower row)."""
     by_key_pos = {(row_key(r), r.pos): r for r in old.rows}
     by_key: dict[str, list[TrackRow]] = {}
     for r in old.rows:
@@ -138,8 +221,16 @@ def _merge_rows(old: SetDoc, rows: list[TrackRow]) -> None:
             used.add(cand.uid)
         else:
             unmatched.append(r)
+    still: list[TrackRow] = []
+    for r in unmatched:                 # R5: the same track with its artists edited
+        fits = [c for c in old.rows if c.uid not in used and _same_track_other_artists(r, c)]
+        if len(fits) == 1:
+            r.uid = fits[0].uid
+            used.add(fits[0].uid)
+        else:
+            still.append(r)
     seen = set(used)
-    for r in unmatched:                 # table order: of two rows with one uid, the lower gets a new one
+    for r in still:                     # table order: of two rows with one uid, the lower gets a new one
         if r.uid in old_uids or r.uid in seen:
             r.uid = new_uid()
         seen.add(r.uid)
@@ -228,9 +319,22 @@ class SetSession:
     def _quarantined(self, res: RowResult) -> bool:
         return res.state == ResultState.DUDOSO and res.doubt in QUARANTINE_DOUBTS
 
-    def _needs_file(self, row: TrackRow) -> bool:
+    @staticmethod
+    def _quality_marked(res: RowResult) -> bool:
+        """Its file in the set carries the strong spectral mark (1.0.1), or the 1.0.0 one (DUDOSO/ESPECTRO)."""
+        return res.state == ResultState.REVISAR_CALIDAD or (res.state == ResultState.DUDOSO
+                                                            and res.doubt == DoubtKind.ESPECTRO)
+
+    def _kept(self, res: RowResult) -> bool:
+        """The row has a file (in _dudosos, or marked in the set) that stays until a better one arrives."""
+        return self._quarantined(res) or self._quality_marked(res)
+
+    def _needs_file(self, row: TrackRow, relaxed: bool = False) -> bool:
+        """A normal run downloads what is missing or in _dudosos; «Reintentar fallos» (relaxed) also looks
+        for another copy of a file marked «probable MP3 convertido» (1.0.1, R6)."""
         res = self._res(row.uid)
-        return row.download and (res.state in MISSING or self._quarantined(res))
+        return row.download and (res.state in MISSING or self._quarantined(res)
+                                 or (relaxed and self._quality_marked(res)))
 
     # ---- duplicates -----------------------------------------------------------------------
     def _mp3_allowed(self, row: TrackRow) -> bool:
@@ -364,9 +468,8 @@ class SetSession:
         res.samplerate, res.bitdepth = samplerate, bitdepth
         res.bitrate_kbps = info.bitrate_kbps if container == "mp3" else None
         carried = [f for f in CARRIED_FLAGS if f in (entry.flags or [])]
-        if "posible_falso_lossless" in carried:
-            reasons.append(f"Marca que trae del set '{entry.set_name}': posible lossless falso (sacado de "
-                           "un MP3). Escúchalo antes de pincharlo.")
+        if carried:
+            reasons.append(REUSED_MARK_ES.format(set=entry.set_name))
         res.reasons, res.flags = reasons, flags + carried
         res.updated_at = _now()
 
@@ -392,6 +495,7 @@ class SetSession:
     # ---- running --------------------------------------------------------------------------
     def run(self, runner: EngineRunner, creds: Credentials, on_event: Callable[[SessionEvent], None],
             cancel: threading.Event, ask_lossy: Callable[[list[TrackRow]], set[str]]) -> None:
+        self._upgrade_results(on_event)
         for r in self.doc.rows:
             res = self._res(r.uid)
             if not r.download and res.state not in GOOD:
@@ -402,8 +506,9 @@ class SetSession:
         self._passes(runner, creds, on_event, cancel, ask_lossy, [(todo, ())], relaxed_mode=False)
 
     def _rejected(self, res: RowResult) -> bool:
-        """Its last file was rejected: in _dudosos (other song, version or duration) or not in format."""
-        return self._quarantined(res) or res.state == ResultState.NO_CUMPLE_FORMATO
+        """Its last file was rejected: in _dudosos (other song, version or duration), not in format, or kept
+        in the set with the mark «probable MP3 convertido» (1.0.1: another copy is looked for)."""
+        return self._quarantined(res) or res.state == ResultState.NO_CUMPLE_FORMATO or self._quality_marked(res)
 
     def retry_failed(self, runner: EngineRunner, creds: Credentials, on_event: Callable[[SessionEvent], None],
                      cancel: threading.Event) -> None:
@@ -414,7 +519,12 @@ class SetSession:
         peers that gave its rejected files>: otherwise the engine would pick the same first candidate and
         bring the same file back. Those peers stay banned for the row in later retries too, whatever its
         state. A rejected row whose peer is unknown (or cannot be banned) is not sent again: it keeps its
-        state, with a Spanish reason saying why and what to do."""
+        state, with a Spanish reason saying why and what to do.
+
+        1.0.1 (R6): a file kept in the set with the mark «probable MP3 convertido» is a rejected one too:
+        another copy is looked for without the peer that sent it, and only a copy without the mark (or
+        with a clearly higher cut) replaces it; the marked file then goes to _dudosos, never deleted."""
+        self._upgrade_results(on_event)
         normal: set[str] = set()
         with_bans: set[str] = set()
         banned: list[str] = []
@@ -426,7 +536,8 @@ class SetSession:
             if not (rejected or res.state in RETRYABLE + (ResultState.PENDIENTE, ResultState.EN_CURSO)):
                 continue
             if rejected and not bannable_peer(res.peer, creds.username):
-                note = NOT_RETRIED_ES if self._quarantined(res) else NOT_RETRIED_FORMAT_ES
+                note = (NOT_RETRIED_ES if self._quarantined(res) else
+                        NOT_RETRIED_QUALITY_ES if self._quality_marked(res) else NOT_RETRIED_FORMAT_ES)
                 if note not in res.reasons:
                     res.reasons = res.reasons + [note]
                     on_event(SessionEvent("row_state", r.uid, res.state, note, 1, 1))
@@ -478,14 +589,20 @@ class SetSession:
                         rows = [r for r in cands if r.uid in self.doc.lossy_approved]
                     else:
                         rows = [r for r in sorted(self.doc.rows, key=lambda x: x.pos)
-                                if r.uid in uids and self._needs_file(r)]
+                                if r.uid in uids and self._needs_file(r, relaxed_mode)]
                     if not rows:
                         continue
-                    stop = self._run_pass(relaxed(p) if relaxed_mode else p, rows, runner, creds, on_event, cancel,
-                                          total, banned)
+                    fmt = relaxed(p) if relaxed_mode else p
+                    stop = self._run_pass(fmt, rows, runner, creds, on_event, cancel, total, banned)
+                    if not stop:
+                        stop = self._variant_passes(fmt, rows, runner, creds, on_event, cancel, total, banned)
                     if stop:
                         on_event(SessionEvent("error", message_es=stop))
                         break
+            if relaxed_mode and not stop and not cancel.is_set():
+                stop = self._desperate_passes(groups, runner, creds, on_event, cancel, total)
+                if stop:
+                    on_event(SessionEvent("error", message_es=stop))
         except EngineError as e:
             for u in todo:
                 if self._res(u).state in (ResultState.PENDIENTE, ResultState.EN_CURSO):
@@ -500,39 +617,123 @@ class SetSession:
             self.save()
         on_event(SessionEvent("finished", message_es="Listo.", done=total, total=total))
 
+    def _variant_passes(self, fmt: FormatPass, rows: list[TrackRow], runner: EngineRunner, creds: Credentials,
+                        on_event: Callable[[SessionEvent], None], cancel: threading.Event, total: int,
+                        banned: tuple[str, ...] = (), *, desperate: bool = False) -> str | None:
+        """R4 (plan D4, notes v101-c 1.1): the rows of a pass that came back «no encontrado» are searched
+        again with their other spellings, one engine process per spelling rank (variant 1 of every such row,
+        then variant 2), with the same format and bans. Only NO_ENCONTRADO rows: a failed download, a file
+        out of format or a kept file is not a spelling problem. The row itself never changes; the reason
+        says which spelling found it, or which ones were tried."""
+        tried: dict[str, list[str]] = {}
+        stop = None
+        for k in range(1, MAX_VARIANTS + 1):
+            if cancel.is_set():
+                break
+            todo, queries = [], {}
+            for r in rows:
+                if self._res(r.uid).state != ResultState.NO_ENCONTRADO:
+                    continue
+                variants = row_variants(r)
+                if len(variants) >= k:
+                    todo.append(r)
+                    queries[r.uid] = variants[k - 1]
+                    tried.setdefault(r.uid, []).append(query_label(variants[k - 1]))
+            if not todo:
+                break
+            extra = VARIANT_LABEL_ES.format(k=k) + (DESPERATE_LABEL_ES if desperate else "")
+            stop = self._run_pass(fmt, todo, runner, creds, on_event, cancel, total, banned, queries=queries,
+                                  desperate=desperate, label_extra=extra)
+            if stop:
+                break
+        for uid, labels in tried.items():
+            res = self._res(uid)
+            if res.state == ResultState.NO_ENCONTRADO:
+                note = ALSO_SEARCHED_ES.format(queries=_spellings_es(labels))
+                if note not in res.reasons:
+                    res.reasons = res.reasons + [note]
+        if tried:
+            self.save()
+        return stop
+
+    def _desperate_passes(self, groups: list[tuple[set[str], tuple[str, ...]]], runner: EngineRunner,
+                          creds: Credentials, on_event: Callable[[SessionEvent], None], cancel: threading.Event,
+                          total: int) -> str | None:
+        """«Reintentar fallos», last: the engine's deep search (--desperate) for the rows still «no
+        encontrado», in every format of the preset (MP3 only for the rows the user approved), first with the
+        row as written and then with each of its other spellings (notes v101-c 1.1: the deep search keeps the
+        strict artist, so it never finds 'Jeroen Search' for 'Komplex aka Jeroen Search' by itself). Up to
+        DESPERATE_SEARCHES_PER_ITEM searches per row and spelling, all inside the app-wide search budget."""
+        stop = None
+        tried: set[str] = set()
+        for p in self.preset.passes:
+            for uids, banned in groups:
+                if cancel.is_set() or stop:
+                    return stop
+                rows = [r for r in sorted(self.doc.rows, key=lambda x: x.pos)
+                        if r.uid in uids and r.download and (r.title or "").strip()
+                        and self._res(r.uid).state == ResultState.NO_ENCONTRADO
+                        and (not p.lossy or r.uid in self.doc.lossy_approved)]
+                if not rows:
+                    continue
+                fmt = relaxed(p)
+                tried.update(r.uid for r in rows)
+                stop = self._run_pass(fmt, rows, runner, creds, on_event, cancel, total, banned, desperate=True,
+                                      label_extra=DESPERATE_LABEL_ES)
+                if not stop:
+                    stop = self._variant_passes(fmt, rows, runner, creds, on_event, cancel, total, banned,
+                                                desperate=True)
+        for uid in tried:
+            res = self._res(uid)
+            if res.state == ResultState.NO_ENCONTRADO and DESPERATE_TRIED_ES not in res.reasons:
+                res.reasons = res.reasons + [DESPERATE_TRIED_ES]
+        if tried:
+            self.save()
+        return stop
+
     def _run_pass(self, fmt: FormatPass, rows: list[TrackRow], runner: EngineRunner, creds: Credentials,
                   on_event: Callable[[SessionEvent], None], cancel: threading.Event, total: int,
-                  banned: tuple[str, ...] = ()) -> str | None:
-        """Run one pass; returns a Spanish message when the remaining passes must not run."""
+                  banned: tuple[str, ...] = (), *, queries: Mapping[str, SearchQuery] | None = None,
+                  desperate: bool = False, label_extra: str = "") -> str | None:
+        """Run one pass; returns a Spanish message when the remaining passes must not run.
+
+        `queries` (R4): another spelling for some rows (a search variant); `desperate`: the engine's deep
+        search (the last pass of «Reintentar fallos»); `label_extra` goes into the pass label."""
         index = len(self.doc.passes) + 1
         work = self.paths.work_dir / self.doc.set_id[:8] / f"p{index:02d}"
         if work.exists():
             shutil.rmtree(win_long(work), ignore_errors=True)
         work.mkdir(parents=True, exist_ok=True)
-        manifest = write_engine_csv(rows, work / "input.csv")
+        manifest = write_engine_csv(rows, work / "input.csv", queries=queries)
         by_snum = {m.snum: m for m in manifest}
         started = _now()
         pass_doc = {"schema": "tracklister.pass/1", "set_id": self.doc.set_id, "index": index, "name": fmt.name,
                     "engine": runner.spec.engine_id, "items": [m.to_dict() for m in manifest], "argv_redacted": [],
                     "started_at": started, "finished_at": None, "exit_code": None}
         write_json(work / PASS_JSON, pass_doc)
-        label = f"Pasada {index}: {fmt.name}" + ("" if fmt.strict_artist else " (relajada)")
+        label = f"Pasada {index}: {fmt.name}" + ("" if fmt.strict_artist else " (relajada)") + label_extra
         if banned:
             label += " sin los usuarios de los archivos rechazados"
         on_event(SessionEvent("pass_started", message_es=f"{label}: {len(rows)} pistas.", total=total))
-        was_quarantined = {r.uid for r in rows if self._quarantined(self._res(r.uid))}
+        was_quarantined = {r.uid for r in rows if self._kept(self._res(r.uid))}
         for r in rows:
             if r.uid in was_quarantined:
-                # its file in _dudosos and its doubt stay until a better file arrives (also if the pass is
-                # cancelled or fails): only the screen shows it "en curso"
+                # its file (in _dudosos, or marked in the set) and its state stay until a better file arrives
+                # (also if the pass is cancelled or fails): only the screen shows it "en curso"
                 on_event(SessionEvent("row_state", r.uid, ResultState.EN_CURSO, "En cola", total=total))
             else:
                 self._set_state(r.uid, ResultState.EN_CURSO, on_event, "En cola", total=total)
+            on_event(SessionEvent("row_progress", r.uid, ResultState.EN_CURSO, total=total, phase=PHASE_WAITING))
         self.save()
 
         def on_engine(ev: EngineEvent) -> None:
             uid = by_snum[ev.snum].uid if ev.snum in by_snum else None
-            if ev.kind == "searching" and uid:
+            if ev.kind == "progress" and uid:
+                on_event(SessionEvent("row_progress", uid, ResultState.EN_CURSO, total=total, phase=ev.phase,
+                                      bytes_done=ev.bytes_done, bytes_total=ev.bytes_total))
+            elif ev.kind == "progress":
+                return
+            elif ev.kind == "searching" and uid:
                 on_event(SessionEvent("row_state", uid, ResultState.EN_CURSO, "Buscando...", total=total))
             elif ev.kind == "downloading" and uid:
                 on_event(SessionEvent("row_state", uid, ResultState.EN_CURSO, "Descargando...", total=total))
@@ -541,9 +742,12 @@ class SetSession:
 
         job = EngineJob(work, fmt, any(m.length for m in manifest), int(self.settings.listen_port),
                         int(self.settings.concurrent_downloads), int(self.settings.searches_per_time),
-                        int(self.settings.searches_renew_s), banned_users=tuple(banned))
+                        int(self.settings.searches_renew_s), banned_users=tuple(banned), desperate=desperate)
         result = runner.run(job, manifest, creds, on_engine, cancel)
-        self.doc.passes.append(PassRecord(index=index, name=fmt.name + ("" if fmt.strict_artist else "-relajada"),
+        name = fmt.name + ("" if fmt.strict_artist else "-relajada") + ("-a-fondo" if desperate else "")
+        if queries:
+            name += "-variante"
+        self.doc.passes.append(PassRecord(index=index, name=name,
                                           engine=runner.spec.engine_id, uids=[m.uid for m in manifest],
                                           started_at=started, finished_at=_now(), exit_code=result.exit_code,
                                           work_dir=str(work)))
@@ -560,8 +764,15 @@ class SetSession:
                 res.attempts += 1
                 res.pass_name = fmt.name
                 had_quarantined = m.uid in was_quarantined
+                if outcome is not None and outcome.file is not None:
+                    # R11: verify, the spectral check and a CDJ conversion run now («Comprobando…»)
+                    on_event(SessionEvent("row_progress", m.uid, ResultState.EN_CURSO, total=total,
+                                          phase=PHASE_CHECKING))
                 try:
                     self._settle_row(row, res, outcome, result, fmt, label, lossy_ok, width, bid, had_quarantined)
+                    q = (queries or {}).get(m.uid)
+                    if q is not None and outcome is not None and outcome.file is not None:
+                        res.reasons = res.reasons + [FOUND_AS_ES.format(query=query_label(q))]
                 except Exception as e:  # noqa: BLE001 - one bad file marks its row, never stops the pass
                     log.exception("row %s: processing the downloaded file failed", row.pos)
                     if had_quarantined:
@@ -588,7 +799,7 @@ class SetSession:
         """The outcome of one row after a pass: its file verified and placed, or why there is none.
         A row whose file is in _dudosos keeps it (and its doubt) unless a new file arrives."""
         if outcome is not None and outcome.file is not None:
-            self._handle_file(row, res, outcome, fmt, lossy_ok, width, bid, had_quarantined)
+            self._handle_file(row, res, outcome, fmt, lossy_ok, width, bid, had_quarantined, label)
         elif had_quarantined:
             if result.cancelled:
                 note = "Cancelado antes de terminar esta pista."
@@ -615,9 +826,41 @@ class SetSession:
             res.state, res.doubt, res.file = ResultState.FALLIDA, None, None
             res.reasons = [REASON_ES.get(reason or "", f"El motor no pudo descargarla ({reason or 'sin motivo'}).")]
 
+    @staticmethod
+    def _old_cut(res: RowResult) -> float | None:
+        if res.spectral_cutoff_hz:
+            return float(res.spectral_cutoff_hz)
+        cut = legacy_cut(res.reasons)
+        return cut[0] if cut else None
+
+    def _better_copy(self, res: RowResult, verdict) -> bool:
+        """Plan D7: a copy without the strong mark, or still marked but with a clearly higher cut, replaces
+        the marked file. Anything else (another song, «revisar», the same cut) does not."""
+        if verdict.state == ResultState.VERIFICADO:
+            return True
+        if verdict.state != ResultState.REVISAR_CALIDAD:
+            return False
+        new_cut = verdict.spectral.cutoff_hz if verdict.spectral is not None else None
+        old_cut = self._old_cut(res)
+        return new_cut is not None and old_cut is not None and new_cut >= old_cut + BETTER_CUT_HZ
+
+    def _retire_marked(self, row: TrackRow, res: RowResult, width: int, bid: str) -> None:
+        """The marked file (and its _originales copy) goes to _dudosos with its NN name: never deleted."""
+        for attr in ("file", "original_file"):
+            rel = getattr(res, attr)
+            if not rel:
+                continue
+            cur = self.set_dir / rel
+            if os.path.lexists(win_long(cur)):
+                self.journal.move(bid, cur, self.set_dir / DUDOSOS / track_filename(row, cur.suffix, width), uid=row.uid)
+            setattr(res, attr, None)
+        if res.peer and res.peer not in res.rejected_peers:
+            res.rejected_peers = res.rejected_peers + [res.peer]
+
     def _handle_file(self, row: TrackRow, res: RowResult, outcome, fmt: FormatPass, lossy_ok: bool, width: int,
-                     bid: str, had_quarantined: bool) -> None:
+                     bid: str, had_quarantined: bool, label: str = "") -> None:
         src = Path(outcome.file)
+        marked = had_quarantined and self._quality_marked(res)
         # a retry that brings back exactly the file already in _dudosos must say so (DECISIONES R.1)
         came_back = bool(had_quarantined and res.file and same_file_content(src, self.set_dir / res.file))
         verdict = verify_file(row, src, self.preset.accept, lossy_allowed=lossy_ok,
@@ -629,10 +872,18 @@ class SetSession:
         if verdict.state == ResultState.NO_CUMPLE_FORMATO:
             self._not_in_format(res, outcome, verdict.reasons_es, verdict.flags, info, had_quarantined)
             return
+        if marked and not self._better_copy(res, verdict):
+            # D7: the marked file and its result stay; this copy goes with the pass's work folder, and its
+            # user is not asked again for this track
+            if outcome.peer and outcome.peer != res.peer and outcome.peer not in res.rejected_peers:
+                res.rejected_peers = res.rejected_peers + [outcome.peer]
+            res.reasons = res.reasons + [SAME_MARKED_FILE_ES if came_back else NOT_BETTER_ES.format(label=label)]
+            return
         reasons, flags = list(verdict.reasons_es), list(verdict.flags)
         samplerate, bitdepth, container = info.samplerate, info.bitdepth, info.container
         original_rel = None
         quarantine = verdict.doubt in QUARANTINE_DOUBTS
+        conv = None
         if verdict.needs_conversion and not quarantine:
             acc = self.preset.accept
             try:
@@ -643,6 +894,10 @@ class SetSession:
                 self._not_in_format(res, outcome, [CONVERT_FAILED_ES.format(err=type(e).__name__)],
                                     verdict.flags + ["conversion_fallida"], info, had_quarantined)
                 return
+        if marked:
+            self._retire_marked(row, res, width, bid)
+            reasons.append(REPLACED_MARKED_ES)
+        if conv is not None:
             orig_dst = self.set_dir / ORIGINALES / track_filename(row, src.suffix, width)
             real_orig = self.journal.move(bid, src, orig_dst, uid=row.uid)
             original_rel = rel_to_set(self.set_dir, real_orig)
@@ -665,9 +920,69 @@ class SetSession:
         res.format, res.samplerate, res.bitdepth = container, samplerate, bitdepth
         res.duration_s = info.decoded_duration_s or info.duration_s
         res.bitrate_kbps = info.bitrate_kbps if container == "mp3" else None
+        res.spectral_cutoff_hz = verdict.spectral.cutoff_hz if verdict.spectral is not None else None
         res.source_path_tail, res.peer = outcome.source_path_tail, outcome.peer
         if quarantine and outcome.peer and outcome.peer not in res.rejected_peers:
             res.rejected_peers = res.rejected_peers + [outcome.peer]
+
+    # ---- sets written by 1.0.0 (R8, plan D6) ------------------------------------------------------
+    def _upgrade_results(self, on_event: Callable[[SessionEvent], None] | None = None) -> int:
+        """Once per set, when a run starts: re-verify in place, with the 1.0.1 rules, the files of results
+        that those rules can judge differently. These are the 1.0.0 spectral marks (DUDOSO/ESPECTRO, in the
+        set) and the files in _dudosos whose Soulseek path is known (file-name rules, watermarks). A new
+        VERIFICADO or REVISAR_CALIDAD is taken (a _dudosos file moves to its NN name at the root, in one
+        journal batch); any other outcome leaves the result as it was. Nothing is downloaded, renumbered
+        or deleted. Returns how many results changed."""
+        if UPGRADE_MARKER in self.doc.migrations:
+            return 0
+        changed = 0
+        bid: str | None = None
+        try:
+            for row in sorted(self.doc.rows, key=lambda x: x.pos):
+                res = self.doc.results.get(row.uid)
+                if res is None or not res.file or not row.download or not (row.title or "").strip():
+                    continue
+                legacy = res.state == ResultState.DUDOSO and res.doubt == DoubtKind.ESPECTRO
+                # a file in _dudosos is judged by its Soulseek name: without it only our own NN name is left
+                if not (legacy or (self._quarantined(res) and res.source_path_tail)):
+                    continue
+                path = self.set_dir / res.file
+                if not os.path.isfile(win_long(path)):
+                    continue
+                try:
+                    verdict = verify_file(row, Path(win_long(path)), self.preset.accept,
+                                          lossy_allowed=self._mp3_allowed(row), source_path_tail=res.source_path_tail,
+                                          duration_ok_s=int(self.settings.duration_ok_s),
+                                          duration_review_s=int(self.settings.duration_review_s),
+                                          spectral=bool(self.settings.spectral_check_enabled))
+                except Exception as e:  # noqa: BLE001 - an unreadable old file keeps its old result
+                    log.warning("row %s: could not be checked again (%s)", row.pos, type(e).__name__)
+                    continue
+                if verdict.state not in (ResultState.VERIFICADO, ResultState.REVISAR_CALIDAD) \
+                        or verdict.needs_conversion:
+                    continue
+                if self._quarantined(res):
+                    if bid is None:
+                        bid = self.journal.begin(UPGRADE_LABEL)
+                    real = self.journal.move(bid, path, self.set_dir / track_filename(row, path.suffix, self._width()),
+                                             uid=row.uid)
+                    res.file = rel_to_set(self.set_dir, real)
+                    note = UPGRADED_FROM_DUDOSOS_ES
+                else:
+                    note = UPGRADED_SPECTRUM_ES
+                res.state, res.doubt, res.score = verdict.state, None, verdict.score
+                res.reasons, res.flags = [note] + list(verdict.reasons_es), list(verdict.flags)
+                res.spectral_cutoff_hz = verdict.spectral.cutoff_hz if verdict.spectral is not None else None
+                res.updated_at = _now()
+                changed += 1
+                if on_event:
+                    on_event(SessionEvent("row_state", row.uid, res.state, note, 0, 0))
+        finally:
+            if bid is not None:
+                self.journal.commit(bid)
+            self.doc.migrations = list(self.doc.migrations) + [UPGRADE_MARKER]
+            self.save()
+        return changed
 
     @staticmethod
     def _not_in_format(res: RowResult, outcome, reasons_es: list[str], flags: list[str], info,

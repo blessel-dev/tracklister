@@ -1,0 +1,216 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Red Rooms Trip"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 15,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1381582728,
+     "artistName": "Maroon 5",
+     "trackName": "Girls Like You (feat. Cardi B)",
+     "collectionName": "Girls Like You (feat. Cardi B) - Single",
+     "trackTimeMillis": 235545,
+     "releaseDate": "2018-05-30T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1193701328,
+     "artistName": "Ed Sheeran",
+     "trackName": "Castle on the Hill",
+     "collectionName": "÷ (Deluxe)",
+     "trackTimeMillis": 261154,
+     "releaseDate": "2017-01-06T08:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1440818664,
+     "artistName": "Lorde",
+     "trackName": "Royals",
+     "collectionName": "Pure Heroine",
+     "trackTimeMillis": 190185,
+     "releaseDate": "2013-06-03T07:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 482734113,
+     "artistName": "One Direction",
+     "trackName": "What Makes You Beautiful",
+     "collectionName": "Up All Night (Deluxe Version)",
+     "trackTimeMillis": 199133,
+     "releaseDate": "2011-09-11T07:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 613867349,
+     "artistName": "Flo Rida",
+     "trackName": "Good Feeling",
+     "collectionName": "Wild Ones",
+     "trackTimeMillis": 248133,
+     "releaseDate": "2011-08-29T07:00:00Z",
+     "primaryGenreName": "Hip-Hop/Rap",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 435761212,
+     "artistName": "Foster the People",
+     "trackName": "Pumped Up Kicks",
+     "collectionName": "Torches",
+     "trackTimeMillis": 239840,
+     "releaseDate": "2010-09-14T07:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1440874008,
+     "artistName": "Carly Rae Jepsen",
+     "trackName": "Call Me Maybe",
+     "collectionName": "Kiss (Deluxe Version)",
+     "trackTimeMillis": 193400,
+     "releaseDate": "2011-09-20T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 362133505,
+     "artistName": "Foo Fighters",
+     "trackName": "Everlong",
+     "collectionName": "The Colour And The Shape",
+     "trackTimeMillis": 250547,
+     "releaseDate": "1997-05-20T07:00:00Z",
+     "primaryGenreName": "Rock",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1844932150,
+     "artistName": "Ella Langley",
+     "trackName": "Choosin' Texas",
+     "collectionName": "Choosin' Texas - Single",
+     "trackTimeMillis": 232226,
+     "releaseDate": "2025-10-17T12:00:00Z",
+     "primaryGenreName": "Country",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 974485805,
+     "artistName": "twenty one pilots",
+     "trackName": "Ride",
+     "collectionName": "Blurryface",
+     "trackTimeMillis": 214505,
+     "releaseDate": "2015-05-12T07:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1440899447,
+     "artistName": "Billie Eilish",
+     "trackName": "bellyache",
+     "collectionName": "dont smile at me",
+     "trackTimeMillis": 179172,
+     "releaseDate": "2017-02-24T12:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1651763192,
+     "artistName": "Rihanna",
+     "trackName": "Lift Me Up (From Black Panther: Wakanda Forever - Music From and Inspired By)",
+     "collectionName": "Lift Me Up (From Black Panther: Wakanda Forever - Music From and Inspired By) - Single",
+     "trackTimeMillis": 196520,
+     "releaseDate": "2022-10-28T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1711291492,
+     "artistName": "Mariah the Scientist",
+     "trackName": "From A Woman",
+     "collectionName": "To Be Eaten Alive",
+     "trackTimeMillis": 182073,
+     "releaseDate": "2023-10-13T12:00:00Z",
+     "primaryGenreName": "R&B/Soul",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1399204219,
+     "artistName": "Ariana Grande",
+     "trackName": "breathin",
+     "collectionName": "Sweetener",
+     "trackTimeMillis": 198167,
+     "releaseDate": "2018-01-11T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1590368746,
+     "artistName": "Taylor Swift",
+     "trackName": "The Moment I Knew (Taylor's Version)",
+     "collectionName": "Red (Taylor’s Version) [+ A Message from Taylor]",
+     "trackTimeMillis": 285288,
+     "releaseDate": "2021-11-12T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

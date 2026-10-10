@@ -1,0 +1,33 @@
+{
+  "theme": "noche",
+  "preset_id": "lossless",
+  "custom_preset": {
+    "formats": [
+      "flac",
+      "wav",
+      "aiff"
+    ],
+    "min_mp3_kbps": 320,
+    "max_samplerate": null,
+    "max_bitdepth": null,
+    "allow_lossy_fallback": false
+  },
+  "library_root": "{ROOT}\\biblioteca",
+  "listen_port": 49998,
+  "engine_id": "sockseek-3.0.5",
+  "enrichment_enabled": true,
+  "spectral_check_enabled": true,
+  "watch_downloads_folder": true,
+  "gap_id_threshold_s": 90,
+  "duration_ok_s": 3,
+  "duration_review_s": 10,
+  "concurrent_downloads": 4,
+  "searches_per_time": 34,
+  "searches_renew_s": 220,
+  "first_run_done": true,
+  "share_notice_shown": true,
+  "legal_notice_accepted": true,
+  "last_update_check": null,
+  "ytdlp_path": null,
+  "schema": "tracklister.settings/1"
+}

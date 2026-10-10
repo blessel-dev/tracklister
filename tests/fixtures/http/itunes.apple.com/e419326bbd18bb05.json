@@ -1,0 +1,96 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Kwartz Show me that light"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 5,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1446366198,
+     "artistName": "Kwartz",
+     "trackName": "Show Me That Light (Cleric Remix)",
+     "collectionName": "Show Me That Light - Single",
+     "trackTimeMillis": 384550,
+     "releaseDate": "2018-12-14T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1446366197,
+     "artistName": "Kwartz",
+     "trackName": "Show Me That Light",
+     "collectionName": "Show Me That Light - Single",
+     "trackTimeMillis": 360475,
+     "releaseDate": "2018-12-14T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1446366199,
+     "artistName": "Kwartz",
+     "trackName": "Show Me That Light (Cleric Vocal Tool)",
+     "collectionName": "Show Me That Light - Single",
+     "trackTimeMillis": 138670,
+     "releaseDate": "2018-12-14T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1446366195,
+     "artistName": "Kwartz",
+     "trackName": "Contortion",
+     "collectionName": "Show Me That Light - Single",
+     "trackTimeMillis": 345944,
+     "releaseDate": "2018-12-14T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1446366196,
+     "artistName": "Kwartz",
+     "trackName": "Reload",
+     "collectionName": "Show Me That Light - Single",
+     "trackTimeMillis": 374200,
+     "releaseDate": "2018-12-14T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

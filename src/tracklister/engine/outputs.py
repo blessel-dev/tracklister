@@ -29,9 +29,15 @@ STAGING_DIRS = (".sockseek-staging",)
 @dataclass(frozen=True)
 class EngineEvent:
     kind: str            # "searching" | "downloading" | "succeeded" | "failed" | "not_found" | "ban" | "log"
+    #                      | "progress" (1.0.1, R11: engine.progress.ProgressTracker)
     snum: int | None
     text: str            # already redacted
     subject: str = ""    # the part after the status label ("Artist - Title: peer\\..\\path" in 3.x)
+    status: str = ""     # the engine's own label, lower case ("queued (r)", "initialize"...)
+    # "progress" only: the row's phase (engine.progress.PHASE_*) and the bytes of its incomplete file
+    phase: str = ""
+    bytes_done: int | None = None
+    bytes_total: int | None = None   # None: the engine does not say the size (Sockseek 3.x plain lines)
 
 
 @dataclass(frozen=True)
@@ -81,14 +87,14 @@ def parse_progress_line(dialect: EngineDialect, line: str) -> EngineEvent | None
             kind = "failed"
         else:
             return EngineEvent("log", None, text)
-        return EngineEvent(kind, None, text, subject)
+        return EngineEvent(kind, None, text, subject, status)
     m = _V2.match(text)
     if not m:
         return other()
     label, subject = m.group(1), m.group(2)
     kind = {"Searching": "searching", "Initialize": "downloading", "Succeeded": "succeeded",
             "Not found": "not_found"}.get(label, "failed")
-    return EngineEvent(kind, None, text, subject)
+    return EngineEvent(kind, None, text, subject, label.lower())
 
 
 _FATAL = (

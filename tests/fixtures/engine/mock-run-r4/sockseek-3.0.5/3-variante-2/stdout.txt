@@ -1,0 +1,18 @@
+[cli] Starting CLI session in local mode
+[soulseek] Using local files Soulseek client.
+[soulseek] Reading tags from mock files dir, this may take a while. Use --mock-files-no-read-tags if tags are not needed.
+[001] ExtractJob: CSV: Input: <TMP>\w\3-variante-2\input.csv
+[001] ExtractJob: CSV: Using columns: artist:"Artist", title:"Title", length:"Length".
+[002] Job List: running: input
+[cli] Downloading 2 tracks:
+  Jeroen Search - Inject (20s)
+  TR-440 - Somewhen (20s)
+[003] SongJob: searching: Jeroen Search - Inject
+[004] SongJob: searching: TR-440 - Somewhen
+[004] SongJob: downloading: TR-440 - Somewhen: local\..\Musica\TR-440\TR-440 - Somewhen.flac
+[003] SongJob: downloading: Jeroen Search - Inject: local\..\Musica\Jeroen Search\Jeroen Search - Inject.flac
+[003] SongJob: succeeded: Jeroen Search - Inject: local\..\Musica\Jeroen Search\Jeroen Search - Inject.flac
+[004] SongJob: succeeded: TR-440 - Somewhen: local\..\Musica\TR-440\TR-440 - Somewhen.flac
+[002] Job List: succeeded: input
+
+[cli] Completed: 2 succeeded, 0 failed.

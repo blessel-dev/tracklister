@@ -32,10 +32,27 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-os.environ["QT_QPA_PLATFORM"] = "offscreen"
 (REPO / ".tmp").mkdir(exist_ok=True)
 _HOME = Path(tempfile.mkdtemp(prefix="capturas-", dir=REPO / ".tmp"))
 os.environ["TRACKLISTER_HOME"] = str(_HOME / "home")
+
+
+def _offscreen_platform() -> str:
+    """Offscreen Qt on a 1920x1080 virtual screen at 96 dpi, the usual home PC: Qt sizes a message box
+    from the screen (its default 800x600 one squeezes them). The plugin splits its options on ':', so the
+    config file goes as a relative path; on another drive the plain default screen is used."""
+    import json
+    cfg = _HOME / "pantalla.json"
+    cfg.write_text(json.dumps({"screens": [{"name": "capturas", "x": 0, "y": 0, "width": 1920, "height": 1080,
+                                             "logicalDpi": 96, "logicalBaseDpi": 96, "dpr": 1}]}), encoding="utf-8")
+    try:
+        rel = os.path.relpath(cfg).replace("\\", "/")
+    except ValueError:
+        return "offscreen"
+    return "offscreen" if ":" in rel else f"offscreen:configfile={rel}"
+
+
+os.environ["QT_QPA_PLATFORM"] = _offscreen_platform()
 for p in (REPO / "src", REPO):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
@@ -46,15 +63,22 @@ import keyring.backend  # noqa: E402
 DEFAULT_OUT = Path(r"c:\projects\ABLETON\.agents\tasks\tracklister-v2\construccion\capturas")
 SAMPLE_CSV = REPO / "tests" / "fixtures" / "inputs" / "fjaak-techno-dj-set-section-may-2026.csv"
 HTTP_FIXTURES = REPO / "tests" / "fixtures" / "http"
-SCREENS = ("primer-inicio", "primer-inicio-abajo", "nuevo-set", "descargando", "resultados", "duplicado", "lossy",
-           "reordenar", "diagnostico", "ajustes", "ajustes-abajo")
+SCREENS = ("primer-inicio", "primer-inicio-abajo", "nuevo-set", "descargando", "progreso", "resultados", "combinar",
+           "duplicado", "lossy", "reordenar", "diagnostico", "ajustes", "ajustes-abajo")
 SCREEN_LABELS_ES = {
     "primer-inicio": "Primer inicio", "primer-inicio-abajo": "Primer inicio (final de la página)",
     "nuevo-set": "Nuevo set (CSV de trackid.net de muestra)", "descargando": "Descargando",
-    "resultados": "Resultados (todos los estados)", "duplicado": "Pista repetida",
+    "progreso": "Descargando: progreso de cada pista", "resultados": "Resultados (todos los estados)",
+    "combinar": "Combinar con un set ya descargado", "duplicado": "Pista repetida",
     "lossy": "Pistas que solo están en MP3", "reordenar": "Reordenar carpeta existente",
     "diagnostico": "Diagnóstico", "ajustes": "Ajustes", "ajustes-abajo": "Ajustes (final de la página)",
 }
+MB = 1024 * 1024
+# R11 capture: public tracklist data of his set (06), each row in one running state of the Estado column
+PROGRESS_ROWS = (("Komplex aka Jeroen Search", "Inject", None, 261), ("Red Rooms", "Trip", None, 305),
+                 ("Kwartz", "Show me that light", "Cleric Remix", 385), ("Phil Berg", "Seiko", None, 332),
+                 ("Vkn.modular", "Hidden Reason", None, 333), ("Rene Wise", "Dynamic", None, 319),
+                 ("Orbe", "Velocity", None, 385))
 DUMMY_USER, DUMMY_PASS = "usuario-prueba", "clave-prueba"
 
 
@@ -88,12 +112,16 @@ import tracklister.gui.pages.first_run as first_run_page  # noqa: E402
 import tracklister.gui.pages.settings as settings_page  # noqa: E402
 from tests.fakes.scenarios import build_scenario  # noqa: E402
 from tests.gui.fakes import FakeServices, ScriptedPrompter  # noqa: E402
-from tracklister.core.model import DuplicateChoice, ResultState, SourceRef, TrackRow  # noqa: E402
+from tracklister.core.model import DuplicateChoice, ResultState, RowResult, SourceRef, TrackRow  # noqa: E402
 from tracklister.engine.credentials import CredentialStore, Credentials  # noqa: E402
 from tracklister.gui.app import build_window, create_app  # noqa: E402
-from tracklister.gui.dialogs import DuplicateDialog, LossyDialog  # noqa: E402
+from tracklister.gui.dialogs import DuplicateDialog, LossyDialog, Prompter  # noqa: E402
+from tracklister.gui.pages.new_set import (  # noqa: E402
+    MERGE_INSERT_ES, MERGE_KEEP_ES, MERGE_TITLE_ES, merge_question_es,
+)
 from tracklister.gui.services import Services  # noqa: E402
 from tracklister.net.http import HttpClient, ReplayTransport  # noqa: E402
+from tracklister.pipeline.session import SessionEvent  # noqa: E402
 
 
 def wait_until(app, cond, timeout_s: float = 60.0) -> bool:
@@ -217,6 +245,44 @@ def run_previous_set(services, root: Path, tmp: Path) -> None:
     s.finalize(services.library())
 
 
+def capture_progress(app, services, out: Path, theme: str) -> Path:
+    """R11: the Descarga screen in the middle of a pass, one row in each running state. The fake engine
+    downloads one row at a time, so the page gets the same SessionEvents a running session sends (no engine):
+    Sockseek 3.0.5 (the default) does not say the size, so its bar moves and the text gives the MB; sldl 2.6.0
+    says it, so the bar fills with the percentage. Both are shown."""
+    rows = [TrackRow(pos=i, title=t, artists=[a], artist_display=a, version=v, expected_duration_s=d,
+                     source="trackid_csv") for i, (a, t, v, d) in enumerate(PROGRESS_ROWS, start=1)]
+    sess = services.create_session("SetAOC Mass Danza Futura 2026", rows, [SourceRef("trackid_csv", "set.csv")])
+    w = make_window(app, services, theme=theme)
+    w.session = sess
+    page = w.results
+    page.show_session(sess, running=True)
+    w.go("results")
+    on = page.on_session_event
+    total = len(rows)
+    on(SessionEvent("pass_started", message_es="Pasada 1: lossless: 7 pistas.", total=total), None)
+    for r in rows:
+        on(SessionEvent("row_state", r.uid, ResultState.EN_CURSO, "En cola", total=total), None)
+    u = [r.uid for r in sess.doc.rows]
+    done = RowResult(uid=u[0], pos=1, state=ResultState.VERIFICADO, score=100, format="flac", samplerate=44100,
+                     bitdepth=16, file="01 - Komplex aka Jeroen Search - Inject.flac",
+                     reasons=["Coincide: artista, título y duración (4:21).",
+                              "Encontrado buscando «Jeroen Search - Inject»."])
+    on(SessionEvent("row_state", u[0], ResultState.VERIFICADO, done.reasons[0], 1, total), done)
+    states = [("comprobando", None, None), ("descargando", int(33.6 * MB), int(41.0 * MB)),
+              ("descargando", int(25.0 * MB), int(67.6 * MB)), ("descargando", int(25.9 * MB), None),
+              ("cola", None, None), ("buscando", None, None)]
+    for uid, (phase, got, size) in zip(u[1:], states):
+        page.model._last_emit.clear()                   # one capture: no throttle between these
+        on(SessionEvent("row_progress", uid, ResultState.EN_CURSO, total=total, phase=phase, bytes_done=got,
+                        bytes_total=size), None)
+    settle(app, 450)
+    path = save(w.grab().toImage(), out, f"03b-progreso-{theme}")
+    page.set_running(False)
+    close_window(app, w)
+    return path
+
+
 def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]:
     shots: dict[str, Path] = {}
     work = _HOME / theme
@@ -270,10 +336,14 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
         wait_until(app, lambda: not w.worker_running(), 60)
         close_window(app, w)
 
+    if want("progreso"):
+        shots["progreso"] = capture_progress(app, s, out, theme)
+
     if want("resultados") or want("duplicado"):
         run_previous_set(s, lib, work)
     if want("resultados"):
-        rows, net = build_scenario("todos_los_estados", work / "net-todos")
+        # 1.0.1: every state, with «Verificado · revisar calidad» (row 8) apart from «Dudoso»
+        rows, net = build_scenario("todos_los_estados_101", work / "net-todos")
         s.network = net
         pr = ScriptedPrompter()
         pr.duplicates = [(DuplicateChoice.DOWNLOAD, None, False), (DuplicateChoice.REUSE, "first", False)]
@@ -283,6 +353,18 @@ def capture_theme(app, theme: str, out: Path, only: set[str]) -> dict[str, Path]
         wait_until(app, lambda: not w.worker_running() and w.results.phase.text() == "Terminado.", 120)
         settle(app, 300)
         shots["resultados"] = save(w.grab().toImage(), out, f"04-resultados-{theme}")
+        close_window(app, w)
+
+    if want("combinar"):
+        # 1.0.1 R2 / D8: the question shown when the other source would change numbers of a downloaded set
+        w = make_window(app, s, theme=theme)
+        box, _ = Prompter(w, lambda: w.themes.theme).choose_box(
+            MERGE_TITLE_ES, merge_question_es("SetAOC Mass Danza Futura 2026", 1, 9),
+            [MERGE_KEEP_ES, MERGE_INSERT_ES.format(n="9 pistas")], default=0)
+        box.show()
+        settle(app, 400)
+        shots["combinar"] = save(box.grab().toImage(), out, f"04b-combinar-{theme}")
+        box.close()
         close_window(app, w)
 
     if want("duplicado") or want("lossy"):

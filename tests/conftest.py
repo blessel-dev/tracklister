@@ -66,20 +66,28 @@ def _host_of(address) -> str:
 
 @pytest.fixture(autouse=True)
 def _no_network(monkeypatch):
+    """Blocks every non-loopback connect / DNS lookup, and fails the test at teardown if any was
+    attempted: app code that swallows errors (the update check returns None on ANY exception)
+    must not turn a regression into a silent pass. The list of attempts is the fixture value."""
     real_connect = socket.socket.connect
     real_connect_ex = socket.socket.connect_ex
+    blocked: list[str] = []
+
+    def refuse(what: str):
+        blocked.append(what)
+        raise RuntimeError(what)
 
     def guard(self, address):
         host = _host_of(address)
         if self.family == getattr(socket, "AF_UNIX", object()) or host in _LOOPBACK:
             return real_connect(self, address)
-        raise RuntimeError(f"Network access blocked in tests: {address!r}")
+        refuse(f"Network access blocked in tests: {address!r}")
 
     def guard_ex(self, address):
         host = _host_of(address)
         if host in _LOOPBACK:
             return real_connect_ex(self, address)
-        raise RuntimeError(f"Network access blocked in tests: {address!r}")
+        refuse(f"Network access blocked in tests: {address!r}")
 
     monkeypatch.setattr(socket.socket, "connect", guard)
     monkeypatch.setattr(socket.socket, "connect_ex", guard_ex)
@@ -88,7 +96,11 @@ def _no_network(monkeypatch):
         host = args[0] if args else kwargs.get("host")
         if host in _LOOPBACK or host is None:
             return real_getaddrinfo(*args, **kwargs)
-        raise RuntimeError(f"DNS lookup blocked in tests: {host!r}")
+        refuse(f"DNS lookup blocked in tests: {host!r}")
 
     real_getaddrinfo = socket.getaddrinfo
     monkeypatch.setattr(socket, "getaddrinfo", no_dns)
+    yield blocked
+    if blocked:
+        attempts, blocked[:] = list(blocked), []
+        pytest.fail("A test tried to reach the network: " + "; ".join(attempts), pytrace=False)

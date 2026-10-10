@@ -1,0 +1,23 @@
+[cli] Starting CLI session in local mode
+[soulseek] Using local files Soulseek client.
+[soulseek] Reading tags from mock files dir, this may take a while. Use --mock-files-no-read-tags if tags are not needed.
+[001] ExtractJob: CSV: Input: <TMP>\w\2-variante-1\input.csv
+[001] ExtractJob: CSV: Using columns: artist:"Artist", title:"Title", length:"Length".
+[002] Job List: running: input
+[cli] Downloading 3 tracks:
+  Komplex - Inject (20s)
+  Vkn modular - Hidden Reason (20s)
+  TR 440 - Somewhen (20s)
+[003] SongJob: searching: Komplex - Inject
+[004] SongJob: searching: Vkn modular - Hidden Reason
+[003] SongJob: failed [No search results]: Komplex - Inject
+    Error: No Soulseek file results found.
+[005] SongJob: searching: TR 440 - Somewhen
+[005] SongJob: failed [No search results]: TR 440 - Somewhen
+    Error: No Soulseek file results found.
+[004] SongJob: downloading: Vkn modular - Hidden Reason: local\..\Musica\Vkn Modular\VKN Modular - Hidden Reason.flac
+[004] SongJob: succeeded: Vkn modular - Hidden Reason: local\..\Musica\Vkn Modular\VKN Modular - Hidden Reason.flac
+[002] Job List: partial: input
+    Error: Some child jobs completed and some failed or were cancelled.
+
+[cli] Completed: 1 succeeded, 2 failed.

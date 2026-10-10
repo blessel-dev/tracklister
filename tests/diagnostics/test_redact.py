@@ -72,6 +72,21 @@ def test_r3_b2_versions_times_durations_and_bitrates_are_kept(text):
     assert Redactor().redact(text) == text
 
 
+def test_r7_peers_false_leaves_peer_names_in_free_text_but_still_censors_the_rest(monkeypatch):
+    """1.0.1, R7 (audit r4-3 N8): with peers=False a registered peer name is never searched for in the
+    text; the own account, IPs and the profile path still go."""
+    monkeypatch.setenv("USERPROFILE", r"C:\Users\Juanito")
+    r = Redactor(secrets=["usuario-prueba", "clave-prueba"])
+    for name in ("50", "6", "?", "de", "peerA"):
+        r.peer(name)
+    text = (r"rechazado: título distinto (50%) | ? MB | ? kbps | 6:24 | de peerA | usuario-prueba | "
+            r"10.0.0.7:2242 | C:\Users\Juanito\Music")
+    assert r.redact(text, peers=False) == (r"rechazado: título distinto (50%) | ? MB | ? kbps | 6:24 | de peerA | "
+                                           r"[censurado] | [censurado]:2242 | %USERPROFILE%\Music")
+    # the v1.0 default still replaces them (the runner never registers peers)
+    assert "peer-1%" in r.redact("título distinto (50%)")
+
+
 def test_very_short_secrets_only_as_whole_tokens():
     r = Redactor(secrets=["jo", "7"])
     out = r.redact("[003] SongJob: searching: Jo - Joy Division 7 | Logging in as jo..")

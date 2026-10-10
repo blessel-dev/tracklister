@@ -6,6 +6,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
 The engines limit searches only inside one process (34 every 220 s by default). Soulseek bans an
 account for 30 minutes when it searches too much, so the app reserves its searches in a small
 JSON file (%LOCALAPPDATA%\\Tracklister\\search-budget.json) before starting each pass.
+
+A pass can need more searches than one window allows (--desperate: up to 7 per row, engine/runner).
+The engine then spreads them itself: its limiter hands out per_time searches and gives them all back
+one window later (3.x Sockseek.Core/Search/RateLimitedSemaphore.cs:12-39, 2.x Utilities/
+RateLimitedSemaphore.cs:9-29). So
+reserve() records them the same way, per_time now, per_time one window later..., and the next process
+waits for the searches this one is still going to make (1.0.1, R4).
 """
 from __future__ import annotations
 
@@ -17,6 +24,9 @@ from typing import Callable
 from tracklister.core.jsonio import read_json, write_json
 
 SCHEMA = "tracklister.searchbudget/1"
+# Reserved searches are kept up to this many windows ahead (a reservation of up to ~340 searches); a
+# timestamp further ahead means the clock went back, and it is dropped.
+MAX_WINDOWS_AHEAD = 10
 
 
 class _FileLock:
@@ -59,10 +69,12 @@ class SearchBudget:
         except ValueError:
             data = {}
         ev = [float(x) for x in data.get("events", []) if isinstance(x, (int, float))]
-        return sorted(x for x in ev if now - self.window_s < x <= now + 1)
+        horizon = now + 1 + self.window_s * MAX_WINDOWS_AHEAD
+        return sorted(x for x in ev if now - self.window_s < x <= horizon)
 
     def wait_time(self, n: int) -> float:
-        """Seconds to wait before n more searches fit in the window (n is capped at per_time)."""
+        """Seconds to wait before n more searches fit in the window (n is capped at per_time).
+        Searches reserved for a later window by a running process count as well."""
         now = self.clock()
         ev = self._events(now)
         n = max(0, min(int(n), self.per_time))
@@ -72,7 +84,10 @@ class SearchBudget:
         return max(0.0, ev[excess - 1] + self.window_s - now)
 
     def reserve(self, n: int) -> None:
+        """Record n searches of the process that starts now: per_time of them now, the next per_time
+        one window later, and so on, as the engine's own limiter will make them."""
         with _FileLock(self.path):
             now = self.clock()
-            ev = self._events(now) + [now] * max(0, int(n))
-            write_json(self.path, {"schema": SCHEMA, "events": ev[-max(self.per_time * 4, 1):]})
+            per = max(1, self.per_time)
+            new = [now + (i // per) * self.window_s for i in range(max(0, int(n)))]
+            write_json(self.path, {"schema": SCHEMA, "events": sorted(self._events(now) + new)})

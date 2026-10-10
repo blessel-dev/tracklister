@@ -1,0 +1,62 @@
+[
+  {
+    "path": "biblioteca/Set casa 1.0.0/03 - Kwartz - Show Me That Light (Cleric Remix).flac",
+    "sha256": "f68af817a9320fd14fc9d82a79c78e2cf8227e39b69e1c2801011cbc73fdab68",
+    "net_index": 1,
+    "state": "verificado"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/04 - Rene Wise - Dynamic.flac",
+    "sha256": "5d5d93d27a5b7f8e1a7672ad0bc9dd28aeb81ccd21765c60169b0140a5458d81",
+    "net_index": 2,
+    "state": "dudoso"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/05 - Justine Perry - Nova Voyager.flac",
+    "sha256": "c4beb50198b5fa0339249a9fb7766ee179a84ba6e25cdaf0b7f72b055eee6f4a",
+    "net_index": 3,
+    "state": "dudoso"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/06 - Border One - Spectral Tension.flac",
+    "sha256": "2455aac34c552b7dfe304521b1c2d78917774b9e08bcad608d193c5eecf35d06",
+    "net_index": 4,
+    "state": "dudoso"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/07 - GCOD & KYSH Records - Incentive Systems.flac",
+    "sha256": "5f7a568479df7fc5b846eb238a55e91a1092f1ba0ad6660b47e357f3d1ffcc4c",
+    "net_index": 5,
+    "state": "verificado"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/11 - Miss Kittin & The Hacker - 1982.flac",
+    "sha256": "b147243e8d471d0d78937781d63bc480b264a31bb6e3e35aeb38e59e49a463e1",
+    "net_index": 8,
+    "state": "verificado"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/12 - Fjaak - Spirit (Radio Edit - Kai Remix).flac",
+    "sha256": "816c9a87a8cfe2d7a4e0928bc46aefb86567911d28626a60c8dd0b61954e6a41",
+    "net_index": 9,
+    "state": "verificado"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/_dudosos/02 - Red Rooms - Trip.flac",
+    "sha256": "8daf052928ca8fa3757129272a665569f699411ef467a2cea6fac74330e73525",
+    "net_index": 0,
+    "state": "dudoso"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/_dudosos/09 - 13130 Space Project - Talitha.flac",
+    "sha256": "393656de006ae7253c5418e99a0da66c73533604173417ba0927b8ac47ad0f2b",
+    "net_index": 6,
+    "state": "dudoso"
+  },
+  {
+    "path": "biblioteca/Set casa 1.0.0/_dudosos/10 - Confusion & Tino Machauer - Interchange III.flac",
+    "sha256": "e6b4a2ef10898da4390ff1b20c4f0820d9fcf7a80038b14e589d3390362c6e0e",
+    "net_index": 7,
+    "state": "dudoso"
+  }
+]

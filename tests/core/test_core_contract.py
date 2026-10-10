@@ -71,6 +71,21 @@ def test_split_title_version(title, base, version):
     assert split_title_version(title) == (base, version)
 
 
+@pytest.mark.parametrize("title,dropped", [
+    ("Raw Groove (Jon10 Remix) [Label X]", ["Label X"]),
+    ("Born Slippy (Nuxx) [Junior]", ["Nuxx", "Junior"]),
+    ("Spirit (Nuxx) (Kai Remix)", ["Nuxx"]),
+    ("Spirit (feat. Jo) Extended Mix (Kai Remix)", ["feat. Jo"]),
+    ("Track (Part 2)", ["Part 2"]),
+    ("Higher Things (FJAAK Remix)", []), ("Mercy Original Mix", []), ("Plain", []), ("(Nuxx)", []),
+])
+def test_title_dropped_groups(title, dropped):
+    """1.0.1, Addendum 10: the bracket groups split_title_version leaves out of the base title without making
+    them the version, in written order; the base and the version are unchanged."""
+    from tracklister.core.textnorm import title_dropped_groups
+    assert title_dropped_groups(title) == dropped
+
+
 @pytest.mark.parametrize("title,version,kind", [
     ("Spirit (Kai Remix) (Extended Mix)", "Kai Remix", VersionKind.REMIX),
     ("Spirit (Extended Mix) (Kai Remix)", "Kai Remix", VersionKind.REMIX),
@@ -186,8 +201,10 @@ def test_norm_and_artists():
     assert split_artists("Blasha & Allatt") == ["Blasha", "Allatt"]
 
 
-def test_safety_net_blocks_network_and_uses_fake_keyring(fake_keyring):
+def test_safety_net_blocks_network_and_uses_fake_keyring(fake_keyring, _no_network):
     with pytest.raises(RuntimeError):
         socket.create_connection(("server.slsknet.org", 2242), timeout=1)
+    assert _no_network == ["DNS lookup blocked in tests: 'server.slsknet.org'"]
+    _no_network.clear()                          # expected: the guard would otherwise fail this test
     keyring.set_password("svc", "u", "p")
     assert fake_keyring.store[("svc", "u")] == "p"

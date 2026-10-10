@@ -158,3 +158,111 @@ Keyed string input `artist=A, title=T, length=L` is a song search in both
 - Therefore each binary was run once in mock mode with dummy credentials, `--no-config`, a temp
   mock dir and (3.0.5) `--no-listen`. No real account was used and no Soulseek connection exists
   in that code path.
+
+## 7. Search variants and `--desperate` (1.0.1, R4)
+
+Why his rows "Komplex aka Jeroen Search - Inject", "Vkn.modular - Hidden Reason" and "TR440 - Somewhen"
+found nothing, and what the app does about it (`core/aliases.py`, `engine/csvwriter.py::row_variants`,
+`EngineJob.desperate`). Paths as in the sections above (3.0.5 / 2.6.0 archive roots).
+
+- **Query cleaning.** 3.0.5 `CleanSearchString` (`Sockseek.Core/Search/Searcher.cs:694-710`): lower case,
+  then every character of `s_special` (`Sockseek.Core/Common/Utils.cs:439-449`) becomes a space. 2.6.0:
+  `Services/Searcher.cs:925-945` with `Utilities/Utils.cs:377-386` (`;:'"|?!<>*/\[]{}()-–—&%^$#@+=`~_`).
+  Neither set has `.` or `,`: `Vkn.modular` is sent as the word `vkn.modular`, `TR-440` as `tr 440`.
+- **Strict filters are literal.** `--strict-title` looks in the file name without extension,
+  `--strict-artist` in the whole path (3.0.5 `Sockseek.Core/Matching/Conditions/FileConditions.cs:268-283`).
+  Both first turn `_` and `:|?><*"` into spaces, remove diacritics and collapse spaces (`:296-333`,
+  `:381-390`), then need the text as written, with a boundary character on each side
+  (`Common/Utils.cs:592-657`; for the title whitespace is skipped first, and a digit counts on the left:
+  `04 Trip`). So `TR 440` is not in `TR-440 - Somewhen`, `Vkn modular` is not in `Vkn.modular - ...`, and
+  `Komplex aka Jeroen Search` is not in `Jeroen Search - Inject`. That is why the app tries BOTH other
+  spellings of a letter-digit name (`TR 440`, then `TR-440`) and each alias alone.
+- **"No search results" also means "refused by the conditions".** The search options filter every file
+  with the necessary conditions, strict filters included (3.0.5 `Searcher.cs:166-173`), and the count that
+  decides `NoSearchResults` is the count of files that passed (`Searcher.cs:190`,
+  `Transfers/Downloads/JobOrchestration/DownloadOutcomes.cs:23-24`). His «Sin resultados» rows may have had
+  files that the strict artist refused.
+- **The flag.** `-d`/`--desperate` in both: 3.0.5 `Sockseek.Cli/Services/ConfigManager.cs:742-743` (help
+  `Sockseek.Cli/Help.Content.cs:106-107`), 2.6.0 `Config.cs:1304-1306` (help `Help.Content.cs:75-76`). A
+  bool option: 3.0.5 takes the next token as its value only when it is `true`/`false`
+  (`ConfigManager.cs:307-311`, `IsBoolLiteral` `:1265`), 2.6.0 when it does not start with `-`
+  (`Config.cs:707-711`). The adapter passes the long form, bare, right before `--no-skip-existing`.
+- **What it does.** Only when no file passed the conditions (3.0.5 `Searcher.cs:596-648`, 2.6.0
+  `Services/Searcher.cs:739-811`): artist + album (CSV items have no album), artist + title without the
+  length condition (only with a known length and a tolerance), then album, the title alone (title over 3
+  characters) and the artist alone (artist over 3 characters). Every one of them forces
+  `StrictTitle = StrictArtist = true` (`!ArtistMaybeWrong`, false for CSV input), also in a relaxed pass
+  without `--strict-artist`, and drops only the length condition; formats, bitrate and banned users stay
+  (a copy of the necessary conditions). With the base search and its no-diacritics twin (`:583-584`) that is
+  at most 7 searches per item: `engine/runner.py::DESPERATE_SEARCHES_PER_ITEM`.
+- **Rate limit.** Every search waits on a `RateLimitedSemaphore(searchesPerTime, renewTime)` (3.0.5
+  `Searcher.cs:24,37`, `Search/RateLimitedSemaphore.cs:12-39`; 2.6.0 `Services/Searcher.cs:17,22`,
+  `Utilities/RateLimitedSemaphore.cs:9-29`): a window that starts with the process and gives all its
+  permits back at each renewal. The app's `SearchBudget.reserve()` spreads a reservation larger than one
+  window the same way (34 now, 34 one window later...).
+- **Mock-mode evidence** (`tests/fixtures/engine/mock_probe/probe_r4_variants.py`, outputs in
+  `tests/fixtures/engine/mock-run-r4/<engine>/<run>/`, the safety proof of item 6; `--desperate` only adds
+  searches through the mock client). The mock clients match each query word as a substring of the path
+  (3.0.5 `Sockseek.Core/Soulseek/LocalFilesSoulseekClient.cs:199`, 2.6.0
+  `slsk-batchdl.Tests/TestClients/MockSoulseekClient.cs:151-152`), so this shows the engines' own cleaning,
+  filters and desperate searches, not how real peers match words. Mock files (invented folders):
+  `Jeroen Search - Inject.flac`, `VKN Modular - Hidden Reason.flac`, `TR-440 - Somewhen.flac` (20 s each)
+  and `Red Rooms - Trip.flac` (26 s, the row says 20). Both engines gave the same result:
+
+  | Run | Rows sent | Found |
+  |---|---|---|
+  | 1-base (strict) | the 3 rows as written, Red Rooms - Trip (20 s), Nobody Real - Trip | nothing |
+  | 2-variante-1 | Komplex, Vkn modular, TR 440 | `VKN Modular - Hidden Reason` (`TR 440` refused by `--strict-artist`) |
+  | 3-variante-2 | Jeroen Search, TR-440 | `Jeroen Search - Inject`, `TR-440 - Somewhen` |
+  | 4-desesperado (relaxed + `--desperate`) | the 5 rows of run 1 | only `Red Rooms - Trip` (6 s off); never the `Trip` of Red Rooms for Nobody Real; none of the 3 spelling rows |
+
+  2.6.0 prints one `Searching:` line per search: 4 for each of the 3 rows, 2 for Red Rooms, 3 for the row
+  without a length (`mock-run-r4/sldl-2.6.0/4-desesperado/stdout.txt`).
+- **Fake engine.** `tests/fakes/fake_engine.py` accepts `-d`/`--desperate` and repeats these searches. With
+  the network key `"engine_query_clean": true` it cleans the query and applies the strict filters like
+  3.0.5; without it, the v1.0 word rules stay for the older scenarios.
+  `tests/engine/test_r4_real_engine_mock.py` runs the four runs on it and gets the same files as the real
+  engines, in both dialects.
+
+## 8. Per-row download progress (1.0.1, R11)
+
+The Estado cell of the Descarga screen shows what each row is doing and, while it downloads, a bar
+(`engine/progress.py`, `gui/progress.py`). Mechanism chosen: **the plain `--no-progress` lines plus the
+growing incomplete file**, in both engines. Sockseek's `--progress-json` was NOT adopted:
+
+- With it, `Program.cs:221-227` attaches `JsonStreamProgressReporter` to the backend INSTEAD of the
+  `CliProgressReporter`, so every plain line the adapter reads today disappears (row states, peer credit,
+  fatal errors, bans, the redaction before anything is shown).
+- Its byte events cannot be tied to a row: the backend path (`JsonStreamProgressReporter.cs`,
+  `ReportDownloadProgress(DownloadProgressEventDto)`) writes only `jobId`, `bytesTransferred`, `totalBytes`
+  and `percent`, and no other JSON event of that path carries a `jobId` (`ReportSearchStart`,
+  `ReportDownloadStart` and `ReportStateChanged` write artist/title, user and file only). With 4 downloads at
+  once the app could not know which row a byte count belongs to.
+- One throttle for all jobs: `_lastDownloadProgressReport` is a single field (500 ms), so with several
+  downloads most rows would get no update at all.
+
+What the app reads instead:
+
+- **Phase**: the lines already parsed (item 1): `searching`, 3.0.5 `queued (r)`/`queued (l)`/`initialising`
+  (queued), the download start (3.0.5 `downloading:`, written by `Sockseek.Api/JobActivityLogFormatter.cs:305-319`;
+  2.6.0 `Initialize:`, `Models/DownloadWrapper.cs:44`), `succeeded`, the not-found and failed lines. A second
+  download start for the same row with another file is another copy (the bar starts again).
+- **Bytes**: the size of the row's incomplete file, read every 0.5 s with a stat of its path (a directory
+  listing reports a stale size while the engine writes). The file is never opened: a handle without delete
+  sharing would make the engine's own rename of the finished file fail. 3.0.5 with `--name-format`
+  downloads into `in/.sockseek-staging/<job id>/<file name>.incomplete`
+  (`Sockseek.Core/Transfers/Downloads/Completion/OutputFinalizer.cs:47-48`, `Transfers/Downloads/Downloader.cs:85`)
+  and opens it with `FileMode.Create` (shared for reading, `Downloader.cs:129`); 2.6.0 into
+  `in/<file name>.incomplete` (`Services/FileManager.cs:23-45`, `Services/Downloader.cs:54`), then moves it to
+  the name-format path. The file is matched by its name, the last part of the path the download line shows;
+  two active rows downloading files with the same name get no bytes (never another row's bar).
+- **Total**: 2.6.0 prints the size in its download display, `[<len>s/<rate><kbps>/<size>MB]` with one decimal
+  (`Utilities/Printing.cs:20-29`), so its bar shows a percentage. 3.0.5's plain lines carry no size
+  (`CandidateDisplayShort`, `Sockseek.Cli/Utilities/CliProgressReporter.cs:717-721`, path only; the live bars
+  with the size are off in plain mode, `CliProgressReporter.cs:897-899`), so with the default engine the
+  bar is indeterminate and the text says the MB received so far («Descargando 25,9 MB»).
+- **2.6.0 lines name no query**: its `Initialize:` line goes to the one row of the pass that is searching
+  and whose title words are all in the file name (`--strict-title` guarantees them); otherwise to none.
+- Nothing new is written to disk and the progress events carry no peer name. The golden command lines
+  do not change (`--no-progress` stays). The fake engine's `"write_s"` network key writes its files in
+  steps where the real engines do (and adds the size to its 2.x `Initialize:` display, as the real one).

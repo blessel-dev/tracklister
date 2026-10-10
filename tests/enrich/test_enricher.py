@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from tracklister.core.model import RowStatus, TrackRow
+from tracklister.core.model import RowStatus, TrackIds, TrackRow
 from tracklister.enrich.enricher import CACHE_SCHEMA, EMPTY_RESULT_TTL_S, Enricher, cache_key
-from tracklister.enrich.providers import MusicBrainzProvider
+from tracklister.enrich.providers import Candidate, MusicBrainzProvider
 from tracklister.inputs.importer import import_source
 from tracklister.net.http import HttpClient, HttpError, ReplayMiss, ReplayTransport
 
@@ -82,6 +82,63 @@ def test_store_credit_completes_the_artist_but_keeps_the_search_artist(replay, t
     grid = next(r for r in _sample_rows() if r.title == "No Money No Problems")
     (o,) = Enricher(http, tmp_path / "e2.json").enrich([grid])
     assert grid.artist_display == "OFF / GRID" and "artist" not in o.changed   # "Off Grid": same name
+
+
+@pytest.mark.parametrize("label", ["KYSH", None])
+def test_r5_a_label_credited_by_the_store_is_never_adopted(replay, tmp_path, label):
+    """06 R5, his set: iTunes credits "GCOD & KYSH Records" (recorded answer). 1.0.0 named the file
+    "19 - GCOD & KYSH Records - Incentive Systems.flac". With the trackid label "KYSH" or without any
+    label (his YouTube list) it stays "GCOD"."""
+    http, _ = replay
+    row = TrackRow(pos=19, title="Incentive Systems", artists=["GCOD"], artist_display="GCOD", label=label)
+    (o,) = Enricher(http, tmp_path / "e.json").enrich([row])
+    assert o.accepted and o.provider == "itunes" and row.expected_duration_s == 308
+    assert "GCOD & KYSH Records" in o.note_es                     # what the store says, for the record
+    assert (row.artist_display, row.artists) == ("GCOD", ["GCOD"]) and "artist" not in o.changed
+    ana = TrackRow(pos=22, title="Mind Control", artists=["Ana Rs"], artist_display="Ana Rs")
+    (o,) = Enricher(http, tmp_path / "e2.json").enrich([ana])
+    assert "Ana Rs & Demolate Records" in o.note_es and ana.artist_display == "Ana Rs"
+
+
+class _Store:
+    """One provider that answers with a fixed store credit (and maybe the store's own label)."""
+    name = "deezer"
+
+    def __init__(self, artist: str, label: str | None = None):
+        self.c = Candidate("deezer", artist, "Track", None, 300, TrackIds(deezer="1"), None, label)
+
+    def search(self, artist, title):
+        return [self.c]
+
+
+@pytest.mark.parametrize("store,label,expected", [
+    ("Artista & Sello Ejemplo Recordings", None, "Artista"),             # label-shaped: Recordings
+    ("Artista & Ejemplo Rec.", None, "Artista"),                         # "Rec."
+    ("Artista & Casa Ejemplo Label", None, "Artista"),
+    ("Artista & Ejemplo Records Ltd", None, "Artista"),
+    ("Artista & Ejemplo", "Ejemplo", "Artista"),                         # the store's own label field
+    ("Artista & Otra Persona", None, "Artista & Otra Persona"),          # a real co-artist (E.24)
+    ("Artista & Ejemplo Music", None, "Artista & Ejemplo Music"),        # "Music" also ends artist names
+])
+def test_r5_label_shapes_and_the_stores_own_label(tmp_path, store, label, expected):
+    row = TrackRow(pos=1, title="Track", artists=["Artista"], artist_display="Artista")
+    Enricher(HttpClient(lambda r: None), tmp_path / "e.json", providers=[_Store(store, label)]).enrich([row])
+    assert row.artist_display == expected and row.search_artist == "Artista"
+
+
+def test_r5_the_first_store_artist_always_stays(tmp_path):
+    """A credit that starts with a label-shaped name is not the row's artist: nothing changes."""
+    row = TrackRow(pos=1, title="Track", artists=["Artista"], artist_display="Artista")
+    (o,) = Enricher(HttpClient(lambda r: None), tmp_path / "e.json",
+                    providers=[_Store("Ejemplo Records & Artista")]).enrich([row])
+    assert o.accepted and row.artist_display == "Artista" and "artist" not in o.changed
+
+
+def test_candidate_label_round_trips_and_old_cache_entries_load():
+    c = Candidate("itunes", "A", "T", None, 100, TrackIds(itunes="9"), "Album", "Sello")
+    assert Candidate.from_dict(c.to_dict()) == c
+    old = {k: v for k, v in c.to_dict().items() if k != "label"}           # a 1.0.0 cache entry
+    assert Candidate.from_dict(old).label is None
 
 
 def test_review_row_confirmed_becomes_downloadable(replay, tmp_path):

@@ -8,6 +8,11 @@ byte for byte per dialect. Facts with file:line references: third_party/engines/
 
 Never passed: -o (3.x output dir / 2.x offset), --strict-conditions, --fast-search, --profile.
 The full argv contains the password: it is never logged; use redact_argv() for anything shown.
+
+--desperate (1.0.1, R4; the same long flag in both engines, ENGINE-FACTS "Desperate mode") is only
+for the last «Reintentar fallos» pass: when a row's searches find nothing, the engine searches again
+without the length condition, then by title only and by artist only, each time keeping the strict
+title and artist filters. It costs up to DESPERATE_SEARCHES_PER_ITEM searches per row (engine/runner).
 """
 from __future__ import annotations
 
@@ -44,6 +49,7 @@ class EngineJob:
     print_json_all: bool = False   # Diagnostico search-only
     input_override: str | None = None  # Diagnostico keyed string "artist=A, title=T, length=L"
     banned_users: tuple[str, ...] = ()  # "Reintentar fallos": peers whose file went to _dudosos
+    desperate: bool = False        # "Reintentar fallos", last pass: --desperate (R4)
 
     @property
     def input_csv(self) -> Path:
@@ -127,6 +133,10 @@ def build_command(spec: EngineSpec, job: EngineJob, creds: Credentials) -> list[
     banned = [u for u in dict.fromkeys(job.banned_users) if bannable_peer(u, creds.username)]
     if banned:
         a += _opt("--banned-users", ",".join(banned))
+    if job.desperate:
+        # a bare flag: the next token starts with '-', so both engines read it as true
+        # (3.x ConfigManager.cs:307-311 with IsBoolLiteral :1265; 2.x Config.cs:707-711 getFlag)
+        a += ["--desperate"]
     a += ["--no-skip-existing"]
     a += ["--write-playlist", "--playlist-path", str(w / PLAYLIST)]
     a += ["--concurrent-jobs" if d == EngineDialect.SOCKSEEK3 else "--concurrent-downloads",

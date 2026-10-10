@@ -70,7 +70,9 @@ def test_every_state_with_icon_and_text_then_retry(window, qtbot, ready_services
     for text in ("Verificado 1", "Ya en biblioteca 1", "Dudoso 1", "No encontrado 1", "No cumple formato 1",
                  "Fallida 1", "Omitida 1"):
         assert text in chips
-    assert window.results.progress.value() == window.results.progress.maximum() == 6
+    # 1.0.1, R11: the top bar counts in hundredths of a row (it also moves with the rows in flight)
+    assert window.results.progress.value() == window.results.progress.maximum() == 600
+    assert window.results.count.text() == "6 de 6"
     assert "Listo:" in window.results.banner.message() and "_dudosos" in window.results.banner.message()
     # details of the selected row
     window.results.table.selectRow(1)
@@ -92,7 +94,10 @@ def test_every_state_with_icon_and_text_then_retry(window, qtbot, ready_services
     assert window.worker_running()
     _wait_done(qtbot, window)
     assert len(window.session.doc.passes) > passes_before
-    assert window.session.doc.passes[-1].name.endswith("-relajada")
+    names = [p.name for p in window.session.doc.passes[passes_before:]]
+    assert names[0].endswith("-relajada")
+    # 1.0.1, R4: the row still not found ends the retry with the engine's deep search (--desperate)
+    assert names[-1] == "lossless-relajada-a-fondo"
     assert m.state_of(m.rows()[0].uid) == S.VERIFICADO
 
 

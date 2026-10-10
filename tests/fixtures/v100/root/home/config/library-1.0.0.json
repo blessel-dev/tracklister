@@ -1,0 +1,117 @@
+{
+  "schema": "tracklister.library/1",
+  "updated_at": "2026-10-10T13:14:37",
+  "entries": [
+    {
+      "key": "kwartz|show me that light|cleric remix",
+      "artist_norm": "kwartz",
+      "title_norm": "show me that light",
+      "version_kind": "remix",
+      "path": "{ROOT}\\biblioteca\\Set casa 1.0.0\\03 - Kwartz - Show Me That Light (Cleric Remix).flac",
+      "set_id": "eca75c21f365",
+      "set_name": "Set casa 1.0.0",
+      "pos": 3,
+      "duration_s": 12.0,
+      "format": "flac",
+      "size": 1889043,
+      "added_at": "2026-10-10T13:14:37",
+      "flags": []
+    },
+    {
+      "key": "rene wise|dynamic|original",
+      "artist_norm": "rene wise",
+      "title_norm": "dynamic",
+      "version_kind": "original",
+      "path": "{ROOT}\\biblioteca\\Set casa 1.0.0\\04 - Rene Wise - Dynamic.flac",
+      "set_id": "eca75c21f365",
+      "set_name": "Set casa 1.0.0",
+      "pos": 4,
+      "duration_s": 12.0,
+      "format": "flac",
+      "size": 1863267,
+      "added_at": "2026-10-10T13:14:37",
+      "flags": [
+        "posible_falso_lossless"
+      ]
+    },
+    {
+      "key": "justine perry|nova voyager|original",
+      "artist_norm": "justine perry",
+      "title_norm": "nova voyager",
+      "version_kind": "original",
+      "path": "{ROOT}\\biblioteca\\Set casa 1.0.0\\05 - Justine Perry - Nova Voyager.flac",
+      "set_id": "eca75c21f365",
+      "set_name": "Set casa 1.0.0",
+      "pos": 5,
+      "duration_s": 12.0,
+      "format": "flac",
+      "size": 1889445,
+      "added_at": "2026-10-10T13:14:37",
+      "flags": [
+        "posible_falso_lossless"
+      ]
+    },
+    {
+      "key": "border one|spectral tension|original",
+      "artist_norm": "border one",
+      "title_norm": "spectral tension",
+      "version_kind": "original",
+      "path": "{ROOT}\\biblioteca\\Set casa 1.0.0\\06 - Border One - Spectral Tension.flac",
+      "set_id": "eca75c21f365",
+      "set_name": "Set casa 1.0.0",
+      "pos": 6,
+      "duration_s": 12.0,
+      "format": "flac",
+      "size": 1773556,
+      "added_at": "2026-10-10T13:14:37",
+      "flags": [
+        "posible_falso_lossless"
+      ]
+    },
+    {
+      "key": "gcod|incentive systems|original",
+      "artist_norm": "gcod",
+      "title_norm": "incentive systems",
+      "version_kind": "original",
+      "path": "{ROOT}\\biblioteca\\Set casa 1.0.0\\07 - GCOD & KYSH Records - Incentive Systems.flac",
+      "set_id": "eca75c21f365",
+      "set_name": "Set casa 1.0.0",
+      "pos": 7,
+      "duration_s": 12.0,
+      "format": "flac",
+      "size": 1879208,
+      "added_at": "2026-10-10T13:14:37",
+      "flags": []
+    },
+    {
+      "key": "miss kittin|1982|original",
+      "artist_norm": "miss kittin",
+      "title_norm": "1982",
+      "version_kind": "original",
+      "path": "{ROOT}\\biblioteca\\Set casa 1.0.0\\11 - Miss Kittin & The Hacker - 1982.flac",
+      "set_id": "eca75c21f365",
+      "set_name": "Set casa 1.0.0",
+      "pos": 11,
+      "duration_s": 12.0,
+      "format": "flac",
+      "size": 1888678,
+      "added_at": "2026-10-10T13:14:37",
+      "flags": []
+    },
+    {
+      "key": "fjaak|spirit|radio edit kai remix",
+      "artist_norm": "fjaak",
+      "title_norm": "spirit",
+      "version_kind": "radio_edit",
+      "path": "{ROOT}\\biblioteca\\Set casa 1.0.0\\12 - Fjaak - Spirit (Radio Edit - Kai Remix).flac",
+      "set_id": "eca75c21f365",
+      "set_name": "Set casa 1.0.0",
+      "pos": 12,
+      "duration_s": 12.0,
+      "format": "flac",
+      "size": 1892749,
+      "added_at": "2026-10-10T13:14:37",
+      "flags": []
+    }
+  ]
+}

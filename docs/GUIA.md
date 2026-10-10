@@ -42,11 +42,16 @@ Funciona en Windows 10 y 11 de 64 bits. Necesitas tu propia cuenta de Soulseek; 
 1. **Nuevo set**: arrastra el CSV de trackid.net, un Excel (.xlsx) o un CSV. También puedes pegar un texto (1001tracklists, MixesDB, un comentario) y pulsar «Leer», o soltar un enlace de YouTube o SoundCloud.
    - «Abrir en trackid.net» abre la web: allí pulsa Export y arrastra el CSV a la ventana. Si con la app abierta te llega un CSV de trackid.net a Descargas, te avisa para importarlo.
    - Los `.xls` del Excel antiguo no se pueden leer: guárdalos como `.xlsx` o `.csv` desde Excel.
+   - ¿Tienes dos listas del mismo set, por ejemplo el CSV de trackid.net y un comentario de YouTube? Carga una y añade la otra con «Añadir otra fuente del mismo set». Las junta por la hora de inicio de cada pista: lo que falta en la primera entra en su sitio y, si en ese tramo hay una fila «ID» o un hueco, ocupa su lugar y su número. La primera lista manda en los nombres, y la diferencia queda en las notas. Si el set ya tiene archivos y alguno tendría que cambiar de número, te pregunta antes; con Intro, las añade al final sin cambiar ningún número.
 2. Revisa la tabla: puedes corregir artista, título y versión, y subir, bajar, añadir o quitar filas. Las filas «ID» van desmarcadas. El número de cada fila es el que llevará su archivo.
+   - Con el CSV de trackid.net pueden salir filas «ID (hueco)». Sus columnas Start y End dicen cuándo reconoció trackid.net cada pista en el set, no cuánto dura. Por eso el hueco se mide con la duración real de la pista anterior (la de iTunes, Deezer o MusicBrainz): solo sale si, aunque esa pista sonara entera, quedan más de 90 s sin cubrir hasta la siguiente. Es un tramo del set que trackid.net no identificó, y su nota explica la cuenta, por ejemplo «4:13 sin cubrir aunque «Trip» sonara entero». Sin duración, se mide desde el End de trackid.net, como en la 1.0.0.
 3. Escribe el nombre del set y pulsa «Descargar».
 4. Si ya tienes una pista de un set anterior, te pregunta cada vez: «Usar el que ya tengo (copiar a este set)» o «Descargar de nuevo en este set». La casilla «Aplicar a todos los repetidos de este set» responde por todas.
-5. En **Descarga** ves cada pista con su estado: Verificado, Dudoso, No encontrado, Ya en biblioteca, No cumple formato… Si seleccionas una, debajo salen sus motivos. Si cancelas, se guarda lo hecho y aparece «Continuar descarga».
+5. En **Descarga** ves cada pista con su estado: Verificado, Verificado · revisar calidad, Dudoso, No encontrado, Ya en biblioteca, No cumple formato… Si seleccionas una, debajo salen sus motivos. Si cancelas, se guarda lo hecho y aparece «Continuar descarga».
+   - Mientras descarga, la columna Estado dice con texto y una barra cómo va cada pista: «En espera», «Buscando…», «En cola», «Descargando 25,9 MB» (con el motor alternativo sldl, «Descargando 63 %»), «Probando otra copia…» y «Comprobando…». La barra de arriba avanza también con lo que llevan las pistas que se están bajando.
+   - Si una pista no sale en Soulseek, Tracklister prueba sus otras grafías: cada nombre de un «X aka Y» por separado, «Vkn.modular» como «Vkn modular» y «TR440» como «TR 440» y «TR-440». El nombre de la tabla y del archivo no cambia, y el motivo dice con cuál la encontró.
 6. Al terminar tienes «Reintentar fallos», «Copiar tracklist» (texto con tiempos para Mixcloud o Instagram), «Abrir informe» y «Abrir carpeta».
+   - «Reintentar fallos» vuelve a buscar lo que falta: las «Fallida», las «No encontrado» (también con sus otras grafías y, si siguen sin salir, con la búsqueda a fondo del motor), las dudosas y las «No cumple formato» (sin el usuario que mandó ese archivo), y otra copia de las «Verificado · revisar calidad».
 
 La carpeta del set queda así:
 
@@ -79,6 +84,7 @@ El informe también se guarda como `Diagnostico_<fecha>.txt` en `%LOCALAPPDATA%\
 
 - **Qué lleva**: la versión de Tracklister, el motor, la versión de Windows, el puerto y, por cada pista, los candidatos: carpeta y archivo, tamaño, kbps, duración, puntuación y motivo.
 - **Qué no lleva**: tu usuario, tu contraseña ni tu IP. Los demás usuarios salen como peer-1, peer-2… La última línea del informe lo confirma.
+- **Si una pista no da resultados**, el Diagnóstico prueba sus otras grafías, igual que la descarga, y el informe dice con cuál encontró los candidatos («Encontrado buscando «Jeroen Search - Inject»…»). No usa la búsqueda a fondo del motor, para no tardar: esa la prueba «Reintentar fallos» al descargar.
 
 Con una descarga en marcha no se puede lanzar el Diagnóstico, ni al revés: los dos entrarían con tu misma cuenta.
 
@@ -92,7 +98,7 @@ Tracklister no está firmado digitalmente (la firma queda para más adelante), a
 
 Normalmente solo pasa la primera vez.
 
-- Para comprobar el zip que has bajado, en PowerShell, en la carpeta del zip: `Get-FileHash .\Tracklister-1.0.0-win64.zip -Algorithm SHA256` (con el nombre de tu zip) tiene que dar el mismo valor que pone `SHA256SUMS.txt`. PowerShell lo escribe en mayúsculas; eso da igual.
+- Para comprobar el zip que has bajado, en PowerShell, en la carpeta del zip: `Get-FileHash .\Tracklister-1.0.1-win64.zip -Algorithm SHA256` (con el nombre de tu zip) tiene que dar el mismo valor que pone `SHA256SUMS.txt`. PowerShell lo escribe en mayúsculas; eso da igual.
 - Si en vez de ese aviso sale «Control inteligente de aplicaciones» (Windows 11) y no deja abrirlo, no lo desactives solo por esto: pide ayuda con el mensaje exacto.
 
 ## 6. Actualizar a una versión nueva
@@ -100,6 +106,8 @@ Normalmente solo pasa la primera vez.
 Tracklister mira como mucho una vez al día si hay una versión nueva. Si la hay, muestra un aviso con el enlace; nunca instala nada solo. También puedes mirarlo con «Buscar actualizaciones», en Ajustes.
 
 Para actualizar, descarga el zip nuevo, descomprímelo y cambia tu carpeta `Tracklister` por la nueva. Tus ajustes, tu cuenta y tu biblioteca están fuera de ella y no se pierden.
+
+**De la 1.0.0 a la 1.0.1.** Tus sets de la 1.0.0 se siguen abriendo, y lo que ya está bien no se vuelve a descargar. La primera vez que pulses «Descargar» o «Reintentar fallos» en uno de ellos, se vuelven a comprobar, una sola vez y con las reglas nuevas, sus marcas de espectro y sus archivos de `_dudosos`: lo que ahora es la pista pedida vuelve a su número. No se descarga, no se renumera y no se borra nada. Antes de pulsar, cierra el reproductor si tiene abierto algún archivo de `_dudosos`: si no, esa pasada falla una vez con un aviso, ese archivo se queda como estaba y basta con volver a pulsar.
 
 ## 7. Si algo falla
 
@@ -124,8 +132,9 @@ Casos conocidos:
 - **«No se encuentra el motor…» o «No se pudo arrancar el motor…».** Vuelve a descomprimir el zip entero; puede que el antivirus haya quitado el motor. Si sigue, en «Ajustes» → «Red y motor» → «Motor», elige «sldl 2.6.0 (alternativa)».
 - **Una pista sale «Dudoso».** El motivo está debajo de la tabla y en el informe.
   - «otra canción», «otra versión» o «duración»: el archivo está en `_dudosos`. Corrige artista, título o versión en «Nuevo set» y vuelve a descargar, o pulsa «Reintentar fallos», que la busca otra vez sin el usuario que te dio ese archivo. El archivo rechazado nunca se borra.
-  - «posible lossless falso» o «revisar»: el archivo se queda en el set, con su número, y decides tú. Con «revisar», escúchalo para confirmar que es la canción. Con «posible lossless falso», escucharlo no siempre lo resuelve: un MP3 de 320 convertido a FLAC puede sonar igual.
-  - Tracklister prefiere una duda de más: una errata en un nombre corto del artista, o una etiqueta con solo el apellido, puede acabar en `_dudosos` aunque sea la canción buena. Si te pasa, mira el archivo en `_dudosos`.
+  - «revisar»: el archivo se queda en el set, con su número, y decides tú: escúchalo para confirmar que es la canción.
+  - Tracklister prefiere una duda de más: una errata en un nombre corto del artista, una etiqueta con solo el apellido, o un archivo sin etiquetas cuyo nombre solo encaja quitándole palabras (sin una duración que lo confirme), puede acabar en `_dudosos` aunque sea la canción buena. El motivo dice qué palabras no encajan. Si te pasa, mira el archivo en `_dudosos`.
+- **Una pista sale «Verificado · revisar calidad».** Es la canción, pero su espectro tiene el corte de un MP3 de 256 kbps o menos: puede ser un MP3 convertido, y escucharlo no lo resuelve, porque puede sonar igual. Se queda en el set con su número. «Reintentar fallos» busca otra copia sin el usuario que mandó esa; si llega una mejor, la sustituye y la marcada pasa a `_dudosos`, sin borrarse. Un corte entre 19,5 y 20,8 kHz no lleva marca: es tan habitual en un MP3 de 320 como en un máster legítimo, y solo sale una línea en el informe.
 - **«No cumple formato».** El archivo llegó, pero no es lo que pide tu formato (por ejemplo, un MP3 VBR o de menos de 320). Pulsa «Reintentar fallos».
 - **No se leen los comentarios de YouTube.** «Ajustes» → «Actualizar yt-dlp». Si el vídeo es privado o se ha borrado, no tiene arreglo.
 - **Letras raras en nombres con tildes o eñes** (por ejemplo `�` en «Ver registro»). Es solo el texto que el motor le pasa a Tracklister mientras descarga. No debería pasar, porque los dos motores escriben ese texto en UTF-8, que es lo que lee Tracklister. Si te pasa:

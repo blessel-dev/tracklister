@@ -136,6 +136,17 @@ def version_is_original(version: str | None) -> bool:
     return not _kept_groups(version)
 
 
+def version_key(version: str | None) -> str:
+    """THE comparison key of a version (1.0.1): 'original' for the original/extended track, otherwise the
+    kept groups (merge_versions without original/extended), each normalised, SORTED and joined by spaces.
+    So '(Kai Remix) (Radio Edit)' and '(Radio Edit) (Kai Remix)' are one key, 'kai remix radio edit'
+    (audit r4-3 N1), while 'Kai Remix', 'Radio Edit' and 'Kai Remix - Radio Edit' stay three keys. For a
+    single group it is the same text the 1.0.0 library keys had."""
+    if version_is_original(version):
+        return "original"
+    return " ".join(sorted(norm_key(g, drop_original=False) for g in _kept_groups(version)))
+
+
 def split_title_version(title: str | None) -> tuple[str, str | None]:
     """'Higher Things (FJAAK Remix) [Label]' -> ('Higher Things', 'FJAAK Remix').
 
@@ -146,8 +157,23 @@ def split_title_version(title: str | None) -> tuple[str, str | None]:
     ('Spirit', 'Kai Remix'), 'Spirit (Kai Remix) (Radio Edit)' is ('Spirit', 'Kai Remix - Radio Edit').
     The version keeps its written text (e.g. 'Original Mix'); use classify_version() to interpret it.
     """
+    base, groups, _ = _split_title(title)
+    return base, merge_versions(groups)
+
+
+def title_dropped_groups(title: str | None) -> list[str]:
+    """The trailing bracket groups that split_title_version() takes out of the base title WITHOUT making them
+    the version, in written order: a label, a catalogue number, a feat group, '(Part 2)', '(Nuxx)'...
+    'Born Slippy (Nuxx) [Junior]' -> ['Nuxx', 'Junior']. 1.0.1, Addendum 10: verify.identity asks for a
+    confirmation when a file name only fits its row once such a group is gone (DECISIONES X.42)."""
+    return _split_title(title)[2]
+
+
+def _split_title(title: str | None) -> tuple[str, list[str], list[str]]:
+    """(base title, version groups in written order, dropped non-version bracket groups in written order)."""
     t = nfc(title)
     groups: list[str] = []              # version groups, right to left
+    dropped: list[str] = []             # bracket groups that are not versions, right to left
     while True:
         m = _BRACKET_TAIL.search(t)
         if m and m.start() > 0:
@@ -155,6 +181,8 @@ def split_title_version(title: str | None) -> tuple[str, str | None]:
             t = t[:m.start()].rstrip()
             if is_version_group(inner):
                 groups.append(inner)
+            elif inner:
+                dropped.append(inner)
             continue
         m = _DASH_TAIL.search(t) or _SUFFIX.search(t)
         if m and m.start() > 0:         # ' - Kai Remix' or ' Original Mix': one more group, to the left
@@ -170,7 +198,7 @@ def split_title_version(title: str | None) -> tuple[str, str | None]:
     m = _FEAT_TAIL.search(t)
     if m:
         t = t[:m.start()]
-    return t.strip(" -,;\"'"), merge_versions(groups[::-1])
+    return t.strip(" -,;\"'"), groups[::-1], dropped[::-1]
 
 
 def classify_version(version: str | None) -> VersionKind:

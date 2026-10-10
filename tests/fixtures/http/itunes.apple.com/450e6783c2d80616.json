@@ -1,0 +1,84 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "CONFUSION (RASEREI) Interchange III"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 4,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6768217167,
+     "artistName": "CONFUSION (RASEREI) & Tino Machauer",
+     "trackName": "Interchange III",
+     "collectionName": "Interchange - EP",
+     "trackTimeMillis": 405357,
+     "releaseDate": "2026-06-05T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6768217166,
+     "artistName": "CONFUSION (RASEREI) & Tino Machauer",
+     "trackName": "Interchange II",
+     "collectionName": "Interchange - EP",
+     "trackTimeMillis": 348618,
+     "releaseDate": "2026-06-05T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6768217165,
+     "artistName": "CONFUSION (RASEREI) & Tino Machauer",
+     "trackName": "Interchange I",
+     "collectionName": "Interchange - EP",
+     "trackTimeMillis": 340897,
+     "releaseDate": "2026-06-05T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6768217168,
+     "artistName": "CONFUSION (RASEREI) & Tino Machauer",
+     "trackName": "Interchange IV",
+     "collectionName": "Interchange - EP",
+     "trackTimeMillis": 249458,
+     "releaseDate": "2026-06-05T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

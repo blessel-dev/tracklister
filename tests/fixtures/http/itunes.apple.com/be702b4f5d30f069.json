@@ -1,0 +1,72 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Vkn.modular Hidden Reason"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 3,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1844568672,
+     "artistName": "Vkn.modular",
+     "trackName": "Hidden Reason",
+     "collectionName": "Hidden Reason - Single",
+     "trackTimeMillis": 333237,
+     "releaseDate": "2025-11-30T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1844568675,
+     "artistName": "Vkn.modular",
+     "trackName": "Lonely Journey",
+     "collectionName": "Hidden Reason - Single",
+     "trackTimeMillis": 339854,
+     "releaseDate": "2025-11-30T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1844568676,
+     "artistName": "Vkn.modular",
+     "trackName": "Skyline",
+     "collectionName": "Hidden Reason - Single",
+     "trackTimeMillis": 333237,
+     "releaseDate": "2025-11-30T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

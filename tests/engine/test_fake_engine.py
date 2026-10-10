@@ -112,6 +112,52 @@ def test_fake_respects_banned_users(tmp_path):
     assert c.returncode == 0 and not list((cw / "in").rglob("*.flac")) and "Not found: Fjaak - Spirit" in c.stdout
 
 
+def _r4_run(tmp_path, rows, files, *, clean, desperate=False, short_flag=False, ban_after=None):
+    from tests.fakes.scenarios import file as mkfile
+    net = {"schema": "tracklister.fakenet/1", "search_delay_ms": 0, "ban_after_searches": ban_after, "peers": {},
+           "files": [mkfile(*f) for f in files], "engine_query_clean": clean}
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    netp = tmp_path / "net.json"
+    netp.write_text(json.dumps(net), encoding="utf-8")
+    work = tmp_path / "w"
+    manifest = write_engine_csv(rows, work / "input.csv")
+    job = EngineJob(work, build_preset("lossless").passes[0], any(m.length for m in manifest), 49998,
+                    desperate=desperate and not short_flag)
+    argv = build_command(fake_engine_spec(), job, CREDS) + (["-d"] if short_flag else [])
+    p = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", timeout=120,
+                       env=dict(os.environ, TRACKLISTER_FAKE_NETWORK=str(netp)))
+    got = sorted(f.name for f in (work / "in").rglob("*") if f.is_file()) if (work / "in").exists() else []
+    return p, got
+
+
+def test_r4_v100_scenarios_keep_their_word_rules_without_the_network_key(tmp_path):
+    """Without engine_query_clean the fake splits every query on '.' as in v1.0, so the older scenarios
+    behave as before; with it, the dotted query finds only files that carry the dot."""
+    from tests.fakes.scenarios import row
+    rows = [row(1, "Vkn.modular", "Hidden Reason", dur=20)]
+    files = [("peerB", "@@m\\Musica\\VKN Modular - Hidden Reason.flac", "", "", 20)]
+    _, old = _r4_run(tmp_path / "a", rows, files, clean=False)
+    _, new = _r4_run(tmp_path / "b", rows, files, clean=True)
+    assert old == ["VKN Modular - Hidden Reason.flac"] and new == []
+    dotted = [("peerB", "@@m\\Musica\\Vkn.modular - Hidden Reason.flac", "", "", 20)]
+    _, found = _r4_run(tmp_path / "c", rows, dotted, clean=True)
+    assert found == ["Vkn.modular - Hidden Reason.flac"]
+
+
+def test_r4_desperate_short_flag_and_its_searches_count_for_the_ban(tmp_path):
+    from tests.fakes.scenarios import row
+    rows = [row(1, "Red Rooms", "Trip", dur=20), row(2, "Phil Berg", "Seiko", dur=30)]
+    files = [("peerD", "@@m\\Musica\\Red Rooms - Trip.flac", "", "", 26),
+             ("peerE", "@@m\\Musica\\Phil Berg - Seiko.flac", "", "", 30)]
+    p, got = _r4_run(tmp_path / "a", rows, files, clean=True, short_flag=True)
+    assert p.returncode == 0 and got == ["Phil Berg - Seiko.flac", "Red Rooms - Trip.flac"]
+    _, plain = _r4_run(tmp_path / "b", rows, files, clean=True)
+    assert plain == ["Phil Berg - Seiko.flac"]                  # 6 s off: only --desperate finds it
+    # the first row needs 2 searches (base + without the length condition): a ban after 2 stops the second
+    b, banned = _r4_run(tmp_path / "c", rows, files, clean=True, desperate=True, ban_after=2)
+    assert b.returncode == 1 and "kicked" in b.stdout and banned == ["Red Rooms - Trip.flac"]
+
+
 def test_fake_print_json_all_downloads_nothing(tmp_path):
     p, work, _ = run_fake(tmp_path, "correcto", print_json_all=True,
                           input_override="artist=Fjaak, title=Spirit, length=30")

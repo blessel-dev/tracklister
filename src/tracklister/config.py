@@ -1,7 +1,9 @@
 """Build-time constants. Owner: core (frozen during the parallel phase).
 
-GITHUB_OWNER is the single constant the user fills in when he publishes the repo
-from his home PC. Nothing here may contain personal data or credentials.
+GITHUB_OWNER is the single constant that points the update check and the MusicBrainz
+User-Agent at the published repo (https://github.com/blessel-dev/tracklister). A fork keeps
+it; the release workflow then warns that the notice still looks at this repo.
+Nothing here may contain personal data or credentials.
 """
 from __future__ import annotations
 
@@ -11,7 +13,7 @@ APP_NAME = "Tracklister"                 # product name: never contains the crea
 APP_DISPLAY_NAME = "Tracklister by Blessel"  # header text only
 APP_VERSION = __version__
 
-GITHUB_OWNER = "OWNER_PLACEHOLDER"       # TODO(publish): set to the GitHub user at publish time
+GITHUB_OWNER = "blessel-dev"             # owner of the public repo (update check, User-Agent)
 GITHUB_REPO = "tracklister"
 
 

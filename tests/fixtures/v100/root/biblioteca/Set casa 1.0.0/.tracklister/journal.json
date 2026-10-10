@@ -1,0 +1,90 @@
+{
+  "schema": "tracklister.journal/1",
+  "batches": [
+    {
+      "batch_id": "882d73fe4ef9",
+      "label_es": "Pasada 1: lossless",
+      "created_at": "2026-10-10T13:14:36",
+      "committed": true,
+      "ops": [
+        {
+          "op": "mkdir",
+          "src": "{ROOT}\\biblioteca\\Set casa 1.0.0\\_dudosos",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\_dudosos",
+          "uid": null,
+          "done_at": "2026-10-10T13:14:36"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\2\\04-red_rooms-trip.flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\_dudosos\\02 - Red Rooms - Trip.flac",
+          "uid": "98c0396a7b7d",
+          "done_at": "2026-10-10T13:14:36"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\3\\Kwartz - Show Me That Light (Cleric Remix).flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\03 - Kwartz - Show Me That Light (Cleric Remix).flac",
+          "uid": "d7014da4084f",
+          "done_at": "2026-10-10T13:14:36"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\4\\Rene Wise - Dynamic.flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\04 - Rene Wise - Dynamic.flac",
+          "uid": "ada0cb807e2e",
+          "done_at": "2026-10-10T13:14:36"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\5\\Justine Perry - Nova Voyager.flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\05 - Justine Perry - Nova Voyager.flac",
+          "uid": "3f9c329e7728",
+          "done_at": "2026-10-10T13:14:36"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\6\\Border One - Spectral Tension.flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\06 - Border One - Spectral Tension.flac",
+          "uid": "fe84028cfd1b",
+          "done_at": "2026-10-10T13:14:37"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\7\\GCOD & KYSH Records - Incentive Systems.flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\07 - GCOD & KYSH Records - Incentive Systems.flac",
+          "uid": "031180d7e880",
+          "done_at": "2026-10-10T13:14:37"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\8\\13130 Space Project - Talitha (Original Mix).flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\_dudosos\\09 - 13130 Space Project - Talitha.flac",
+          "uid": "56c8e24456ef",
+          "done_at": "2026-10-10T13:14:37"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\9\\Confusion & Tino Machauer - Interchange III (Radio Edit).flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\_dudosos\\10 - Confusion & Tino Machauer - Interchange III.flac",
+          "uid": "f9f0ea50735a",
+          "done_at": "2026-10-10T13:14:37"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\10\\Miss Kittin & The Hacker - 1982.flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\11 - Miss Kittin & The Hacker - 1982.flac",
+          "uid": "1b425f2b0a0b",
+          "done_at": "2026-10-10T13:14:37"
+        },
+        {
+          "op": "move",
+          "src": "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\11\\Fjaak - Spirit (Kai Remix) (Radio Edit).flac",
+          "dst": "{ROOT}\\biblioteca\\Set casa 1.0.0\\12 - Fjaak - Spirit (Radio Edit - Kai Remix).flac",
+          "uid": "1c1767a815a4",
+          "done_at": "2026-10-10T13:14:37"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Ana Rs Mind Control"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 3,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6772166689,
+     "artistName": "Ana Rs & Demolate Records",
+     "trackName": "Mind Control",
+     "collectionName": "5 - Year Compilation, Pt. 1",
+     "trackTimeMillis": 360860,
+     "releaseDate": "2026-06-19T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6773814417,
+     "artistName": "Ana Rs & Demolate Records",
+     "trackName": "Mind Control",
+     "collectionName": "Mind Control - Single",
+     "trackTimeMillis": 360860,
+     "releaseDate": "2026-06-19T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1682656855,
+     "artistName": "Ana Rs",
+     "trackName": "Abstract Mind",
+     "collectionName": "Take Me There - EP",
+     "trackTimeMillis": 337636,
+     "releaseDate": "2023-04-14T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

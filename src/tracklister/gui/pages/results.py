@@ -8,7 +8,7 @@ session document itself is read again when the worker has finished.
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout, QHeaderView, QPlainTextEdit, QProgressBar,
                                QTableView, QWidget)
 
@@ -16,12 +16,17 @@ from tracklister.core.layout import DUDOSOS, REPORT_TEMPLATE
 from tracklister.core.model import DoubtKind, ResultState
 from tracklister.gui.models import ResultsTableModel
 from tracklister.gui.pages.common import PRESET_LABEL_ES
+from tracklister.gui.progress import StateDelegate
 from tracklister.gui.theme import Theme
 from tracklister.gui.widgets import Banner, StateChips, button, label, page_layout
 from tracklister.organize.naming import safe_component
 
 DONE_STATES = {s for s in ResultState} - {ResultState.PENDIENTE, ResultState.EN_CURSO}
+ANIMATION_MS = 100            # indeterminate bars: about 10 repaints a second, only while a run is going
+# the summary line keeps «Verificado · revisar calidad» apart from «Dudoso» (identity doubts), right after
+# «Verificado», as the report does (pipeline.report.SUMMARY_ORDER)
 PLURAL = {ResultState.VERIFICADO: ("verificada", "verificadas"),
+          ResultState.REVISAR_CALIDAD: ("verificada · revisar calidad", "verificadas · revisar calidad"),
           ResultState.YA_EN_BIBLIOTECA: ("ya en biblioteca", "ya en biblioteca"),
           ResultState.DUDOSO: ("dudosa", "dudosas"),
           ResultState.NO_ENCONTRADO: ("no encontrada", "no encontradas"),
@@ -88,6 +93,8 @@ class ResultsPage(QWidget):
         self.model = ResultsTableModel(self.themes.theme, self)
         self.table = QTableView()
         self.table.setModel(self.model)
+        self.state_delegate = StateDelegate(self.themes, self.table)
+        self.table.setItemDelegateForColumn(ResultsTableModel.STATE_COL, self.state_delegate)
         self.table.setAccessibleName("Resultados por pista")
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -99,10 +106,14 @@ class ResultsPage(QWidget):
         self.table.verticalHeader().setDefaultSectionSize(30)
         hh = self.table.horizontalHeader()
         hh.setHighlightSections(False)
-        for col, w in enumerate((48, 300, 210, 360, 200, 92)):
+        # Estado is wide enough for «Verificado · revisar calidad» and for «Descargando 25,9 MB» + its bar
+        for col, w in enumerate((48, 270, 262, 340, 196, 92)):
             self.table.setColumnWidth(col, w)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         lay.addWidget(self.table, 1)
+        self._anim = QTimer(self)
+        self._anim.setInterval(ANIMATION_MS)
+        self._anim.timeout.connect(self._animate)
         self.detail = label("Selecciona una pista para ver el detalle completo (motivos, archivo y origen).",
                             "small", wrap=True, selectable=True)
         self.detail.setAccessibleName("Detalle de la pista seleccionada")
@@ -126,8 +137,9 @@ class ResultsPage(QWidget):
         foot.addWidget(self.log_btn)
         foot.addStretch(1)
         self.retry_btn = button("Reintentar fallos",
-                                tooltip="Vuelve a buscar las que fallaron, con el filtro de artista relajado. Las "
-                                        "dudosas se buscan sin el usuario que dio el archivo rechazado.")
+                                tooltip="Vuelve a buscar las que fallaron, con el filtro de artista relajado y, al "
+                                        "final, con la búsqueda a fondo del motor. Las dudosas y las marcadas como "
+                                        "probable MP3 convertido se buscan sin el usuario que dio ese archivo.")
         self.themes.bind_icon(self.retry_btn, "reintentar")
         self.continue_btn = button("Continuar descarga")
         self.copy_btn = button("Copiar tracklist", tooltip="Texto con tiempos para Mixcloud o Instagram.")
@@ -175,8 +187,11 @@ class ResultsPage(QWidget):
 
     def set_running(self, running: bool) -> None:
         self.running = running
+        if not running:
+            self.model.clear_progress()
         self._refresh_progress()
         self._refresh_buttons()
+        self._update_animation()
 
     def _targets(self) -> list:
         return [r for r in self.model.rows() if r.download and (r.title or "").strip()]
@@ -184,10 +199,40 @@ class ResultsPage(QWidget):
     def _refresh_progress(self) -> None:
         targets = self._targets()
         done = sum(1 for r in targets if self.model.state_of(r.uid) in DONE_STATES)
-        self.progress.setMaximum(max(1, len(targets)))
-        self.progress.setValue(done)
         self.count.setText(f"{done} de {len(targets)}")
+        self._refresh_bar(done, len(targets))
         self.chips.set_counts(self.model.counts())
+
+    def _refresh_bar(self, done: int | None = None, n: int | None = None) -> None:
+        """The top bar: the finished rows plus the share of the rows in flight (R11), so it moves smoothly;
+        «N de M» only counts the finished ones."""
+        if done is None or n is None:
+            targets = self._targets()
+            n = len(targets)
+            done = sum(1 for r in targets if self.model.state_of(r.uid) in DONE_STATES)
+        self.progress.setMaximum(max(1, n) * 100)
+        partial = self.model.in_flight() if self.running else 0.0
+        self.progress.setValue(min(max(1, n) * 100, int(round((done + partial) * 100))))
+
+    # ---- R11: indeterminate bars move only while something runs ------------------------------------
+    def _update_animation(self) -> None:
+        if self.running and self.model.busy_rows():
+            if not self._anim.isActive():
+                self._anim.start()
+        elif self._anim.isActive():
+            self._anim.stop()
+
+    def _animate(self) -> None:
+        rows = self.model.busy_rows() if self.running else []
+        if not rows:
+            self._anim.stop()
+            return
+        vp = self.table.viewport()
+        visible = vp.rect()
+        for i in rows:
+            rect = self.table.visualRect(self.model.index(i, ResultsTableModel.STATE_COL))
+            if rect.isValid() and rect.intersects(visible):
+                vp.update(rect)
 
     def _refresh_buttons(self) -> None:
         has = self.session is not None
@@ -207,6 +252,11 @@ class ResultsPage(QWidget):
         if kind == "row_state":
             self.model.apply_event(ev.uid, ev.state, ev.message_es, snap)
             self._refresh_progress()
+            self._update_animation()
+        elif kind == "row_progress":
+            self.model.apply_progress(ev.uid, ev.phase, ev.bytes_done, ev.bytes_total)
+            self._refresh_bar()
+            self._update_animation()
         elif kind in ("pass_started", "pass_finished"):
             self.phase.setText(ev.message_es)
             self._append_log(ev.message_es)
@@ -239,9 +289,16 @@ class ResultsPage(QWidget):
                           and res.doubt in (DoubtKind.IDENTIDAD, DoubtKind.VERSION, DoubtKind.DURACION))
         if quarantined:
             text += f" Revisa la carpeta {DUDOSOS}: ahí están las dudas de identidad, versión o duración."
+        marked = self.model.quality_marked()
+        if marked:
+            text += (" 1 pista puede ser un MP3 convertido: se queda en el set con su número."
+                     if marked == 1 else
+                     f" {marked} pistas pueden ser MP3 convertidos: se quedan en el set con su número.")
         if self.model.retryable():
-            text += " Puedes pulsar «Reintentar fallos»."
-        good = counts.get(ResultState.VERIFICADO, 0) + counts.get(ResultState.YA_EN_BIBLIOTECA, 0)
+            text += " Puedes pulsar «Reintentar fallos»" + (" (también busca otra copia de las marcadas)."
+                                                            if marked else ".")
+        good = (counts.get(ResultState.VERIFICADO, 0) + counts.get(ResultState.REVISAR_CALIDAD, 0)
+                + counts.get(ResultState.YA_EN_BIBLIOTECA, 0))
         self.banner.show_message(text, "ok" if good and not self.model.retryable() else "warn")
 
     # ---- actions ------------------------------------------------------------------------------------

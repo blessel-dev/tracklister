@@ -8,14 +8,20 @@ SPDX-License-Identifier: GPL-3.0-or-later
   stdout.txt; engine.log (which the engines write themselves, including the login username) is
   rewritten redacted when the process ends. The unredacted argv is never stored or logged.
 - Cancel kills the whole process tree.
+- Search budget: one search per item, DESPERATE_SEARCHES_PER_ITEM per item with --desperate (1.0.1, R4).
+- --print json-all (Diagnóstico): the JSON array is also read from the RAW line, in memory only
+  (EngineRunResult.json_all), before the line is redacted for stdout.txt. Redacting first broke the JSON
+  when the account was called like one of its words: a username 'file', a password 'true' (audit r4-3 N7).
+  Nothing unredacted is written to disk or sent as an event.
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
 
@@ -26,10 +32,22 @@ from tracklister.engine.csvwriter import ManifestItem
 from tracklister.engine.outputs import (
     EngineEvent, ItemOutcome, collect_outputs, fatal_reason_es, match_snum, parse_progress_line,
 )
+from tracklister.engine.progress import ProgressTracker
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.spec import EngineSpec
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
+
+# --desperate: when an item's searches find nothing, both engines search again (3.x Sockseek.Core/Search/
+# Searcher.cs:596-648, 2.x Services/Searcher.cs:739-811): artist + album, artist + title without the length
+# condition, album, title only and artist only; plus the base search and its no-diacritics twin (3.x :581-584).
+# Up to 7 searches per item, all counted against the app-wide budget before the process starts.
+DESPERATE_SEARCHES_PER_ITEM = 7
+
+
+def searches_for(job: EngineJob, manifest: list[ManifestItem]) -> int:
+    """Searches to reserve in the app-wide budget for one engine process (at least 1)."""
+    return max(1, len(manifest)) * (DESPERATE_SEARCHES_PER_ITEM if job.desperate else 1)
 
 
 class EngineError(Exception):
@@ -50,6 +68,7 @@ class EngineRunResult:
     stdout_path: Path
     argv_redacted: list[str] = field(default_factory=list)
     fatal_es: str | None = None      # login failed, port busy... (Spanish, for every unfinished row)
+    json_all: list | None = None     # --print json-all: the last JSON array, parsed before redaction (memory only)
 
 
 def _kill_tree(proc: subprocess.Popen) -> None:
@@ -88,7 +107,7 @@ class EngineRunner:
         redactor = Redactor(secrets=[creds.username, creds.password])
         argv = build_command(self.spec, job, creds)
         argv_red = redact_argv(argv)
-        n = max(1, len(manifest))
+        n = searches_for(job, manifest)
 
         def emit(ev: EngineEvent) -> None:
             try:
@@ -122,11 +141,22 @@ class EngineRunner:
 
         banned = threading.Event()
         fatal: list[str] = []
+        arrays: list[list] = []
+        # R11: per-row progress from the same plain lines and the growing incomplete files (no download in
+        # the Diagnóstico's search-only mode, so no tracker there)
+        tracker = None if job.print_json_all else ProgressTracker(self.spec.dialect, job.out_dir, manifest)
 
         def reader() -> None:
             with open(job.stdout_path, "w", encoding="utf-8", newline="\n") as out:
                 assert proc.stdout is not None
                 for raw in proc.stdout:
+                    if job.print_json_all and raw.lstrip().startswith("["):
+                        try:
+                            parsed = json.loads(raw)
+                        except ValueError:
+                            parsed = None
+                        if isinstance(parsed, list):
+                            arrays.append(parsed)
                     line = redactor.redact(raw.rstrip("\r\n"))
                     out.write(line + "\n")
                     out.flush()
@@ -140,7 +170,10 @@ class EngineRunner:
                     snum = match_snum(ev.subject, manifest) if ev.subject else None
                     if ev.kind == "ban":
                         banned.set()
-                    emit(EngineEvent(ev.kind, snum, ev.text, ev.subject))
+                    emit(replace(ev, snum=snum))
+                    if tracker is not None:
+                        for pev in tracker.on_event(ev, snum):
+                            emit(pev)
 
         t = threading.Thread(target=reader, name="engine-stdout", daemon=True)
         t.start()
@@ -150,6 +183,9 @@ class EngineRunner:
                 cancelled = True
                 _kill_tree(proc)
                 break
+            if tracker is not None and tracker.due():
+                for pev in tracker.poll():
+                    emit(pev)
         try:
             proc.wait(timeout=15)
         except subprocess.TimeoutExpired:
@@ -158,4 +194,5 @@ class EngineRunner:
         _redact_file(job.log_path, redactor)
         outcomes = collect_outputs(job, manifest, self.spec.dialect)
         return EngineRunResult(None if cancelled else proc.returncode, cancelled, banned.is_set(), outcomes,
-                               job.log_path, job.stdout_path, argv_red, fatal[0] if fatal else None)
+                               job.log_path, job.stdout_path, argv_red, fatal[0] if fatal else None,
+                               arrays[-1] if arrays else None)

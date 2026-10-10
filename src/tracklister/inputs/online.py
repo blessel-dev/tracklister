@@ -3,8 +3,8 @@
 Owner: INPUTS branch.
 SPDX-License-Identifier: GPL-3.0-or-later
 
-02 section 4 "Flujo de la ventana": show the chosen candidate, e.g. "Comentario de @travo1001 ·
-22 pistas con tiempos · 11 likes", with a list to switch to another one. When the description
+02 section 4 "Flujo de la ventana": show the chosen candidate, e.g. "Comentario de @oyente-0879 ·
+22 pistas con tiempos · 13 likes", with a list to switch to another one. When the description
 links an external tracklist, offer to open it and paste the text.
 """
 from __future__ import annotations

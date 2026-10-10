@@ -1,0 +1,216 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Miss Kittin & The Hacker 1982"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 15,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664569,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "1982",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 319493,
+     "releaseDate": "1998-01-01T08:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664633,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "The Beach (Bonus Track)",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 281320,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664621,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "Walking In the Sunshine",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 314600,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664609,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "Stock Exchange",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 346707,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664563,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "Life On MTV",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 265413,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 270122332,
+     "artistName": "The Hacker & Miss Kittin",
+     "trackName": "1982",
+     "collectionName": "First Album",
+     "trackTimeMillis": 319547,
+     "releaseDate": "2001-10-01T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664618,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "Stripper",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 299600,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664610,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "You and Us",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 376960,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664566,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "Walk On By",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 320827,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664615,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "L'homme dans l'ombre",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 257573,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664619,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "DJ Song",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 184680,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664617,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "Nurse",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 315947,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664616,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "Slow Track",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 177867,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 308664614,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "Flexibility",
+     "collectionName": "Miss Kittin & The Hacker: First Album",
+     "trackTimeMillis": 657987,
+     "releaseDate": "2001-10-01T07:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 307361057,
+     "artistName": "Miss Kittin & The Hacker",
+     "trackName": "1000 Dreams",
+     "collectionName": "Two",
+     "trackTimeMillis": 327613,
+     "releaseDate": "2009-03-27T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}
