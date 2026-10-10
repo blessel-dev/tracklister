@@ -611,6 +611,12 @@ kbd {
   color: var(--accent);
 }
 
+/* the formats' headings have no icon: plain text flow, so on the English page the Spanish preset
+   name and its gloss wrap as one heading instead of two flex columns */
+.grid-4 .card h3 {
+  display: block;
+}
+
 .card ul {
   padding-left: 1.2rem;
   display: grid;
