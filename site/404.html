@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es" data-theme="hormigon">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src https://api.github.com; style-src 'self'; script-src 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Página no encontrada · Tracklister</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#afafaf">
+  <!-- GitHub Pages serves this page for a missing URL at ANY depth, so its paths are root-relative to
+       the project site (/tracklister/). With a custom domain, change that prefix here (and in
+       site/build.py, BASE_PATH). -->
+  <link rel="icon" href="/tracklister/favicon.ico" sizes="any">
+  <link rel="stylesheet" href="/tracklister/css/tokens.css">
+  <link rel="stylesheet" href="/tracklister/css/site.css">
+  <script src="/tracklister/js/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/tracklister/">
+        <img class="only-hormigon" src="/tracklister/img/brand/header-ink@2x.png" width="214" height="40" alt="Tracklister by Blessel, ir al inicio" loading="lazy" decoding="async">
+        <img class="only-noche" src="/tracklister/img/brand/header-light@2x.png" width="214" height="40" alt="Tracklister by Blessel, ir al inicio" loading="lazy" decoding="async">
+      </a>
+      <div class="header-tools">
+        <div class="theme-toggle" role="group" aria-labelledby="tema-etiqueta" hidden>
+          <span class="toggle-label" id="tema-etiqueta">Tema</span>
+          <button type="button" data-theme-choice="hormigon" aria-pressed="true">Hormigón</button>
+          <button type="button" data-theme-choice="noche" aria-pressed="false">Noche</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main id="contenido" tabindex="-1">
+    <section class="section" aria-labelledby="titulo">
+      <div class="wrap prose">
+        <p class="eyebrow">Error 404</p>
+        <h1 id="titulo">Esta página no existe</h1>
+        <p class="lead">Puede que el enlace esté mal escrito o que la página se haya movido.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="/tracklister/">Ir al inicio</a>
+          <a class="btn btn-secondary" href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">Descargar para Windows</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <p><strong>Hecho por Blessel.</strong></p>
+      <p class="small"><a href="https://github.com/blessel-dev/tracklister" rel="noopener">Código en GitHub</a> · Licencia GPL-3.0-or-later</p>
+    </div>
+  </footer>
+</body>
+</html>

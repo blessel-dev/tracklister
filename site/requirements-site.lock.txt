@@ -1,0 +1,8 @@
+# Build-only tools for the website (site/build.py), exact pins. Never needed by the app.
+# fontTools subsets Inter and JetBrains Mono to Latin + Latin-1 + Latin Extended-A and writes WOFF2,
+# which needs the brotli compressor. Same versions locally and in .github/workflows/pages.yml.
+# Local install (a throwaway venv under .tmp\, never the global Python):
+#   python -m venv .tmp\site-venv
+#   .tmp\site-venv\Scripts\python.exe -m pip install -r site\requirements-site.lock.txt
+fonttools==4.66.1
+brotli==1.2.0
