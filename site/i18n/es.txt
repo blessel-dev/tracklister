@@ -195,7 +195,7 @@ iTunes, luego Deezer y luego MusicBrainz dan la duración y la versión exacta d
 Busca en Soulseek
 
 == como.paso3.texto
-Con el motor Sockseek y tu propia cuenta, filtrando por artista, título, duración y formato. Si una pista no sale, prueba otras grafías, como cada nombre de un «X aka Y» o «TR440» como «TR 440».
+Con el motor Sockseek y tu propia cuenta, filtrando por artista, título, duración y formato. Si una pista no sale, prueba otras grafías, como cada nombre de un «X aka Y» o «TR440» como «TR&nbsp;440».
 
 == como.paso4.titulo
 Comprueba cada archivo

@@ -200,7 +200,7 @@ iTunes, then Deezer, then MusicBrainz give each track's duration and exact versi
 Search Soulseek
 
 == como.paso3.texto
-With the Sockseek engine and your own account, filtering by artist, title, duration and format. If a track doesn't turn up, it tries other spellings, such as each name of an “X aka Y”, or “TR440” as “TR 440”.
+With the Sockseek engine and your own account, filtering by artist, title, duration and format. If a track doesn't turn up, it tries other spellings, such as each name of an “X aka Y”, or “TR440” as “TR&nbsp;440”.
 
 == como.paso4.titulo
 Check every file
