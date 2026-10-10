@@ -1,0 +1,15 @@
+Input (CSV): <TMP>\w\3-variante-2\input.csv
+Using columns: artist:"Artist", title:"Title", length:"Length".
+Using Mock Soulseek Client.
+Login usuario-prueba
+Downloading 2 tracks:
+  Jeroen Search - Inject (20s)
+  TR-440 - Somewhen (20s)
+Searching: Jeroen Search - Inject (20s)
+Searching: TR-440 - Somewhen (20s)
+Initialize: local\..\TR-440 - Somewhen.flac [20s/44.1kHz1253kbps/3.0MB]
+Initialize: local\..\Jeroen Search - Inject.flac [20s/44.1kHz1255kbps/3.0MB]
+None:          local\..\TR-440 - Somewhen.flac [20s/44.1kHz1253kbps/3.0MB]
+None:          local\..\Jeroen Search - Inject.flac [20s/44.1kHz1255kbps/3.0MB]
+
+Completed: 2 succeeded, 0 failed.

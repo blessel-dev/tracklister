@@ -8,6 +8,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   stdout.txt; engine.log (which the engines write themselves, including the login username) is
   rewritten redacted when the process ends. The unredacted argv is never stored or logged.
 - Cancel kills the whole process tree.
+- Search budget: one search per item, DESPERATE_SEARCHES_PER_ITEM per item with --desperate (1.0.1, R4).
 """
 from __future__ import annotations
 
@@ -30,6 +31,17 @@ from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.spec import EngineSpec
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
+
+# --desperate: when an item's searches find nothing, both engines search again (3.x Sockseek.Core/Search/
+# Searcher.cs:596-648, 2.x Services/Searcher.cs:739-811): artist + album, artist + title without the length
+# condition, album, title only and artist only; plus the base search and its no-diacritics twin (3.x :581-584).
+# Up to 7 searches per item, all counted against the app-wide budget before the process starts.
+DESPERATE_SEARCHES_PER_ITEM = 7
+
+
+def searches_for(job: EngineJob, manifest: list[ManifestItem]) -> int:
+    """Searches to reserve in the app-wide budget for one engine process (at least 1)."""
+    return max(1, len(manifest)) * (DESPERATE_SEARCHES_PER_ITEM if job.desperate else 1)
 
 
 class EngineError(Exception):
@@ -88,7 +100,7 @@ class EngineRunner:
         redactor = Redactor(secrets=[creds.username, creds.password])
         argv = build_command(self.spec, job, creds)
         argv_red = redact_argv(argv)
-        n = max(1, len(manifest))
+        n = searches_for(job, manifest)
 
         def emit(ev: EngineEvent) -> None:
             try:

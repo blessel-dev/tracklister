@@ -101,6 +101,28 @@ def test_runner_cancel_kills_the_process(tmp_path):
     assert res.outcomes[1].file is None
 
 
+def test_r4_desperate_reserves_seven_searches_per_item(tmp_path):
+    """1.0.1, R4: --desperate makes up to 7 searches per item; all of them go in the app-wide budget."""
+    from tracklister.core.jsonio import read_json
+    from tracklister.engine.runner import DESPERATE_SEARCHES_PER_ITEM, searches_for
+    rows, net = build_scenario("correcto", tmp_path / "net")
+    fmt = build_preset("lossless").passes[0]
+    for desperate, expected in ((False, 2), (True, 14)):
+        work = tmp_path / f"w{int(desperate)}"
+        manifest = write_engine_csv(rows, work / "input.csv")
+        job = EngineJob(work, fmt, True, 49998, desperate=desperate)
+        assert searches_for(job, manifest) == expected
+        budget_file = tmp_path / f"b{int(desperate)}.json"
+        runner = EngineRunner(fake_engine_spec(), SearchBudget(budget_file),
+                              env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+        res = runner.run(job, manifest, CREDS, lambda e: None, threading.Event())
+        assert len(read_json(budget_file)["events"]) == expected
+        assert all(o.engine_state == "downloaded" for o in res.outcomes.values())
+        assert ("--desperate" in res.argv_redacted) is desperate
+    assert DESPERATE_SEARCHES_PER_ITEM == 7
+    assert searches_for(EngineJob(tmp_path, fmt, False, 49998, desperate=True), []) == 7
+
+
 def test_runner_waits_for_the_search_budget_and_can_be_cancelled(tmp_path):
     rows, net = build_scenario("correcto", tmp_path / "net")
     work = tmp_path / "w"

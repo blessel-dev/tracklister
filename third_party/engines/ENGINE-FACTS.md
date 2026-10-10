@@ -158,3 +158,68 @@ Keyed string input `artist=A, title=T, length=L` is a song search in both
 - Therefore each binary was run once in mock mode with dummy credentials, `--no-config`, a temp
   mock dir and (3.0.5) `--no-listen`. No real account was used and no Soulseek connection exists
   in that code path.
+
+## 7. Search variants and `--desperate` (1.0.1, R4)
+
+Why his rows "Komplex aka Jeroen Search - Inject", "Vkn.modular - Hidden Reason" and "TR440 - Somewhen"
+found nothing, and what the app does about it (`core/aliases.py`, `engine/csvwriter.py::row_variants`,
+`EngineJob.desperate`). Paths as in the sections above (3.0.5 / 2.6.0 archive roots).
+
+- **Query cleaning.** 3.0.5 `CleanSearchString` (`Sockseek.Core/Search/Searcher.cs:694-710`): lower case,
+  then every character of `s_special` (`Sockseek.Core/Common/Utils.cs:439-449`) becomes a space. 2.6.0:
+  `Services/Searcher.cs:925-945` with `Utilities/Utils.cs:377-386` (`;:'"|?!<>*/\[]{}()-–—&%^$#@+=`~_`).
+  Neither set has `.` or `,`: `Vkn.modular` is sent as the word `vkn.modular`, `TR-440` as `tr 440`.
+- **Strict filters are literal.** `--strict-title` looks in the file name without extension,
+  `--strict-artist` in the whole path (3.0.5 `Sockseek.Core/Matching/Conditions/FileConditions.cs:268-283`).
+  Both first turn `_` and `:|?><*"` into spaces, remove diacritics and collapse spaces (`:296-333`,
+  `:381-390`), then need the text as written, with a boundary character on each side
+  (`Common/Utils.cs:592-657`; for the title whitespace is skipped first, and a digit counts on the left:
+  `04 Trip`). So `TR 440` is not in `TR-440 - Somewhen`, `Vkn modular` is not in `Vkn.modular - ...`, and
+  `Komplex aka Jeroen Search` is not in `Jeroen Search - Inject`. That is why the app tries BOTH other
+  spellings of a letter-digit name (`TR 440`, then `TR-440`) and each alias alone.
+- **"No search results" also means "refused by the conditions".** The search options filter every file
+  with the necessary conditions, strict filters included (3.0.5 `Searcher.cs:166-173`), and the count that
+  decides `NoSearchResults` is the count of files that passed (`Searcher.cs:190`,
+  `Transfers/Downloads/JobOrchestration/DownloadOutcomes.cs:23-24`). His «Sin resultados» rows may have had
+  files that the strict artist refused.
+- **The flag.** `-d`/`--desperate` in both: 3.0.5 `Sockseek.Cli/Services/ConfigManager.cs:742-743` (help
+  `Sockseek.Cli/Help.Content.cs:106-107`), 2.6.0 `Config.cs:1304-1306` (help `Help.Content.cs:75-76`). A
+  bool option: 3.0.5 takes the next token as its value only when it is `true`/`false`
+  (`ConfigManager.cs:307-311`, `IsBoolLiteral` `:1265`), 2.6.0 when it does not start with `-`
+  (`Config.cs:707-711`). The adapter passes the long form, bare, right before `--no-skip-existing`.
+- **What it does.** Only when no file passed the conditions (3.0.5 `Searcher.cs:596-648`, 2.6.0
+  `Services/Searcher.cs:739-811`): artist + album (CSV items have no album), artist + title without the
+  length condition (only with a known length and a tolerance), then album, the title alone (title over 3
+  characters) and the artist alone (artist over 3 characters). Every one of them forces
+  `StrictTitle = StrictArtist = true` (`!ArtistMaybeWrong`, false for CSV input), also in a relaxed pass
+  without `--strict-artist`, and drops only the length condition; formats, bitrate and banned users stay
+  (a copy of the necessary conditions). With the base search and its no-diacritics twin (`:583-584`) that is
+  at most 7 searches per item: `engine/runner.py::DESPERATE_SEARCHES_PER_ITEM`.
+- **Rate limit.** Every search waits on a `RateLimitedSemaphore(searchesPerTime, renewTime)` (3.0.5
+  `Searcher.cs:24,37`, `Search/RateLimitedSemaphore.cs:12-39`; 2.6.0 `Services/Searcher.cs:17,22`,
+  `Utilities/RateLimitedSemaphore.cs:9-29`): a window that starts with the process and gives all its
+  permits back at each renewal. The app's `SearchBudget.reserve()` spreads a reservation larger than one
+  window the same way (34 now, 34 one window later...).
+- **Mock-mode evidence** (`tests/fixtures/engine/mock_probe/probe_r4_variants.py`, outputs in
+  `tests/fixtures/engine/mock-run-r4/<engine>/<run>/`, the safety proof of item 6; `--desperate` only adds
+  searches through the mock client). The mock clients match each query word as a substring of the path
+  (3.0.5 `Sockseek.Core/Soulseek/LocalFilesSoulseekClient.cs:199`, 2.6.0
+  `slsk-batchdl.Tests/TestClients/MockSoulseekClient.cs:151-152`), so this shows the engines' own cleaning,
+  filters and desperate searches, not how real peers match words. Mock files (invented folders):
+  `Jeroen Search - Inject.flac`, `VKN Modular - Hidden Reason.flac`, `TR-440 - Somewhen.flac` (20 s each)
+  and `Red Rooms - Trip.flac` (26 s, the row says 20). Both engines gave the same result:
+
+  | Run | Rows sent | Found |
+  |---|---|---|
+  | 1-base (strict) | the 3 rows as written, Red Rooms - Trip (20 s), Nobody Real - Trip | nothing |
+  | 2-variante-1 | Komplex, Vkn modular, TR 440 | `VKN Modular - Hidden Reason` (`TR 440` refused by `--strict-artist`) |
+  | 3-variante-2 | Jeroen Search, TR-440 | `Jeroen Search - Inject`, `TR-440 - Somewhen` |
+  | 4-desesperado (relaxed + `--desperate`) | the 5 rows of run 1 | only `Red Rooms - Trip` (6 s off); never the `Trip` of Red Rooms for Nobody Real; none of the 3 spelling rows |
+
+  2.6.0 prints one `Searching:` line per search: 4 for each of the 3 rows, 2 for Red Rooms, 3 for the row
+  without a length (`mock-run-r4/sldl-2.6.0/4-desesperado/stdout.txt`).
+- **Fake engine.** `tests/fakes/fake_engine.py` accepts `-d`/`--desperate` and repeats these searches. With
+  the network key `"engine_query_clean": true` it cleans the query and applies the strict filters like
+  3.0.5; without it, the v1.0 word rules stay for the older scenarios.
+  `tests/engine/test_r4_real_engine_mock.py` runs the four runs on it and gets the same files as the real
+  engines, in both dialects.

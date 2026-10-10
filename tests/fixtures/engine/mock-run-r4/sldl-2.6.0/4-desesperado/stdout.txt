@@ -1,0 +1,37 @@
+Input (CSV): <TMP>\w\4-desesperado\input.csv
+Using columns: artist:"Artist", title:"Title", length:"Length".
+Couldn't parse track length "" with format "s" for "Nobody Real - Trip"
+Using Mock Soulseek Client.
+Login usuario-prueba
+Downloading 5 tracks:
+  Komplex aka Jeroen Search - Inject (20s)
+  Vkn.modular - Hidden Reason (20s)
+  TR440 - Somewhen (20s)
+  Red Rooms - Trip (20s)
+  Nobody Real - Trip
+Searching: Komplex aka Jeroen Search - Inject (20s)
+Searching: Komplex aka Jeroen Search - Inject (20s)
+Searching: Komplex aka Jeroen Search - Inject (20s)
+Searching: Vkn.modular - Hidden Reason (20s)
+Searching: Vkn.modular - Hidden Reason (20s)
+Searching: Vkn.modular - Hidden Reason (20s)
+Searching: Vkn.modular - Hidden Reason (20s)
+Searching: Komplex aka Jeroen Search - Inject (20s)
+Not found: Vkn.modular - Hidden Reason (20s)
+Not found: Komplex aka Jeroen Search - Inject (20s)
+Searching: TR440 - Somewhen (20s)
+Searching: TR440 - Somewhen (20s)
+Searching: TR440 - Somewhen (20s)
+Searching: TR440 - Somewhen (20s)
+Searching: Red Rooms - Trip (20s)
+Searching: Red Rooms - Trip (20s)
+Not found: TR440 - Somewhen (20s)
+Searching: Nobody Real - Trip
+Searching: Nobody Real - Trip
+Searching: Nobody Real - Trip
+Not found: Nobody Real - Trip
+Initialize: local\..\Red Rooms - Trip.flac [26s/44.1kHz1253kbps/3.9MB]
+None:          local\..\Red Rooms - Trip.flac [26s/44.1kHz1253kbps/3.9MB]
+Downloaded 1, Failed 4 of Total 5 (100.00 %)
+
+Completed: 1 succeeded, 4 failed.

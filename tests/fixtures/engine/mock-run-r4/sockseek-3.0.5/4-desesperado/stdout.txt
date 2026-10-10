@@ -1,0 +1,33 @@
+[cli] Starting CLI session in local mode
+[soulseek] Using local files Soulseek client.
+[soulseek] Reading tags from mock files dir, this may take a while. Use --mock-files-no-read-tags if tags are not needed.
+[001] ExtractJob: CSV: Input: <TMP>\w\4-desesperado\input.csv
+[001] ExtractJob: CSV: Using columns: artist:"Artist", title:"Title", length:"Length".
+[001] ExtractJob: CSV: Couldn't parse track length "" with format "s"
+[002] Job List: running: input
+[cli] Downloading 5 tracks:
+  Komplex aka Jeroen Search - Inject (20s)
+  Vkn.modular - Hidden Reason (20s)
+  TR440 - Somewhen (20s)
+  Red Rooms - Trip (20s)
+  Nobody Real - Trip
+[003] SongJob: searching: Komplex aka Jeroen Search - Inject
+[004] SongJob: searching: Vkn.modular - Hidden Reason
+[004] SongJob: failed [No search results]: Vkn.modular - Hidden Reason
+    Error: No Soulseek file results found.
+[003] SongJob: failed [No search results]: Komplex aka Jeroen Search - Inject
+    Error: No Soulseek file results found.
+[005] SongJob: searching: TR440 - Somewhen
+[006] SongJob: searching: Red Rooms - Trip
+[005] SongJob: failed [No search results]: TR440 - Somewhen
+    Error: No Soulseek file results found.
+[007] SongJob: searching: Nobody Real - Trip
+[007] SongJob: failed [No search results]: Nobody Real - Trip
+    Error: No Soulseek file results found.
+[006] SongJob: downloading: Red Rooms - Trip: local\..\Musica\Red Rooms\Red Rooms - Trip.flac
+[006] SongJob: succeeded: Red Rooms - Trip: local\..\Musica\Red Rooms\Red Rooms - Trip.flac
+[core] Downloaded 1, Failed 4 of Total 5 (100.00 %)
+[002] Job List: partial: input
+    Error: Some child jobs completed and some failed or were cancelled.
+
+[cli] Completed: 1 succeeded, 4 failed.

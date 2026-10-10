@@ -45,6 +45,10 @@ def _cases():
         yield f"{eid}__diagnostico__print-json-all", eid, EngineJob(
             WORK, lossless, True, 49998, print_json_all=True,
             input_override="artist=Fjaak, title=Spirit, length=301")
+        # 1.0.1, R4: --desperate, the last pass of "Reintentar fallos" (right after [--banned-users])
+        yield f"{eid}__lossless__lossless__desperate", eid, EngineJob(WORK, lossless, True, 49998, desperate=True)
+        yield f"{eid}__lossless__lossless__relaxed_desperate", eid, EngineJob(
+            WORK, relaxed(lossless), True, 49998, banned_users=("peerA", "DJ Peer B"), desperate=True)
 
 
 CASES = list(_cases())
@@ -106,6 +110,21 @@ def test_banned_users_same_place_in_both_dialects_and_never_the_own_account():
     only_own = EngineJob(WORK, p, True, 49998, banned_users=("usuario-prueba",))
     assert "--banned-users" not in build_command(_spec("sldl-2.6.0"), only_own, CREDS)
     assert "--banned-users" not in build_command(_spec("sldl-2.6.0"), EngineJob(WORK, p, True, 49998), CREDS)
+
+
+@pytest.mark.parametrize("eid", list(ENGINE_PINS))
+@pytest.mark.parametrize("banned", [(), ("peerA",)])
+def test_r4_desperate_is_one_long_flag_right_after_the_filters_and_bans(eid, banned):
+    """1.0.1, R4: the same long flag in both engines (3.x ConfigManager.cs:742-743, 2.x Config.cs:1304-1306).
+    A bare flag: the next token starts with '-', so both read it as true. Nothing else in the argv changes."""
+    p = relaxed(build_preset("lossless").passes[0])
+    plain = build_command(_spec(eid), EngineJob(WORK, p, True, 49998, banned_users=banned), CREDS)[1:]
+    desp = build_command(_spec(eid), EngineJob(WORK, p, True, 49998, banned_users=banned, desperate=True), CREDS)[1:]
+    at = desp.index("--desperate")
+    assert desp[:at] + desp[at + 1:] == plain
+    assert desp[at - 1] == ("peerA" if banned else "--strict-title") and desp[at + 1] == "--no-skip-existing"
+    assert desp.count("--desperate") == 1 and "-d" not in desp
+    assert "--desperate" not in plain
 
 
 def test_secret_values_starting_with_dash_use_attached_form():
