@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 
 from tracklister.core.model import RowStatus, TrackRow
-from tracklister.inputs.clean import clean_rows
-from tracklister.inputs.merge import merge_sources
+from tracklister.inputs.clean import clean_rows, renumber
+from tracklister.inputs.merge import merge_sources, merge_sources_detailed
 from tracklister.inputs.tabular import read_table
 from tracklister.inputs.tlparse import to_track_rows
 from tracklister.inputs.tlselect import choose
@@ -80,6 +80,71 @@ def test_time_window_allows_a_weaker_name_match():
     assert any(n.startswith("según texto") for n in near[0].notes)
     far = merge_sources(base, [_r("PAS", "Screen", ts=10000, source="texto")])      # 16 min away
     assert len(far) == 2
+
+
+def _gap(ts, end, **kw):
+    return TrackRow(pos=0, title=GAP_TITLE, artists=[], artist_display="", ts_start=ts, ts_end=end, is_id=True,
+                    status=RowStatus.ID, download=False, confidence=0.0, source="trackid_csv", **kw)
+
+
+def _base_with_gap():
+    return renumber([_r("A", "Uno", ts=0, source="trackid_csv"), _r("B", "Dos", ts=300, source="trackid_csv"),
+                     _gap(700, 1000), _r("C", "Tres", ts=1000, source="trackid_csv"),
+                     _r("D", "Cuatro", ts=1400, source="trackid_csv")])
+
+
+def test_r2_a_track_takes_the_id_row_of_its_interval_and_its_number():
+    base = _base_with_gap()
+    # 05:00-16:40 holds the gap; 06:10 is outside the gap's own span (11:40-16:40, +-60 s): nearest one
+    res = merge_sources_detailed(base, [_r("X", "Nueva", ts=370, source="texto")])
+    assert [r.title for r in res.rows] == ["Uno", "Dos", "Nueva", "Tres", "Cuatro"]
+    new = res.rows[2]
+    assert new.pos == 3 == base[2].pos and res.replaced_ids == [new.uid] and res.inserted == []
+    assert new.notes == ["rellena un hueco de la tracklist base (00:11:40-00:16:40)"]
+    assert [r.pos for r in res.rows] == [r.pos for r in base]                 # nobody else moves
+
+
+def test_r2_with_no_id_row_the_track_is_inserted_by_time():
+    base = _base_with_gap()
+    res = merge_sources_detailed(base, [_r("X", "Nueva", ts=1200, source="texto")])   # between Tres and Cuatro
+    assert [r.title for r in res.rows] == ["Uno", "Dos", GAP_TITLE, "Tres", "Nueva", "Cuatro"]
+    assert res.inserted == [res.rows[4].uid] and res.replaced_ids == [] and res.rows[5].pos == 6
+    assert res.rows[4].notes == ["añadida desde texto"]
+    last = merge_sources_detailed(base, [_r("X", "Final", ts=2000, source="texto")])
+    assert last.rows[-1].title == "Final" and last.appended == [last.rows[-1].uid] and last.inserted == []
+
+
+def test_r2_keep_positions_appends_and_no_number_changes():
+    base = _base_with_gap()
+    res = merge_sources_detailed(base, [_r("X", "Nueva", ts=1200, source="texto"),
+                                        _r("Y", "Otra", ts=360, source="texto")], keep_positions=True)
+    assert [r.title for r in res.rows] == ["Uno", "Dos", "Otra", "Tres", "Cuatro", "Nueva"]
+    assert [(r.uid, r.pos) for r in res.rows[:5] if r.title != "Otra"] == [
+        (b.uid, b.pos) for b in base if b.title != GAP_TITLE]                 # every base number kept
+    appended = res.rows[-1]
+    assert res.appended == [appended.uid] and res.inserted == [] and res.replaced_ids == [res.rows[2].uid]
+    assert appended.notes == ["añadida al final para no cambiar números: en el set va después de «Tres»"]
+
+
+def test_r2_rows_of_the_other_source_never_replace_each_other_and_keep_time_order():
+    base = [_r("A", "Uno", ts=0, source="trackid_csv"), _gap(400, 900), _r("B", "Dos", ts=900, source="trackid_csv")]
+    extra = [_r("X", "Segunda", ts=700, source="texto"), _r("Y", "Primera", ts=450, source="texto"),
+             TrackRow(pos=0, title="ID", artist_display="ID", is_id=True, status=RowStatus.ID, download=False,
+                      ts_start=800, source="texto")]
+    out = merge_sources(base, extra)
+    assert [r.title for r in out] == ["Uno", "Primera", "Segunda", "ID", "Dos"]
+    assert [r.ts_start for r in out] == [0, 450, 700, 800, 900]
+    assert [r.pos for r in out] == [1, 2, 3, 4, 5]
+
+
+def test_r2_merge_sources_is_the_detailed_rows():
+    base, extra = _fjaak_sources()
+    detailed = merge_sources_detailed(base, extra)
+    assert [r.to_dict() | {"uid": ""} for r in merge_sources(base, extra)] == \
+        [r.to_dict() | {"uid": ""} for r in detailed.rows]
+    # 17 trackid tracks matched; Deas and two YouTube ID rows take trackid gaps; the IDs at 0:00 and
+    # 41:50 have no gap in their interval and are inserted
+    assert len(detailed.matched) == 17 and len(detailed.replaced_ids) == 3 and len(detailed.inserted) == 2
 
 
 def test_review_row_in_the_base_is_corrected_by_a_strong_row():
