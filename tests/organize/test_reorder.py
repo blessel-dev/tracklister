@@ -220,6 +220,32 @@ def test_r4_v_the_originals_radio_edit_is_never_proposed_for_the_remixs_radio_ed
     assert by[1].dst.name == "01 - Fjaak - Spirit (Kai Remix - Radio Edit).mp3"
 
 
+def test_v101_r3_reorder_reads_the_real_file_names(tmp_path):
+    """1.0.1 R3: the name patterns of the user's Diagnóstico and report (personal folders invented) are
+    matched by «Reordenar» with the same rules as the download; the must-reject ones stay as they are."""
+    rows = [_row(1, "Red Rooms", "Trip"), _row(2, "Kwartz", "Show me that light", "Cleric Remix"),
+            _row(3, "Phil Berg", "Seiko"), _row(4, "Orbe", "Velocity"), _row(5, "Obscur", "Binary Drive"),
+            _row(6, "13130 Space Project", "Talitha"), _row(7, "Truncate", "Dust 1"),
+            _row(8, "Lucy & Xhin", "Lx2", artists=["Lucy", "Xhin"])]
+    folder = tmp_path / "Set casa"
+    _make(folder / "Red_Rooms-Blind_Spot-(PHORUM004)-16BIT-WEB-FLAC-2026-PTC", ["04-red_rooms-trip.flac"])
+    names = {2: "1-04-Kwartz-Show me that light (Cleric Remix).flac", 3: "Phil Berg - D\u0101rin - 06 - Seiko.flac",
+             4: "Orbe - Velocity (Original Mix) 140.flac", 5: "Obscur - Binary Drive [.wav",
+             6: "13130 Space Project - Talitha (Original Mix) electronicfresh.com.mp3",
+             8: "Lucy & Xhin - Album Inventado - 06 - Lx2.flac"}
+    _make(folder, list(names.values()) + ["Truncate - Dust 2.flac", "Kwartz - Show me that light.flac"])
+    props = propose_reorder(folder, rows)
+    by = _by_pos(props)
+    assert by[1].status == "match" and by[1].src.name == "04-red_rooms-trip.flac"
+    for pos, name in names.items():
+        assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
+    assert by[1].dst == folder / "01 - Red Rooms - Trip.flac"
+    assert by[5].dst.name == "05 - Obscur - Binary Drive.wav"
+    assert by[7].status == "missing"                                   # 'Dust 2' is another track
+    assert {p.src.name for p in props if p.status == "extra"} == {"Truncate - Dust 2.flac",
+                                                                   "Kwartz - Show me that light.flac"}
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])

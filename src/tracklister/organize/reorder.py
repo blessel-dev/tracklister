@@ -16,11 +16,11 @@ from pathlib import Path
 
 from tracklister.core.layout import is_reserved_subdir
 from tracklister.core.model import TrackRow
-from tracklister.core.textnorm import nfc, norm_key, split_title_version, versions_compatible
+from tracklister.core.textnorm import nfc, norm_key, versions_compatible
 from tracklister.organize.journal import Journal
 from tracklister.organize.naming import pad_width, track_filename, win_long
 from tracklister.verify.audioinfo import read_tags
-from tracklister.verify.identity import artist_match, parse_name, row_artists, title_similarity
+from tracklister.verify.identity import FileIdentity, artist_match, file_identities, row_artists, title_similarity
 
 AUDIO_EXTS = (".flac", ".wav", ".aiff", ".aif", ".mp3", ".m4a", ".ogg", ".opus")
 MATCH_MIN = 75.0
@@ -48,33 +48,34 @@ def _audio_files(folder: Path) -> list[Path]:
     return sorted(out)
 
 
-def _file_identity(f: Path) -> tuple[str, str, str | None]:
+def _file_identity(f: Path) -> list[FileIdentity]:
+    """Every reading of the file (tags first, then its name and folder): the same readings as the download
+    verification (verify.identity.file_identities, 1.0.1 R3: scene names, '1-04-', ' - 06 - ', BPM...)."""
     # win_long: a file of an old folder may be past Windows' 260 characters (LongPathsEnabled=0)
     tag_artist, tag_title = read_tags(Path(win_long(f)))
-    name_artist, name_title = parse_name(nfc(f.name), nfc(f.parent.name))
-    artist = tag_artist or name_artist
-    title_full = tag_title or name_title
-    base, version = split_title_version(title_full)
-    _, name_version = split_title_version(name_title)
-    return artist, base or title_full, version or name_version
+    return file_identities(nfc(f.name), nfc(f.parent.name), tag_artist, tag_title)
 
 
-def _pair_score(row: TrackRow, ident: tuple[str, str, str | None]) -> float:
+def _reading_score(row: TrackRow, fi: FileIdentity) -> float:
+    if not norm_key(fi.base):
+        return 0.0
+    title, _ = title_similarity(row.title, fi.base)
+    m = artist_match(row_artists(row), fi.artist) if norm_key(fi.artist) else None
+    art = m.score if m is not None and m.same else 0.0
+    score = 0.4 * art + 0.6 * title
+    if not versions_compatible(row.version, fi.version or fi.name_version)[0]:
+        score *= 0.5
+    return float(score)
+
+
+def _pair_score(row: TrackRow, ident: list[FileIdentity]) -> float:
     """Same title/artist rules as the download verification (verify.identity): a title with other
     numbers ('Dust 1' / 'Dust 2') scores at most 0.4*100 + 0.6*50 = 70 < MATCH_MIN; a partial
     one-word artist ('Systems' for 'Planetary Assault Systems') or another artist with a similar name
     ('Adam Port' for 'Adam Beyer', 'Ken Faki' for 'Len Faki') counts as no artist at all, so even the
-    same title scores at most 0.6*100 = 60 < MATCH_MIN: never a match (audit round 3, B1)."""
-    artist, base, version = ident
-    if not norm_key(base):
-        return 0.0
-    title, _ = title_similarity(row.title, base)
-    m = artist_match(row_artists(row), artist) if norm_key(artist) else None
-    art = m.score if m is not None and m.same else 0.0
-    score = 0.4 * art + 0.6 * title
-    if not versions_compatible(row.version, version)[0]:
-        score *= 0.5
-    return float(score)
+    same title scores at most 0.6*100 = 60 < MATCH_MIN: never a match (audit round 3, B1). The best
+    reading of the file name counts."""
+    return max((_reading_score(row, fi) for fi in ident), default=0.0)
 
 
 def propose_reorder(folder: Path, rows: list[TrackRow]) -> list[ReorderProposal]:
