@@ -363,3 +363,83 @@ def test_r3_version_in_the_title_of_every_reading_counts_for_an_original_row(unt
     assert not s.version_ok and "original" in s.version_reason_es
     base, version = split_title_version(parse_name("1-04-Red Rooms-Trip (Cleric Remix).flac", "x")[1])
     assert (base, version) == ("Trip", "Cleric Remix")
+
+
+# ---- audit v101-1 review, B1-R: the FIRST cut of a name never moves title words into the artist either -----
+# No dash between artist and title, so the glued hyphen is the title's own ('Space-Time'): the first reading
+# 'Adam Beyer Space' + 'Time' passed the partial-artist rule and «Space-Time» was VERIFICADO for «Time».
+ADAM_TIME = _row("Adam Beyer", "Time")
+B1R_OTHER_TRACK = [
+    (ADAM_TIME, "Lista Ejemplo\\Adam Beyer Space-Time.flac"),
+    (ADAM_TIME, "Lista Ejemplo\\01 Adam Beyer Space-Time.flac"),
+    (ADAM_TIME, "Lista Ejemplo\\01 - Adam Beyer Space-Time.flac"),
+    (ADAM_TIME, "Lista Ejemplo\\Adam Beyer -Space-Time.flac"),
+    (ADAM_TIME, "Lista Ejemplo\\Adam Beyer\u2013Space-Time.flac"),          # an en dash with no spaces
+    (ADAM_TIME, "Lista Ejemplo\\adam_beyer_space-time.flac"),
+    (ADAM_TIME, "Lista Ejemplo\\Adam Beyer Space-Time (Original Mix).flac"),
+    (_row("Planetary Assault Systems", "Stop"), "Lista Ejemplo\\Planetary Assault Systems Non-Stop.flac"),
+    (TRIP, "Lista Ejemplo\\Red Rooms Bad-Trip.flac"),
+    (_row("Chris Liebing", "Matter"), "Lista Ejemplo\\Chris Liebing Anti-Matter.flac"),
+    # the same slip behind a credit: after the joiner, 'Kai' may be the co-artist and 'Holy' the title's
+    (_row("Fjaak", "Spirit"), "Lista Ejemplo\\Fjaak & Kai Holy-Spirit.flac"),
+    (_row("Fjaak", "Spirit"), "Lista Ejemplo\\03-fjaak_and_kai_holy-spirit.flac"),
+    (ADAM_TIME, "Lista Ejemplo\\Adam Beyer & Kai Space-Time.flac"),
+]
+
+
+@pytest.mark.parametrize("row,tail", B1R_OTHER_TRACK, ids=[t.split("\\")[-1][:40] for _, t in B1R_OTHER_TRACK])
+def test_v101_1r_b1r_the_first_cut_never_moves_title_words_into_the_artist(tmp_path, untagged, row, tail):
+    """The artist part of a cut (a glued hyphen or a scene name), the first one too, is the row's artist only
+    when it is exactly one of its names: 'Adam Beyer Space' is not 'Adam Beyer'. A doubt, as in 1.0.0."""
+    s = identity_score(row, untagged, tail)
+    assert not (s.same_artist and s.artist >= 60 and s.title >= 70 and s.version_ok), s
+    folder, name = tail.rsplit("\\", 1)
+    assert not identity_from_names(row, name, folder, tag_artist=row.artist_display).title_words_ok
+    timed = TrackRow(pos=1, title=row.title, artists=row.artists, artist_display=row.artist_display,
+                     expected_duration_s=20)
+    for i, tags in enumerate((None, {"artist": row.artist_display})):     # no tags, and only the artist tag
+        p = make_track(tmp_path / f"d{i}.flac", fmt="flac", seconds=20, tags=tags)
+        v = verify_file(timed, p, LOSSLESS, lossy_allowed=False, source_path_tail=tail)
+        assert v.state == ResultState.DUDOSO and v.score < 50, (tags, v.reasons_es)
+        assert any(r.startswith(("Otro título", "Otro artista")) for r in v.reasons_es), (tags, v.reasons_es)
+
+
+B1R_STILL_VERIFIED = [
+    (_row("Fjaak", "Spirit"), "Lista Ejemplo\\Fjaak & Kai-Spirit.flac"),               # a co-artist after a joiner
+    (_row("Fjaak", "Spirit"), "Lista Ejemplo\\04-fjaak_and_kai-spirit.flac"),
+    (_row("Fjaak", "Spirit"), "Lista Ejemplo\\04-fjaak_feat_kai-spirit.flac"),
+    (_row("Fjaak", "Spirit"), "Lista Ejemplo\\Kai & Fjaak-Spirit.flac"),
+    (ADAM_TIME, "Lista Ejemplo\\Adam Beyer with Kai-Time.flac"),
+    (_row("Chris Liebing", "Matter"), "Lista Ejemplo\\Chris Leibing-Matter.flac"),     # a typo in a long word
+    (_row("Komplex aka Jeroen Search", "Inject"), "Lista Ejemplo\\Jeroen Search-Inject.flac"),   # an alias
+    (KWARTZ, "Lista Ejemplo\\01 Kwartz-Show me that light (Cleric Remix).flac"),       # a track number glued
+    (ADAM_TIME, "Lista Ejemplo\\Adam Beyer-Time.flac"),
+    (ADAM_TIME, "Adam Beyer Space Date EP\\Time.flac"),                # the folder reading is unchanged (D10)
+    (_row("Fjaak & Chris Liebing", "Spirit"), "Lista Ejemplo\\Fjaak & Chris Liebing-Spirit.flac"),  # the row's duo
+    (_row("Confusion & Tino Machauer", "Interchange III"),
+     "Lista Ejemplo\\03-confusion_and_tino_machauer-interchange_iii.flac"),
+]
+
+
+@pytest.mark.parametrize("row,tail", B1R_STILL_VERIFIED, ids=[t.split("\\")[-1][:40] for _, t in B1R_STILL_VERIFIED])
+def test_v101_1r_b1r_exact_artists_and_credits_still_verify(tmp_path, untagged, row, tail):
+    s = identity_score(row, untagged, tail)
+    assert s.same_artist and s.artist >= 85 and s.title == 100 and s.version_ok and s.title_words_ok, s
+    timed = TrackRow(pos=1, title=row.title, artists=row.artists, artist_display=row.artist_display,
+                     version=row.version, expected_duration_s=20)
+    for i, tags in enumerate((None, {"artist": row.artist_display})):
+        p = make_track(tmp_path / f"v{i}.flac", fmt="flac", seconds=20, tags=tags)
+        v = verify_file(timed, p, LOSSLESS, lossy_allowed=False, source_path_tail=tail)
+        assert v.state == ResultState.VERIFICADO, (tags, v.reasons_es)
+
+
+def test_v101_1r_b1r_a_longer_co_artist_the_row_does_not_name_is_a_doubt(untagged):
+    """After a joiner, more than one word the row does not name could already be the title's ('Kai Holy' of
+    'Fjaak & Kai Holy-Spirit'): a doubt more, never another track as the row's. With the duo in the row, or a
+    ' - ' between artist and title, the same credit is the row's artist."""
+    row = _row("Fjaak", "Spirit")
+    s = identity_score(row, untagged, "Lista Ejemplo\\Fjaak & Chris Liebing-Spirit.flac")
+    assert not (s.same_artist and s.title >= 70), s
+    assert identity_score(row, untagged, "Lista Ejemplo\\Fjaak & Chris Liebing - Spirit.flac").same_artist
+    assert identity_score(_row("Fjaak & Chris Liebing", "Spirit"), untagged,
+                          "Lista Ejemplo\\Fjaak & Chris Liebing-Spirit.flac").same_artist

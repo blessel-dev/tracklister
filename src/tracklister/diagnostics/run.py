@@ -31,7 +31,9 @@ from tracklister.engine.credentials import Credentials
 from tracklister.engine.csvwriter import ManifestItem, SearchQuery, engine_artist, engine_title, row_variants
 from tracklister.engine.presets import FormatPass, build_preset
 from tracklister.engine.runner import EngineError, EngineRunner
-from tracklister.verify.identity import artist_match, name_readings, parse_name, row_artists, title_similarity
+from tracklister.verify.identity import (
+    artist_match, name_artist_fits, name_readings, row_artists, title_similarity,
+)
 from tracklister.verify.verifier import ACCEPT_SCORE, HARD_DOUBT_MAX_SCORE
 
 MAX_CANDIDATES = 15
@@ -123,7 +125,8 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     parts = [p for p in PureWindowsPath(filename.replace("/", "\\")).parts if p not in ("\\",)]
     name = parts[-1] if parts else filename
     parent = parts[-2] if len(parts) >= 2 else None
-    artist, title_full = parse_name(name, parent)
+    first = name_readings(name, parent)[0]           # the first reading of the name (parse_name)
+    artist, title_full = first.artist, first.title
     base, version = split_title_version(title_full)
     # same title/artist rules as the verification (verify.identity): other numbers in the title are
     # another track, and a one-word partial artist does not count
@@ -131,11 +134,16 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     # the artist must match word by word: 'Adam Port' is not 'Adam Beyer' (audit round 3, B1)
     m = artist_match(row_artists(row), artist)
     art, same_artist = m.score, m.same
+    # audit v101-1 review, B1-R: an artist part cut out of the name at a glued hyphen or of a scene name is
+    # the row's only when it is exactly one of its names (or a credit with a joiner word), as in the
+    # download: 'Adam Beyer Space-Time.flac' is not «Adam Beyer - Time»
+    if first.cut and not name_artist_fits(row_artists(row), artist):
+        same_artist = False
     folders = {norm_key(p) for p in parts[:-1]}
     # a folder named exactly like the artist ("Music\Fjaak\Live\03 Spirit.flac") counts only when the file
     # name itself gives no artist, as in the download (plan D10): 'Adam Beyer\Adam Port - Rush.flac' is
     # Adam Port's file
-    name_has_no_artist = name_readings(name, parent)[0].from_folder or not artist
+    name_has_no_artist = first.from_folder or not artist
     if name_has_no_artist and any(norm_key(c) in folders for c in row_artists(row) if norm_key(c)):
         art, same_artist = 100.0, True
     problems: list[str] = []

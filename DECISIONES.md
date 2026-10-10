@@ -551,3 +551,14 @@ La auditoría completa de Claude Code sobre `3f37562` (`construccion\auditorias\
    - N10: el Diagnóstico solo juzga la primera lectura del nombre.
    - N16: el Diagnóstico solo prueba las otras grafías cuando no hay ningún resultado.
    - N4-N8, N11-N15 y N17-N28, como los cuenta el archivo de la auditoría.
+
+### Revisión del arreglo (iteración 2, 10 oct)
+
+La revisión de `25f9694` (`construccion\auditorias\veredicto-v101.json`) encontró que el arreglo de B1 no cubría la primera lectura (B1-R). Va arreglado con sus tests, sin red; los de rechazo fallan sobre `25f9694`.
+
+41. **El primer corte del nombre tampoco pasa título al artista** (B1-R; completa el punto 37). Si el nombre no tiene guion entre artista y título, el guion pegado es del título: «Adam Beyer Space-Time.flac» se leía primero como «Adam Beyer Space» + «Time», y la regla de los coartistas (T.1) tomaba «Adam Beyer Space» por «Adam Beyer», así que «Space-Time» salía «Verificado» para la fila «Adam Beyer - Time». Igual con «01 Adam Beyer Space-Time», «adam_beyer_space-time», la raya sin espacios, «Planetary Assault Systems Non-Stop» para «Stop», «Red Rooms Bad-Trip» para «Trip» o «Chris Liebing Anti-Matter» para «Matter», también con solo la etiqueta de artista, en «Reordenar» y en el Diagnóstico.
+   - Ahora la regla del punto 37 vale para todo corte en un guion pegado o de un nombre «scene», también para el primero: el artista que da tiene que ser exactamente uno de los nombres de la fila (un alias, uno de un dúo, el dúo en otro orden o una errata en una palabra larga; un número de pista pegado con un espacio, «01 Kwartz-…», no cuenta como palabra).
+   - También vale un crédito con una palabra que une artistas («&», «and», «feat», «ft», «featuring», «x», «vs», «with», «+» o una coma): «Fjaak & Kai-Spirit», «04-fjaak_feat_kai-spirit» y «Kai & Fjaak-Spirit» siguen siendo de Fjaak. Detrás de la última de esas palabras tiene que ir un nombre de la fila o una sola palabra: con más, la última ya podría ser del título («Fjaak & Kai Holy-Spirit» no es «Spirit»).
+   - Si no, el archivo va a `_dudosos`, como en la 1.0.0, que leía estos nombres como un título sin artista. Con « - » entre artista y título, o con el dúo entero en la fila («Fjaak & Chris Liebing»), no cambia nada. Tampoco cambia la lectura de la carpeta: «Adam Beyer Space Date EP\Time.flac» sigue siendo de Adam Beyer.
+   - El Diagnóstico aplica la misma regla a la lectura que juzga: dice «rechazado» donde la descarga mandaría el archivo a `_dudosos`.
+   - Para la v1.0.2: un coartista de dos palabras o más que la fila no nombra, pegado al título con un guion («Fjaak & Chris Liebing-Spirit» para «Fjaak - Spirit»), es ahora una duda de más. Y «Adam Beyer Space-Time.flac» tampoco vale para su propia fila «Adam Beyer - Space-Time», porque ninguna lectura da el título entero (ya pasaba antes).

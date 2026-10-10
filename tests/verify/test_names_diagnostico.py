@@ -1,5 +1,5 @@
 """1.0.1 R3 cross-check: the Diagnóstico judges the same file names with the same rules (read-only use of
-diagnostics.run.judge_candidate, which calls verify.identity.parse_name).
+diagnostics.run.judge_candidate, which judges the first of verify.identity.name_readings).
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -64,3 +64,41 @@ def test_r3_the_diagnostico_accepts_the_real_names(row, path, dur):
 def test_r3_the_diagnostico_still_rejects(row, path, dur):
     score, ok, why = judge_candidate(row, FMT, path, dur, None)
     assert not ok and score < 50 and why.startswith("rechazado"), (score, why)
+
+
+# audit v101-1 review, B1-R: no dash between artist and title, so the glued hyphen is the title's own
+ADAM_TIME = _row("Adam Beyer", "Time", dur=300)
+B1R = [
+    (ADAM_TIME, "@@inventado\\Lista\\Adam Beyer Space-Time.flac"),
+    (ADAM_TIME, "@@inventado\\Lista\\01 Adam Beyer Space-Time.flac"),
+    (ADAM_TIME, "@@inventado\\Lista\\01 - Adam Beyer Space-Time.flac"),
+    (ADAM_TIME, "@@inventado\\Lista\\Adam Beyer -Space-Time.flac"),
+    (ADAM_TIME, "@@inventado\\Lista\\Adam Beyer\u2013Space-Time.flac"),
+    (ADAM_TIME, "@@inventado\\Lista\\adam_beyer_space-time.flac"),
+    (ADAM_TIME, "@@inventado\\Lista\\Adam Beyer Space-Time (Original Mix).flac"),
+    (_row("Planetary Assault Systems", "Stop", dur=300), "@@inventado\\Lista\\Planetary Assault Systems Non-Stop.flac"),
+    (_row("Red Rooms", "Trip", dur=300), "@@inventado\\Lista\\Red Rooms Bad-Trip.flac"),
+    (_row("Chris Liebing", "Matter", dur=300), "@@inventado\\Lista\\Chris Liebing Anti-Matter.flac"),
+    (_row("Fjaak", "Spirit", dur=300), "@@inventado\\Lista\\Fjaak & Kai Holy-Spirit.flac"),
+]
+
+
+@pytest.mark.parametrize("row,path", B1R, ids=[p.split("\\")[-1][:40] for _, p in B1R])
+def test_v101_1r_b1r_the_diagnostico_rejects_a_title_word_glued_to_the_artist(row, path):
+    """Same rule as the download: the artist part of the first cut ('Adam Beyer Space') is not the row's."""
+    score, ok, why = judge_candidate(row, FMT, path, 300, None)
+    assert not ok and score < 50 and why.startswith("rechazado"), (score, why)
+
+
+@pytest.mark.parametrize("row,path", [
+    (_row("Fjaak", "Spirit", dur=300), "@@inventado\\Lista\\Fjaak & Kai-Spirit.flac"),
+    (_row("Fjaak", "Spirit", dur=300), "@@inventado\\Lista\\04-fjaak_feat_kai-spirit.flac"),
+    (_row("Chris Liebing", "Matter", dur=300), "@@inventado\\Lista\\Chris Leibing-Matter.flac"),
+    (_row("Komplex aka Jeroen Search", "Inject", dur=300), "@@inventado\\Lista\\Jeroen Search-Inject.flac"),
+    (_row("Kwartz", "Show me that light", "Cleric Remix", dur=300),
+     "@@inventado\\Lista\\01 Kwartz-Show me that light (Cleric Remix).flac"),
+    (ADAM_TIME, "@@inventado\\Adam Beyer Space Date EP\\Time.flac"),
+])
+def test_v101_1r_b1r_the_diagnostico_still_accepts_exact_artists_and_credits(row, path):
+    score, ok, why = judge_candidate(row, FMT, path, 300, None)
+    assert ok and score >= 95 and why.startswith("aceptable"), (score, why)

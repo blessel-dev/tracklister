@@ -11,7 +11,7 @@ out of names and tags (strip_watermarks), and a file name has one or more READIN
 scene names ('04-red_rooms-trip', with a hash or the folder's release group at the end), disc-track
 prefixes ('1-04-'), a track number as its own ' - 06 - ' part, a BPM after a version group, an
 unbalanced trailing bracket, a tight hyphen between artist and title ('Kwartz-Show me that light').
-parse_name() returns the first reading (the Diagnostico uses it); identity_score() and
+parse_name() returns the first reading (the Diagnostico judges it); identity_score() and
 organize.reorder take the reading that fits the row best, judged with the SAME artist, title and
 version rules as before, so every v1.0 rejection still holds ('Dust 1' / 'Dust 2', 'Feel It' /
 'Feel It All', 'Adam Port' / 'Adam Beyer', the remixer...). The parent folder is artist evidence
@@ -23,7 +23,10 @@ it gives is exactly one of the row's names, word for word (reading_fits): 'Plane
 Systems-Non-Stop' is never 'Planetary Assault Systems-Non' + 'Stop' for the row 'Stop' (B1), while
 'x-ray_spex-oh_bondage' is still 'X-Ray Spex' + 'Oh Bondage'. And a title tag never turns the
 folder into the artist of a name that says its own artist ('Adam Beyer\\Adam Port - Rush.flac'
-tagged 'Rush' is Adam Port's, B2).
+tagged 'Rush' is Adam Port's, B2). The review of that fix (B1-R, DECISIONES X.41): every cut at a
+glued hyphen or of a scene name is such a guess, the first one too, so 'Adam Beyer Space-Time.flac'
+(no dash between artist and title) is never 'Adam Beyer Space' + 'Time'; a credit with a joiner word
+('Fjaak & Kai-Spirit') still fits «Fjaak». The Diagnóstico applies it to its first reading.
 """
 from __future__ import annotations
 
@@ -482,6 +485,8 @@ class NameReading:
     artist: str                   # '' when neither the name nor the folder gives one
     title: str                    # title with its version text, cleaned (clean_title)
     from_folder: bool = False     # the artist is the parent folder's: the name has no artist part here
+    cut: bool = False             # the artist part comes from cutting the name at a glued hyphen or a scene
+                                  # name ('Kwartz-Show me...', '04-red_rooms-trip'), not at ' - ' (B1-R)
 
 
 def _tidy(s: str | None) -> str:
@@ -556,22 +561,23 @@ def _tight_readings(s: str) -> tuple[list[tuple[str, str]], bool]:
     return out, len(left.split()) >= 2 or len(base.split()) >= 2
 
 
-def _split_readings(stem: str, group: str | None) -> tuple[list[tuple[str, str]], bool, str]:
-    """(readings with an artist part, whether they come before the folder reading, the whole title)."""
+def _split_readings(stem: str, group: str | None) -> tuple[list[tuple[str, str]], bool, str, bool]:
+    """(readings with an artist part, whether they come before the folder reading, the whole title, whether
+    those readings cut the name at a glued hyphen or a scene name: their artist part is a guess, B1-R)."""
     if " " not in stem and "_-_" in stem:              # old scene style 'artist_-_title-group' (v1.0 rule)
         s = strip_track_number(_drop_scene_group(stem))
         r = _components(_split_top(s, _TOP_DASH))
-        return ([r] if r else []), True, s
+        return ([r] if r else []), True, s, False
     if " " not in stem and "-" in stem and ("_" in stem or _LEAD_NUM_TOKEN.match(stem)):
-        return _scene_readings(stem, group), True, strip_track_number(stem)
+        return _scene_readings(stem, group), True, strip_track_number(stem), True
     s = strip_track_number(stem)
     r = _components(_split_top(s, _TOP_DASH))
     if r:
         raw = re.sub(r"\s+", " ", stem.replace("_", " ")).strip()
         alt = _components(_split_top(raw, _TOP_DASH)) if raw != s else None
-        return [r] + ([alt] if alt and alt != r else []), True, s   # '2-4 Grooves - ...': the number is a name
+        return [r] + ([alt] if alt and alt != r else []), True, s, False   # '2-4 Grooves - ...': a name
     tight, likely = _tight_readings(s)
-    return tight, likely, s
+    return tight, likely, s, True
 
 
 def name_readings(file_name: str, parent: str | None) -> list[NameReading]:
@@ -582,26 +588,26 @@ def name_readings(file_name: str, parent: str | None) -> list[NameReading]:
     group = _folder_group(parent)
     out: list[NameReading] = []
 
-    def add(artist: str, title: str, from_folder: bool = False) -> None:
+    def add(artist: str, title: str, from_folder: bool = False, cut: bool = False) -> None:
         t = clean_title(title).strip(" -\u2013\u2014_,;")
         if not t:
             return
-        r = NameReading(_tidy(artist), t, from_folder)
-        if r not in out:
+        r = NameReading(_tidy(artist), t, from_folder, cut)
+        if not any((o.artist, o.title, o.from_folder) == (r.artist, r.title, r.from_folder) for o in out):
             out.append(r)
 
     m = _DISC_TRACK.match(stem)
     stems = [stem[m.end():], stem] if m else [stem]   # '1-04-Kwartz-...': then as written ('2-4 Grooves')
     for s in stems:
-        readings, first, whole = _split_readings(s, group)
+        readings, first, whole, cut = _split_readings(s, group)
         if first:
             for a, t in readings:
-                add(a, t)
+                add(a, t, cut=cut)
             add(folder, whole, True)
         else:
             add(folder, whole, True)
             for a, t in readings:
-                add(a, t)
+                add(a, t, cut=cut)
     if not out:
         out.append(NameReading(folder, stem or nfc(file_name), True))
     return out
@@ -649,6 +655,7 @@ class FileIdentity:
     evidence: str                 # "tags" | "nombre" | "tags+nombre"
     name_artist: str = ""         # the artist part the NAME gives in this reading ('' for the folder reading)
     alternative: bool = False     # not the name's first reading: a later guess of where the artist ends
+    cut: bool = False             # name_artist comes from a glued hyphen or a scene name (NameReading.cut)
 
 
 def clean_artist(text: str | None) -> str | None:
@@ -687,17 +694,27 @@ def file_identities(file_name: str, parent: str | None, tag_artist: str | None,
         used = {"tags" if ta else "nombre", "tags" if tt else "nombre"}
         evidence = "tags+nombre" if used == {"tags", "nombre"} else used.pop()
         fi = FileIdentity(artist, title_full, base or title_full, version, name_version, evidence,
-                          "" if r.from_folder else r.artist, i > 0)
+                          "" if r.from_folder else r.artist, i > 0, r.cut and not r.from_folder)
         if fi not in out:
             out.append(fi)
     return out
+
+
+# a track number glued to the artist part with a space ('01 Kwartz-Show me that light'); never '04-red rooms'
+_GLUED_TRACK_NUMBER = re.compile(r"^\s*\d{1,2}\s+\S")
+# any dash: a credit with one in it was cut at a later hyphen ('Fjaak & Kai-Holy' + 'Spirit')
+_ANY_DASH = re.compile(r"[-\u2010-\u2015]")
+# the words that join the artists of a credit ('Fjaak & Kai', 'fjaak feat kai', 'Adam Beyer with Kai')
+_CREDIT_JOIN = re.compile(r"(?i)\s*(?:,|&|\+|\b(?:x|and|vs|feat|ft|featuring|with)\b\.?)\s*")
 
 
 def name_artist_is_exact(wanted: Iterable[str | None], name_artist: str | None) -> bool:
     """Is the artist part of a reading exactly one of the row's names (an alias, a single artist of a duo,
     or the duo in another order), word for word, with no word more or less? 'Planetary Assault Systems-Non'
     is not 'Planetary Assault Systems', and '04-red rooms' is not 'Red Rooms'; 'x-ray spex' is 'X-Ray Spex'
-    and 'TR-440' is 'TR440'. A typo in a long word is allowed (T.1), a word more is not."""
+    and 'TR-440' is 'TR440'. A typo in a long word is allowed (T.1), a word more is not. A track number
+    glued with a space is no word of the artist, as in artist_match ('01 Kwartz' is 'Kwartz'; '808 State'
+    keeps its 3 digits)."""
     got = norm_key(name_artist)
     if not got:
         return False
@@ -709,17 +726,50 @@ def name_artist_is_exact(wanted: Iterable[str | None], name_artist: str | None) 
 
     if exact(got):
         return True
+    bare = _without_track_number(got) if _GLUED_TRACK_NUMBER.match(nfc(name_artist)) else None
+    if bare and exact(bare):
+        return True
     parts = [k for k in (norm_key(p) for p in split_artists(name_artist)) if k]
     return len(parts) > 1 and all(exact(p) for p in parts)
 
 
+def name_artist_fits(wanted: Iterable[str | None], name_artist: str | None) -> bool:
+    """Audit v101-1 review, B1-R: is the artist part that a CUT of the name gives (a glued hyphen or a scene
+    name) the row's artist? Only when it is exactly one of its names (name_artist_is_exact), or a credit whose
+    other artists come with a joiner word ('&', 'and', 'feat', 'ft', 'featuring', 'x', 'vs', 'with', '+' or a
+    comma): 'Fjaak & Kai', 'fjaak feat kai' and 'Kai & Fjaak' fit «Fjaak». Words glued with a space to the
+    row's name ('Adam Beyer Space' of 'Adam Beyer Space-Time', 'Red Rooms Bad' of 'Red Rooms Bad-Trip') are
+    never a co-artist: with no dash between artist and title, the cut was the title's own hyphen. For the
+    same reason the credit's last artist, right before the cut, is a row name or ONE word: a joiner needs
+    one artist word after it, and more could already be the title's ('Fjaak & Kai Holy' of 'Fjaak & Kai
+    Holy-Spirit'). A credit with a dash in it ('Fjaak & Kai-Holy') was cut at a later hyphen, so there only
+    the exact rule counts."""
+    if name_artist_is_exact(wanted, name_artist):
+        return True
+    if not name_artist or _ANY_DASH.search(name_artist):
+        return False
+    parts = [p.strip(" .") for p in _CREDIT_JOIN.split(nfc(name_artist)) if p and p.strip(" .")]
+    if len(parts) < 2 or not any(name_artist_is_exact(wanted, p) for p in parts):
+        return False
+    return name_artist_is_exact(wanted, parts[-1]) or len(parts[-1].split()) == 1
+
+
 def reading_fits(wanted: Iterable[str | None], fi: FileIdentity) -> bool:
-    """Audit v101-1, B1: a reading after the first one (a later split point of the name) only counts when
-    the artist part it gives is exactly a row name (name_artist_is_exact). Otherwise it moved title words
-    into the artist ('Adam Beyer-Space-Time.flac' read as 'Adam Beyer-Space' + 'Time'), and the shorter
-    title would let another track pass for the row. The first reading, and a reading whose artist is the
-    folder's or the tags' only, are judged as before."""
-    if not fi.alternative or not fi.name_artist:
+    """Does the artist part that the NAME gives in this reading belong to the row? A reading whose artist is
+    the folder's or the tags' only always does.
+
+    Audit v101-1, B1: a reading after the first one (a later split point of the name) only counts when the
+    artist part it gives is exactly a row name (name_artist_is_exact). Otherwise it moved title words into
+    the artist ('Adam Beyer-Space-Time.flac' read as 'Adam Beyer-Space' + 'Time'), and the shorter title
+    would let another track pass for the row. B1-R (the review of that fix): the same holds for the FIRST
+    cut at a glued hyphen or of a scene name, when the name has no dash between artist and title ('Adam
+    Beyer Space-Time.flac' is never 'Adam Beyer Space' + 'Time' for «Adam Beyer - Time»); there a credit
+    with a joiner word also fits (name_artist_fits). A first reading at ' - ' is judged as before."""
+    if not fi.name_artist:
+        return True
+    if fi.cut:
+        return name_artist_fits(wanted, fi.name_artist)
+    if not fi.alternative:
         return True
     return name_artist_is_exact(wanted, fi.name_artist)
 

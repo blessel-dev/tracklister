@@ -271,6 +271,30 @@ def test_v101_1_b1_b2_reorder_never_proposes_another_track_or_artist(tmp_path):
     assert by[4].status == "match" and by[4].src == folder / "Adam Beyer" / "Rush.flac"
 
 
+def test_v101_1r_b1r_reorder_never_proposes_a_title_word_glued_to_the_artist(tmp_path):
+    """Audit v101-1 review, B1-R: with no dash between artist and title, the FIRST cut of 'Adam Beyer
+    Space-Time.flac' ('Adam Beyer Space' + 'Time') made it the «Adam Beyer - Time» match. None of these ten
+    names is proposed now; the right files, also a co-artist credit glued to the title, still are."""
+    rows = [_row(1, "Adam Beyer", "Time"), _row(2, "Planetary Assault Systems", "Stop"), _row(3, "Red Rooms", "Trip"),
+            _row(4, "Chris Liebing", "Matter"), _row(5, "Fjaak", "Spirit")]
+    folder = tmp_path / "set"
+    wrong = ["Adam Beyer Space-Time.flac", "01 Adam Beyer Space-Time.flac", "01 - Adam Beyer Space-Time.flac",
+             "Adam Beyer -Space-Time.flac", "Adam Beyer\u2013Space-Time.flac", "adam_beyer_space-time.flac",
+             "Adam Beyer Space-Time (Original Mix).flac", "Planetary Assault Systems Non-Stop.flac",
+             "Red Rooms Bad-Trip.flac", "Chris Liebing Anti-Matter.flac", "Fjaak & Kai Holy-Spirit.flac"]
+    _make(folder, wrong)
+    props = propose_reorder(folder, rows)
+    by = _by_pos(props)
+    assert [by[p].status for p in range(1, 6)] == ["missing"] * 5, props
+    assert {p.src.name for p in props if p.status == "extra"} == set(wrong)
+    right = {1: "Adam Beyer-Time.flac", 2: "Planetary Assault Systems-Stop.flac", 3: "Red Rooms-Trip.flac",
+             4: "Chris Leibing-Matter.flac", 5: "Fjaak & Kai-Spirit.flac"}
+    _make(folder, right.values())
+    by = _by_pos(propose_reorder(folder, rows))
+    for pos, name in right.items():
+        assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])
