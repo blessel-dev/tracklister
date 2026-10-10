@@ -278,9 +278,11 @@ class StateChips(QWidget):
             if item.widget():
                 item.widget().deleteLater()
         theme = self.themes.theme
-        order = [ResultState.VERIFICADO, ResultState.YA_EN_BIBLIOTECA, ResultState.DUDOSO, ResultState.NO_ENCONTRADO,
-                 ResultState.NO_CUMPLE_FORMATO, ResultState.FALLIDA, ResultState.EN_CURSO, ResultState.PENDIENTE,
-                 ResultState.OMITIDA]
+        # «Verificado · revisar calidad» right after «Verificado» and apart from «Dudoso» (identity doubts),
+        # in the order of the report summary (pipeline.report.SUMMARY_ORDER)
+        order = [ResultState.VERIFICADO, ResultState.REVISAR_CALIDAD, ResultState.YA_EN_BIBLIOTECA,
+                 ResultState.DUDOSO, ResultState.NO_ENCONTRADO, ResultState.NO_CUMPLE_FORMATO, ResultState.FALLIDA,
+                 ResultState.EN_CURSO, ResultState.PENDIENTE, ResultState.OMITIDA]
         for st in order:
             n = self._counts.get(st, 0)
             if not n:

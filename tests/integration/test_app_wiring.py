@@ -39,10 +39,16 @@ def test_trackid_csv_then_enrichment_through_the_window(qtbot, open_window, tmp_
     _wait_import(qtbot, page, lambda: "Datos completados" in page.banner.message())
     rows = page.model.rows()
     tracks = [r for r in rows if not r.is_id]
-    assert len(rows) == 21 and len(tracks) == 17                       # 4 gaps > 90 s became "ID (hueco)"
-    assert [r.pos for r in rows] == list(range(1, 22))
+    # imported: 4 gaps > 90 s by trackid's End became "ID (hueco)"; 1.0.1 (R1): once the real durations are
+    # in, only the gap after «Zona Neutra» stays (6:38 that no track covers even played in full)
+    assert len(rows) == 18 and len(tracks) == 17
+    assert [r.pos for r in rows] == list(range(1, 19))
+    gaps = [r for r in rows if r.is_id]
+    assert [(g.pos, g.ts_start, g.ts_end) for g in gaps] == [(15, 2449, 2847)]
+    assert gaps[0].notes[0] == "6:38 sin cubrir aunque «Zona Neutra» sonara entero"
     assert page.banner.message() == ("Datos completados: 17 de 21 pistas (iTunes 17). "
-                                     "17 con duración esperada.")
+                                     "17 con duración esperada. Huecos medidos con la duración real de cada "
+                                     "pista: 3 huecos quitados.")
     liebing = next(r for r in tracks if r.title == "Higher Things")
     assert liebing.version == "FJAAK Remix" and liebing.expected_duration_s == 289    # the remix, not 4:58
     roll = next(r for r in tracks if r.title == "The Red House")
@@ -154,6 +160,9 @@ def test_own_csv_download_names_by_row_index_and_rerun_is_idempotent(qtbot, open
 # ---- update notice (mocked GitHub) ----------------------------------------------------------------------
 def test_update_notice_with_link_once_a_day(qtbot, open_window, monkeypatch, tmp_path):
     monkeypatch.setattr(config, "GITHUB_OWNER", "tracklister-test")
+    # the recorded release is 1.0.1: the window is the one of an app still on 1.0.0 (since 1.0.1 the real
+    # APP_VERSION is that release itself, which must never announce itself)
+    monkeypatch.setattr(config, "APP_VERSION", "1.0.0")
     http, rt = replay("github", "newer")
     services = make_services(tmp_path, http=http)
     w = open_window(services)

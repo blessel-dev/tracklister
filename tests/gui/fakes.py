@@ -100,6 +100,8 @@ class FakeServices(Services):
         self.opened_urls: list[str] = []
         self.opened_paths: list[Path] = []
         self.copied: list[str] = []
+        self.real_gaps = False                # 1.0.1 R1: tests of the gap hook turn the real inputs.gaps on
+        self.gap_calls: list[list] = []
 
     # inputs / enrichment / updates
     def import_source(self, source):
@@ -111,6 +113,14 @@ class FakeServices(Services):
     def merge_rows(self, base, extra):
         self.merge_calls += 1
         return list(base) + [r for r in extra if not r.is_id]
+
+    def recompute_gaps(self, rows, dismissed=()):
+        """The fake tables carry no End times, so by default the gaps are left as they are."""
+        self.gap_calls.append(list(dismissed))
+        if self.real_gaps:
+            return Services.recompute_gaps(self, rows, dismissed)
+        from types import SimpleNamespace
+        return SimpleNamespace(rows=rows, added=0, removed=0, changed=False)
 
     def is_trackid_csv(self, path):
         return "trackid" in Path(path).name.lower()
@@ -167,6 +177,8 @@ class ScriptedPrompter:
         self.lossy: set[str] | None = None
         self.confirm_answer = True
         self.choose_answers: list = []
+        self.choose_texts: list[str] = []
+        self.choose_defaults: list = []
         self.folders: list = []
         self.files: list = []
         self.calls: list[tuple] = []
@@ -181,8 +193,10 @@ class ScriptedPrompter:
         self.calls.append(("confirm", title, text))
         return self.confirm_answer
 
-    def choose(self, title, text, options):
+    def choose(self, title, text, options, default=None):
         self.calls.append(("choose", title, tuple(options)))
+        self.choose_texts.append(text)
+        self.choose_defaults.append(default)
         return self.choose_answers.pop(0) if self.choose_answers else None
 
     def pick_folder(self, title, start=None):

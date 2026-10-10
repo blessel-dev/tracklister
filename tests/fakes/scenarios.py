@@ -25,7 +25,7 @@ SCENARIOS = (
     "sin_resultados", "peer_timeout", "duplicado_entre_sets", "rerun", "nombres_raros", "ban",
     "mp3_vbr", "mp3_vbr_sin_cabecera", "mp3_256", "cdj_flac_96k", "todos_los_estados", "login_falla",
     # 1.0.1
-    "todos_los_estados_101", "calidad_marcada", "casa_v101",
+    "todos_los_estados_101", "calidad_marcada", "casa_v101", "variantes_r4", "variantes_r4_a_fondo",
 )
 
 # Preset each scenario is meant to run with (default "lossless").
@@ -177,6 +177,26 @@ def _scenario(name: str, tmp: Path) -> tuple[list[TrackRow], dict]:
                            "Spectral Tension", 30, audio={"lowpass_hz": 16500})]))
     if name == "casa_v101":
         return _casa_v101()
+    if name == "variantes_r4":
+        # 1.0.1, R4: his three rows that found nothing as written, each file named with another spelling
+        # (invented folders), plus a normal row. The network cleans the queries like the real engines.
+        rows = [row(1, "Komplex aka Jeroen Search", "Inject", dur=20), row(2, "Vkn.modular", "Hidden Reason", dur=20),
+                row(3, "TR440", "Somewhen", dur=20), row(4, "Red Rooms", "Trip", dur=20)]
+        files = [file("peerA", "@@m\\Musica\\Jeroen Search\\Jeroen Search - Inject.flac", "Jeroen Search", "Inject",
+                      20),
+                 file("peerB", "@@m\\Musica\\Vkn Modular\\VKN Modular - Hidden Reason.flac", "VKN Modular",
+                      "Hidden Reason", 20),
+                 file("peerC", "@@m\\Musica\\TR-440\\TR-440 - Somewhen.flac", "TR-440", "Somewhen", 20),
+                 file("peerD", "@@m\\Musica\\Red Rooms\\Red Rooms - Trip.flac", "Red Rooms", "Trip", 20)]
+        net = _net(files)
+        net["engine_query_clean"] = True
+        return rows, net
+    if name == "variantes_r4_a_fondo":
+        # the TR-440 file 6 s longer than the row: --length-tol 3 refuses it in every normal pass, and only
+        # «Reintentar fallos»'s deep search with the spelling 'TR-440' (no length condition) finds it
+        rows, net = _scenario("variantes_r4", tmp)
+        net["files"][2]["duration_s"] = 26
+        return rows, net
     raise KeyError(name)
 
 

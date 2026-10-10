@@ -15,12 +15,20 @@ from __future__ import annotations
 from datetime import datetime
 
 from tracklister.diagnostics.redact import Redactor, assert_no_secrets
-from tracklister.diagnostics.run import DiagRow, mb_text as _mb, mmss_text as _mmss
+from tracklister.diagnostics.run import NO_RESULTS_ES, DiagRow, mb_text as _mb, mmss_text as _mmss
 from tracklister.engine.spec import DEFAULT_ENGINE_ID, ENGINE_PINS
 from tracklister.pipeline.report import row_label
 
 SELF_CHECK = ("Comprobación: este informe no contiene tu usuario, tu contraseña ni direcciones IP; "
               "los usuarios de Soulseek aparecen como peer-1, peer-2...")
+# Addendum 5: the Diagnóstico never runs --desperate (it stays short); the download's retry does
+DEEP_SEARCH_ES = ("    Al descargar, «Reintentar fallos» también prueba la búsqueda a fondo del motor (sin la "
+                  "condición de duración, solo por el título y solo por el artista).")
+
+
+def _spellings(labels: list[str]) -> str:
+    quoted = [f"«{x}»" for x in labels]
+    return quoted[0] if len(quoted) == 1 else ", ".join(quoted[:-1]) + " y " + quoted[-1]
 
 
 def engine_exe(engine_id: str) -> str:
@@ -49,6 +57,14 @@ def build_report(diag: list[DiagRow], *, app_version: str, engine_id: str, windo
         lines.append(f"{r.pos:02d}. {row_label(r)}{exp}")
         if d.error_es:
             lines.append(f"    ! {d.error_es}")
+        if d.found_by:
+            # Addendum 5: the row as written found nothing; another spelling (as the download tries) did
+            lines.append(f"    Encontrado buscando «{d.found_by}» (sin resultados buscando «{d.tried[0]}»)."
+                         if d.tried else f"    Encontrado buscando «{d.found_by}».")
+        elif not d.candidates and d.error_es == NO_RESULTS_ES:
+            if len(d.tried) > 1:
+                lines.append("    También se buscó como " + _spellings(d.tried[1:]) + ", sin resultados.")
+            lines.append(DEEP_SEARCH_ES)
         for c in d.candidates:
             peer = redactor.peer(c.peer)
             br = f"{c.bitrate} kbps" if c.bitrate else "? kbps"

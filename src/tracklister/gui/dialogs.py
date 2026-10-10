@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QHBox
 
 from tracklister.core.model import DuplicateChoice, LibraryEntry, ResultState, TrackRow
 from tracklister.gui.models import fmt_clock, track_label
+from tracklister.library.index import CARRIED_FLAGS
 from tracklister.gui.theme import Theme, state_icon_rel, svg_pixmap
 from tracklister.gui.widgets import button, label
 
@@ -30,8 +31,9 @@ def _entry_text(e: LibraryEntry) -> str:
         bits.append(e.format.upper())
     if e.duration_s:
         bits.append(fmt_clock(e.duration_s))
-    if "posible_falso_lossless" in (e.flags or []):
-        bits.append("marcado: posible lossless falso")
+    if any(f in CARRIED_FLAGS for f in (e.flags or [])):
+        # the library keeps the 1.0.1 mark, and a 1.0.0 mark only when 1.0.1 still classes its cut as strong
+        bits.append("marcado: probable MP3 convertido")
     return " · ".join(bits)
 
 
@@ -229,11 +231,21 @@ class Prompter:
         box.exec()
         return box.clickedButton() is yes
 
-    def choose(self, title: str, text: str, options: list[str]) -> int | None:
-        """Buttons in order; returns the index pressed, or None (Escape/close)."""
+    def choose_box(self, title: str, text: str, options: list[str],
+                   default: int | None = None) -> tuple[QMessageBox, list[QPushButton]]:
+        """The question box of choose(), not shown yet (tools/screenshots.py captures it)."""
         box = self._box(QMessageBox.Icon.Question, title, text)
         btns: list[QPushButton] = [box.addButton(o, QMessageBox.ButtonRole.ActionRole) for o in options]
-        box.addButton("Cancelar", QMessageBox.ButtonRole.RejectRole)
+        cancel = box.addButton("Cancelar", QMessageBox.ButtonRole.RejectRole)
+        box.setEscapeButton(cancel)
+        if default is not None and 0 <= default < len(btns):
+            box.setDefaultButton(btns[default])      # Enter takes the safe option
+        return box, btns
+
+    def choose(self, title: str, text: str, options: list[str], default: int | None = None) -> int | None:
+        """Buttons in order; returns the index pressed, or None (Escape/close). `default`: the button Enter
+        presses (the safe choice)."""
+        box, btns = self.choose_box(title, text, options, default)
         box.exec()
         clicked = box.clickedButton()
         return btns.index(clicked) if clicked in btns else None

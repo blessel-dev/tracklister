@@ -192,7 +192,7 @@ class SettingsPage(QWidget):
         self.enrich_box = QCheckBox("Completar datos al importar (iTunes, Deezer y MusicBrainz; solo envía "
                                     "artista y título)")
         self.enrich_box.setChecked(bool(s.enrichment_enabled))
-        self.spectral_box = QCheckBox("Análisis de espectro: marcar posibles lossless falsos")
+        self.spectral_box = QCheckBox("Análisis de espectro: marcar los probables MP3 convertidos")
         self.spectral_box.setChecked(bool(s.spectral_check_enabled))
         self.watch_box = QCheckBox("Vigilar la carpeta Descargas por si llega un CSV de trackid.net")
         self.watch_box.setChecked(bool(s.watch_downloads_folder))

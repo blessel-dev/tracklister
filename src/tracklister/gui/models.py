@@ -9,17 +9,19 @@ renumbers pos 1..n after every structural change (move, insert, delete) and on l
 from __future__ import annotations
 
 import re
+import time
 from collections import Counter
-from dataclasses import replace
-from typing import Iterable
+from dataclasses import dataclass, replace
+from typing import Callable, Iterable
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, QTimer, Signal
 from PySide6.QtGui import QColor
 
 from tracklister.core.model import DoubtKind, ResultState, RowResult, RowStatus, TrackIds, TrackRow
 from tracklister.core.textnorm import merge_versions, nfc, norm_key, split_artists, split_title_version
 from tracklister.gui.theme import Theme, mono_font, state_icon, state_label_es
 from tracklister.library.index import row_key
+from tracklister.pipeline.report import has_quality_mark
 
 R = Qt.ItemDataRole
 
@@ -27,16 +29,23 @@ DOUBT_SHORT_ES = {
     DoubtKind.IDENTIDAD: "otra canción",
     DoubtKind.VERSION: "otra versión",
     DoubtKind.DURACION: "duración",
-    DoubtKind.ESPECTRO: "posible lossless falso",
+    # only a set of 1.0.0 not checked again yet (1.0.1 re-measures it when a run starts)
+    DoubtKind.ESPECTRO: "marca de espectro de la 1.0.0",
     DoubtKind.REVISAR: "revisar",
 }
 DOUBT_LONG_ES = {
     DoubtKind.IDENTIDAD: "Parece otra canción. Está en la carpeta _dudosos.",
     DoubtKind.VERSION: "Parece otra versión (remix, radio edit...). Está en la carpeta _dudosos.",
     DoubtKind.DURACION: "La duración no cuadra (o el archivo está cortado). Está en la carpeta _dudosos.",
-    DoubtKind.ESPECTRO: "Posible lossless falso (sacado de un MP3). Se queda en el set, marcado: escúchalo.",
+    DoubtKind.ESPECTRO: ("Marca de espectro de la versión 1.0.0. Se queda en el set; al pulsar «Descargar» o "
+                         "«Reintentar fallos» se vuelve a medir con las reglas de la 1.0.1."),
     DoubtKind.REVISAR: "Coincide a medias. Se queda en el set, marcado: revísalo.",
 }
+QUALITY_SHORT_ES = "probable MP3 convertido"
+# 1.0.1, R6: the identity is right, but the spectrum looks like a converted MP3 (never «escúchalo»: a 320
+# transcode sounds the same)
+QUALITY_LONG_ES = ("Puede ser un MP3 convertido: puede sonar igual y tener menos calidad. Se queda en el set con "
+                   "su número; «Reintentar fallos» busca otra copia.")
 ROW_STATUS_ES = {
     RowStatus.OK: "Lista", RowStatus.REVISAR: "Revisar", RowStatus.ID: "ID",
     RowStatus.YA_EN_BIBLIOTECA: "Ya en biblioteca", RowStatus.DESCARGADA: "Descargada", RowStatus.FALLIDA: "Fallida",
@@ -45,8 +54,77 @@ ROW_STATUS_ICON = {RowStatus.REVISAR: ResultState.DUDOSO, RowStatus.ID: ResultSt
                    RowStatus.YA_EN_BIBLIOTECA: ResultState.YA_EN_BIBLIOTECA,
                    RowStatus.DESCARGADA: ResultState.VERIFICADO, RowStatus.FALLIDA: ResultState.FALLIDA}
 ENRICH_ES = {"itunes": "iTunes", "deezer": "Deezer", "musicbrainz": "MusicBrainz"}
-RETRYABLE = (ResultState.NO_ENCONTRADO, ResultState.FALLIDA, ResultState.NO_CUMPLE_FORMATO)
+# «Reintentar fallos» also looks for another copy of a file marked «probable MP3 convertido» (1.0.1, R6)
+RETRYABLE = (ResultState.NO_ENCONTRADO, ResultState.FALLIDA, ResultState.NO_CUMPLE_FORMATO,
+             ResultState.REVISAR_CALIDAD)
 QUARANTINED = (DoubtKind.IDENTIDAD, DoubtKind.VERSION, DoubtKind.DURACION)
+
+# ---- 1.0.1, R11: the progress of a running row in its Estado cell -------------------------------------
+# phases: pipeline.session.PHASE_* (espera, comprobando) and engine.progress.PHASE_* (the engine's part)
+PROGRESS_LABEL_ES = {
+    "espera": "En espera", "buscando": "Buscando…", "cola": "En cola", "descargando": "Descargando",
+    "otra_copia": "Probando otra copia…", "descargado": "Por comprobar", "comprobando": "Comprobando…",
+    "sin_resultados": "Sin resultados", "sin_descargar": "No se pudo descargar",
+}
+BAR_NONE, BAR_BUSY, BAR_VALUE = 0, 1, 2          # no bar / indeterminate (moving segment) / determinate
+PROGRESS_ROLE = int(Qt.ItemDataRole.UserRole) + 11
+PROGRESS_MIN_INTERVAL_S = 0.25                   # at most 4 repaints per second per row (bytes only)
+# share of a row in the top bar while it runs (the «N de M» counter only counts finished rows)
+_FRACTION = {"descargado": 0.9, "comprobando": 0.95}
+
+
+@dataclass(frozen=True)
+class RowProgress:
+    phase: str
+    done: int | None = None       # bytes received
+    total: int | None = None      # bytes of the file, when the engine says it
+
+
+@dataclass(frozen=True)
+class ProgressView:
+    label: str                    # UI font
+    number: str                   # mono font: «63 %», «25,9 MB»; "" when none
+    bar: int                      # BAR_*
+    fraction: float | None        # determinate bar only
+
+    @property
+    def text(self) -> str:        # also the accessible text: the state never depends on the bar
+        return f"{self.label} {self.number}" if self.number else self.label
+
+
+def mb_es(n: int | float | None) -> str:
+    return f"{(n or 0) / (1024 * 1024):.1f}".replace(".", ",")
+
+
+def progress_view(p: RowProgress) -> ProgressView:
+    label = PROGRESS_LABEL_ES.get(p.phase, p.phase)
+    if p.phase == "descargando":
+        if p.total:
+            frac = max(0.0, min(1.0, (p.done or 0) / p.total))
+            return ProgressView(label, f"{int(frac * 100)} %", BAR_VALUE, frac)
+        if p.done:
+            return ProgressView(label, f"{mb_es(p.done)} MB", BAR_BUSY, None)
+        return ProgressView("Descargando…", "", BAR_BUSY, None)
+    if p.phase == "descargado":
+        return ProgressView(label, "", BAR_VALUE, 1.0)
+    if p.phase in ("buscando", "cola", "otra_copia", "comprobando"):
+        return ProgressView(label, "", BAR_BUSY, None)
+    return ProgressView(label, "", BAR_NONE, None)
+
+
+def progress_detail(p: RowProgress) -> str:
+    """The Detalle cell while a row downloads: «25,9 de 41,0 MB», or «25,9 MB recibidos»."""
+    if p.phase not in ("descargando", "descargado") or not p.done:
+        return ""
+    if p.total:
+        return f"{mb_es(min(p.done, p.total))} de {mb_es(p.total)} MB"
+    return f"{mb_es(p.done)} MB recibidos"
+
+
+def progress_fraction(p: RowProgress) -> float:
+    if p.phase == "descargando" and p.total:
+        return 0.9 * max(0.0, min(1.0, (p.done or 0) / p.total))
+    return _FRACTION.get(p.phase, 0.0)
 
 
 def fmt_clock(s: int | float | None) -> str:
@@ -358,14 +436,25 @@ class ResultsTableModel(QAbstractTableModel):
     """Per-track states of a set ('Descargando' / 'Resultados')."""
 
     COLUMNS = ("Nº", "Pista", "Estado", "Detalle", "Formato", "Confianza")
+    STATE_COL, DETAIL_COL = 2, 3
 
-    def __init__(self, theme: Theme, parent=None):
+    def __init__(self, theme: Theme, parent=None, *, clock: Callable[[], float] = time.monotonic):
         super().__init__(parent)
         self._theme = theme
         self._rows: list[TrackRow] = []
         self._res: dict[str, RowResult] = {}
         self._live: dict[str, str] = {}
         self._index: dict[str, int] = {}
+        # R11: the progress of the rows in flight, throttled per row; the flush timer only exists while an
+        # update is held back (never a timer while idle)
+        self._progress: dict[str, RowProgress] = {}
+        self._last_emit: dict[str, float] = {}
+        self._held: set[str] = set()
+        self._clock = clock
+        self._flush = QTimer(self)
+        self._flush.setSingleShot(True)
+        self._flush.timeout.connect(self._flush_held)
+        self.progress_emits = 0          # dataChanged signals sent for progress (tests)
 
     def set_theme(self, theme: Theme) -> None:
         self._theme = theme
@@ -378,6 +467,7 @@ class ResultsTableModel(QAbstractTableModel):
         self._res = {u: RowResult.from_dict(v.to_dict()) for u, v in results.items()}
         self._live = {}
         self._index = {r.uid: i for i, r in enumerate(self._rows)}
+        self._clear_progress()
         self.endResetModel()
 
     def apply_event(self, uid: str | None, state: ResultState | None, message: str = "",
@@ -388,6 +478,7 @@ class ResultsTableModel(QAbstractTableModel):
         if snap is not None:
             self._res[uid] = snap
             self._live.pop(uid, None)
+            self._drop_progress(uid)         # the row has its final state: icon and label, no bar
         else:
             res = self._res.setdefault(uid, RowResult(uid=uid, pos=self._rows[i].pos))
             if state is not None:
@@ -395,6 +486,85 @@ class ResultsTableModel(QAbstractTableModel):
             if message:
                 self._live[uid] = message
         self.dataChanged.emit(self.index(i, 0), self.index(i, len(self.COLUMNS) - 1))
+
+    # ---- R11: progress of the rows in flight --------------------------------------------------------
+    def apply_progress(self, uid: str | None, phase: str, done: int | None = None,
+                       total: int | None = None) -> bool:
+        """A row of the running pass changes phase or receives bytes. Only its Estado and Detalle cells
+        are signalled (no reset: selection, scroll and the detail text stay), a phase change at once, a
+        byte count at most every PROGRESS_MIN_INTERVAL_S. Returns True when the cells were signalled."""
+        if not uid or uid not in self._index or not phase:
+            return False
+        new = RowProgress(phase, done, total)
+        old = self._progress.get(uid)
+        if old == new:
+            return False
+        self._progress[uid] = new
+        now = self._clock()
+        if old is not None and old.phase == phase and now - self._last_emit.get(uid, float("-inf")) \
+                < PROGRESS_MIN_INTERVAL_S:
+            self._held.add(uid)
+            if not self._flush.isActive():
+                self._flush.start(int(PROGRESS_MIN_INTERVAL_S * 1000))
+            return False
+        self._held.discard(uid)
+        self._emit_progress(uid, now)
+        return True
+
+    def _emit_progress(self, uid: str, now: float) -> None:
+        i = self._index.get(uid)
+        if i is None:
+            return
+        self._last_emit[uid] = now
+        self.progress_emits += 1
+        self.dataChanged.emit(self.index(i, self.STATE_COL), self.index(i, self.DETAIL_COL))
+
+    def _flush_held(self) -> None:
+        held, self._held = self._held, set()
+        now = self._clock()
+        for uid in held:
+            if uid in self._progress:
+                self._emit_progress(uid, now)
+
+    def _drop_progress(self, uid: str) -> None:
+        self._progress.pop(uid, None)
+        self._held.discard(uid)
+        self._last_emit.pop(uid, None)
+        if not self._held:
+            self._flush.stop()
+
+    def _clear_progress(self) -> None:
+        self._progress.clear()
+        self._held.clear()
+        self._last_emit.clear()
+        self._flush.stop()
+
+    def clear_progress(self) -> None:
+        """The run is over: no row is in flight any more (its rows are signalled once)."""
+        uids = list(self._progress)
+        self._clear_progress()
+        for uid in uids:
+            i = self._index.get(uid)
+            if i is not None:
+                self.dataChanged.emit(self.index(i, self.STATE_COL), self.index(i, self.DETAIL_COL))
+
+    def progress_of(self, uid: str) -> RowProgress | None:
+        return self._progress.get(uid)
+
+    def progress_view_at(self, i: int) -> ProgressView | None:
+        if not (0 <= i < len(self._rows)):
+            return None
+        p = self._progress.get(self._rows[i].uid)
+        return progress_view(p) if p is not None else None
+
+    def busy_rows(self) -> list[int]:
+        """Rows whose bar is indeterminate (the page animates them, and only them)."""
+        return [self._index[u] for u, p in self._progress.items()
+                if u in self._index and progress_view(p).bar == BAR_BUSY]
+
+    def in_flight(self) -> float:
+        """Sum of the finished share of the rows in flight, for the top bar."""
+        return sum(progress_fraction(p) for p in self._progress.values())
 
     def state_of(self, uid: str) -> ResultState:
         res = self._res.get(uid)
@@ -410,14 +580,21 @@ class ResultsTableModel(QAbstractTableModel):
         return Counter(self.state_of(r.uid) for r in self._rows)
 
     def retryable(self) -> int:
+        """Rows «Reintentar fallos» works on: missing ones, files in _dudosos and (1.0.1) files marked as a
+        probable converted MP3, also the legacy 1.0.0 spectral mark (DUDOSO/ESPECTRO)."""
         n = 0
         for r in self._rows:
             res = self._res.get(r.uid)
             if res is None or not r.download:
                 continue
-            if res.state in RETRYABLE or (res.state == ResultState.DUDOSO and res.doubt in QUARANTINED):
+            if res.state in RETRYABLE or (res.state == ResultState.DUDOSO
+                                          and res.doubt in QUARANTINED + (DoubtKind.ESPECTRO,)):
                 n += 1
         return n
+
+    def quality_marked(self) -> int:
+        """Rows in «Verificado · revisar calidad» (counted apart from «Dudoso», which is identity)."""
+        return sum(1 for r in self._rows if self.state_of(r.uid) == ResultState.REVISAR_CALIDAD)
 
     def pending(self) -> int:
         return sum(1 for r in self._rows if r.download and (r.title or "").strip()
@@ -445,10 +622,17 @@ class ResultsTableModel(QAbstractTableModel):
         label = state_label_es(state)
         if res is not None and state == ResultState.DUDOSO and res.doubt:
             label += f" · {DOUBT_SHORT_ES.get(res.doubt, str(res.doubt))}"
-        elif res is not None and state == ResultState.YA_EN_BIBLIOTECA and "posible_falso_lossless" in res.flags:
+        elif res is not None and state == ResultState.YA_EN_BIBLIOTECA and has_quality_mark(res):
             # a reused file keeps the mark it had in its set (never accepted silently)
-            label += f" · {DOUBT_SHORT_ES[DoubtKind.ESPECTRO]}"
+            label += f" · {QUALITY_SHORT_ES}"
         return label
+
+    def live_state_text(self, i: int) -> str:
+        """What the Estado cell says now: the progress of a row in flight, else its state."""
+        view = self.progress_view_at(i)
+        if view is not None:
+            return view.text
+        return self.state_text(self._res.get(self._rows[i].uid)) if 0 <= i < len(self._rows) else ""
 
     def data(self, index, role=R.DisplayRole):
         if not index.isValid() or index.row() >= len(self._rows):
@@ -458,14 +642,21 @@ class ResultsTableModel(QAbstractTableModel):
         state = res.state if res else ResultState.PENDIENTE
         col = index.column()
         t = self._theme
+        prog = self._progress.get(r.uid)
+        if role == PROGRESS_ROLE:
+            return progress_view(prog) if prog is not None and col == self.STATE_COL else None
         if role == R.DisplayRole:
             if col == 0:
                 return f"{r.pos:0{3 if len(self._rows) > 99 else 2}d}"
             if col == 1:
                 return track_label(r)
             if col == 2:
-                return self.state_text(res)
+                return progress_view(prog).text if prog is not None else self.state_text(res)
             if col == 3:
+                if prog is not None:
+                    # the Estado cell says what the row is doing; here only the bytes, never a stale
+                    # «En cola» next to «Comprobando…»
+                    return progress_detail(prog)
                 live = self._live.get(r.uid)
                 if live and state == ResultState.EN_CURSO:
                     return live
@@ -490,9 +681,11 @@ class ResultsTableModel(QAbstractTableModel):
         if role == R.TextAlignmentRole and col in (0, 5):
             return int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         if role == R.ToolTipRole:
+            if prog is not None and col in (self.STATE_COL, self.DETAIL_COL) and progress_detail(prog):
+                return f"{progress_view(prog).text}\n{progress_detail(prog)}"
             return self._tooltip(r, res)
         if role == R.AccessibleTextRole and col == 2:
-            return self.state_text(res)
+            return progress_view(prog).text if prog is not None else self.state_text(res)
         return None
 
     def detail_text(self, i: int) -> str:
@@ -506,6 +699,8 @@ class ResultsTableModel(QAbstractTableModel):
         if res is None:
             return None
         lines = [f"{r.pos:02d}. {track_label(r)}", self.state_text(res)]
+        if res.state == ResultState.REVISAR_CALIDAD:
+            lines.append(QUALITY_LONG_ES)
         if res.doubt:
             lines.append(DOUBT_LONG_ES.get(res.doubt, ""))
         lines += [f"- {x}" for x in res.reasons]

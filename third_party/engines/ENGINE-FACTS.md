@@ -223,3 +223,46 @@ found nothing, and what the app does about it (`core/aliases.py`, `engine/csvwri
   3.0.5; without it, the v1.0 word rules stay for the older scenarios.
   `tests/engine/test_r4_real_engine_mock.py` runs the four runs on it and gets the same files as the real
   engines, in both dialects.
+
+## 8. Per-row download progress (1.0.1, R11)
+
+The Estado cell of the Descarga screen shows what each row is doing and, while it downloads, a bar
+(`engine/progress.py`, `gui/progress.py`). Mechanism chosen: **the plain `--no-progress` lines plus the
+growing incomplete file**, in both engines. Sockseek's `--progress-json` was NOT adopted:
+
+- With it, `Program.cs:221-227` attaches `JsonStreamProgressReporter` to the backend INSTEAD of the
+  `CliProgressReporter`, so every plain line the adapter reads today disappears (row states, peer credit,
+  fatal errors, bans, the redaction before anything is shown).
+- Its byte events cannot be tied to a row: the backend path (`JsonStreamProgressReporter.cs`,
+  `ReportDownloadProgress(DownloadProgressEventDto)`) writes only `jobId`, `bytesTransferred`, `totalBytes`
+  and `percent`, and no other JSON event of that path carries a `jobId` (`ReportSearchStart`,
+  `ReportDownloadStart` and `ReportStateChanged` write artist/title, user and file only). With 4 downloads at
+  once the app could not know which row a byte count belongs to.
+- One throttle for all jobs: `_lastDownloadProgressReport` is a single field (500 ms), so with several
+  downloads most rows would get no update at all.
+
+What the app reads instead:
+
+- **Phase**: the lines already parsed (item 1): `searching`, 3.0.5 `queued (r)`/`queued (l)`/`initialising`
+  (queued), the download start (3.0.5 `downloading:`, written by `Sockseek.Api/JobActivityLogFormatter.cs:305-319`;
+  2.6.0 `Initialize:`, `Models/DownloadWrapper.cs:44`), `succeeded`, the not-found and failed lines. A second
+  download start for the same row with another file is another copy (the bar starts again).
+- **Bytes**: the size of the row's incomplete file, read every 0.5 s with a stat of its path (a directory
+  listing reports a stale size while the engine writes). The file is never opened: a handle without delete
+  sharing would make the engine's own rename of the finished file fail. 3.0.5 with `--name-format`
+  downloads into `in/.sockseek-staging/<job id>/<file name>.incomplete`
+  (`Sockseek.Core/Transfers/Downloads/Completion/OutputFinalizer.cs:47-48`, `Transfers/Downloads/Downloader.cs:85`)
+  and opens it with `FileMode.Create` (shared for reading, `Downloader.cs:129`); 2.6.0 into
+  `in/<file name>.incomplete` (`Services/FileManager.cs:23-45`, `Services/Downloader.cs:54`), then moves it to
+  the name-format path. The file is matched by its name, the last part of the path the download line shows;
+  two active rows downloading files with the same name get no bytes (never another row's bar).
+- **Total**: 2.6.0 prints the size in its download display, `[<len>s/<rate><kbps>/<size>MB]` with one decimal
+  (`Utilities/Printing.cs:20-29`), so its bar shows a percentage. 3.0.5's plain lines carry no size
+  (`CandidateDisplayShort`, `Sockseek.Cli/Utilities/CliProgressReporter.cs:717-721`, path only; the live bars
+  with the size are off in plain mode, `CliProgressReporter.cs:897-899`), so with the default engine the
+  bar is indeterminate and the text says the MB received so far («Descargando 25,9 MB»).
+- **2.6.0 lines name no query**: its `Initialize:` line goes to the one row of the pass that is searching
+  and whose title words are all in the file name (`--strict-title` guarantees them); otherwise to none.
+- Nothing new is written to disk and the progress events carry no peer name. The golden command lines
+  do not change (`--no-progress` stays). The fake engine's `"write_s"` network key writes its files in
+  steps where the real engines do (and adds the size to its 2.x `Initialize:` display, as the real one).

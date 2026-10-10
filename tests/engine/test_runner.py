@@ -58,7 +58,9 @@ def test_runner_sin_resultados_and_timeout(tmp_path):
     res, events, _, _ = _run(tmp_path / "a", "sin_resultados")
     assert res.exit_code == 1 and res.outcomes[1].engine_state == "not_found"
     assert res.outcomes[1].reason == "NoSearchResults"
-    assert [e.kind for e in events if e.snum == 1] == ["searching", "not_found"]
+    assert [e.kind for e in events if e.snum == 1 and e.kind != "progress"] == ["searching", "not_found"]
+    # 1.0.1, R11: each line also moves the row's progress phase
+    assert [e.phase for e in events if e.snum == 1 and e.kind == "progress"] == ["buscando", "sin_resultados"]
     res2, _, _, _ = _run(tmp_path / "b", "peer_timeout")
     assert res2.outcomes[1].engine_state == "failed" and res2.outcomes[1].reason == "AllDownloadsFailed"
 

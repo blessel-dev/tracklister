@@ -24,6 +24,11 @@ index CSV, the m3u playlist, the log file, --no-progress lines and exit codes.
   'vkn.modular' never finds a file named 'Vkn Modular - ...' and 'komplex aka ...' needs 'aka' in the
   path. --strict-title/--strict-artist need the literal text with boundaries (3.x Matching/Conditions/
   FileConditions.cs:268-283, 296-404 and Common/Utils.cs:592-657): 'TR 440' is not in 'TR-440 - Somewhen'.
+
+1.0.1 (R11): key `"write_s"` (on a file, or on the network for every file; default 0 = written at once as
+before) writes the file into its incomplete file in 10 steps over that many seconds, where the real engines
+write it (3.x in/.sockseek-staging/<job>/<name>.incomplete, 2.x in/<name>.incomplete), so the app can watch
+it grow; in that mode the 2.x Initialize display also carries the size ('[30s/5.1MB]'), as the real one does.
 """
 from __future__ import annotations
 
@@ -477,8 +482,23 @@ def main(argv: list[str]) -> int:
         done = False
         for f in cands:
             peer = peers.get(f["peer"], {})
+            name = opts.get("--name-format", "{snum}/{slsk-filename}")
+            # like the real engines: Windows-invalid characters become spaces (--invalid-replace-str)
+            stem = re.sub(r'[<>:"/\\|?*]', " ", file_base(f["path"]).rsplit(".", 1)[0]).strip(" .")
+            ext = "." + file_ext(f["path"]) if file_ext(f["path"]) else ""
+            # 1.0.1, R11 slow mode ("write_s" on the file or the network): the audio is made first and then
+            # written into its incomplete file in steps, like a real transfer the app can watch grow; sldl 2.x
+            # then also prints the size in its Initialize display ('[30s/5.1MB]', Utilities/Printing.cs:20-29)
+            write_s = float(f.get("write_s") or net.get("write_s") or 0)
+            audio = None
+            if write_s > 0 and not peer.get("timeout"):
+                tmp_audio = out_dir.parent / f".fake-audio-{uuid.uuid4().hex}{ext}"
+                write_audio(f, it, Path(lp(tmp_audio)))
+                audio = Path(lp(tmp_audio)).read_bytes()
+                os.remove(lp(tmp_audio))
+            size_info = f"/{len(audio) / (1024 * 1024):.1f}MB" if audio is not None else ""
             log.line(f"{did} downloading: {q}: {display(f)}" if dialect == V3 else
-                     f"Initialize: {display(f)} [{f.get('duration_s') or -1}s]")
+                     f"Initialize: {display(f)} [{f.get('duration_s') or -1}s{size_info}]")
             if peer.get("slow"):
                 time.sleep(float(peer.get("slow_s", 30)))
             if peer.get("timeout"):
@@ -487,14 +507,28 @@ def main(argv: list[str]) -> int:
                 else:
                     log.line("TimedOut:".ljust(14) + f" {display(f)}")
                 continue
-            name = opts.get("--name-format", "{snum}/{slsk-filename}")
-            # like the real engines: Windows-invalid characters become spaces (--invalid-replace-str)
-            stem = re.sub(r'[<>:"/\\|?*]', " ", file_base(f["path"]).rsplit(".", 1)[0]).strip(" .")
-            ext = "." + file_ext(f["path"]) if file_ext(f["path"]) else ""
             rel = (name.replace("{snum}", str(it["snum"])).replace("{row}", str(it["line"]))
                    .replace("{slsk-filename}", stem).replace("{ext}", ext)) + ext
             dst = out_dir / Path(rel)
-            if dialect == V3:
+            if audio is not None:
+                # 3.x: in/.sockseek-staging/<job>/<name>.incomplete; 2.x: in/<name>.incomplete (ENGINE-FACTS 8)
+                part = (out_dir / ".sockseek-staging" / uuid.uuid4().hex / (stem + ext + ".incomplete")
+                        if dialect == V3 else out_dir / (stem + ext + ".incomplete"))
+                os.makedirs(lp(part.parent), exist_ok=True)
+                steps = 10
+                with open(lp(part), "wb") as fh:
+                    for k in range(steps):
+                        fh.write(audio[len(audio) * k // steps: len(audio) * (k + 1) // steps])
+                        fh.flush()
+                        time.sleep(write_s / steps)
+                os.makedirs(lp(dst.parent), exist_ok=True)
+                os.replace(lp(part), lp(dst))
+                if dialect == V3:
+                    try:
+                        os.rmdir(lp(part.parent))
+                    except OSError:
+                        pass
+            elif dialect == V3:
                 stage = out_dir / ".sockseek-staging" / uuid.uuid4().hex / (stem + ext + ".incomplete")
                 write_audio(f, it, Path(lp(stage)))
                 os.makedirs(lp(dst.parent), exist_ok=True)

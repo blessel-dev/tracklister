@@ -18,10 +18,10 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Mapping
 
 from tracklister import config
-from tracklister.core.aliases import artist_aliases
+from tracklister.core.aliases import MAX_VARIANTS, artist_aliases
 from tracklister.core.jsonio import read_json, write_json
 from tracklister.core.layout import DUDOSOS, ORIGINALES, REPORT_TEMPLATE, TRACKLIST_TEMPLATE, set_doc_path
 from tracklister.core.model import (
@@ -33,7 +33,7 @@ from tracklister.core.paths import AppPaths
 from tracklister.core.settings import Settings
 from tracklister.engine.cli import EngineJob, PASS_JSON, bannable_peer
 from tracklister.engine.credentials import Credentials
-from tracklister.engine.csvwriter import write_engine_csv
+from tracklister.engine.csvwriter import SearchQuery, row_variants, write_engine_csv
 from tracklister.engine.outputs import EngineEvent
 from tracklister.engine.presets import FormatPass, Preset, build_preset, relaxed
 from tracklister.engine.runner import EngineError, EngineRunner
@@ -86,6 +86,27 @@ UPGRADE_LABEL = "Actualizar a Tracklister 1.0.1"
 UPGRADED_FROM_DUDOSOS_ES = (f"Revisado con Tracklister 1.0.1: antes estaba en {DUDOSOS}; con las reglas nuevas de "
                             "nombres de archivo es la pista pedida.")
 UPGRADED_SPECTRUM_ES = "Revisado con Tracklister 1.0.1: la marca de espectro de la versión 1.0.0 se ha vuelto a medir."
+# 1.0.1, R4 (plan D4): a row that found nothing is searched again with its other spellings (at most
+# MAX_VARIANTS more engine processes per format pass); «Reintentar fallos» ends with the engine's deep search
+FOUND_AS_ES = "Encontrado buscando «{query}»."
+ALSO_SEARCHED_ES = "También se buscó como {queries}."
+DESPERATE_TRIED_ES = "«Reintentar fallos» también probó la búsqueda a fondo del motor."
+VARIANT_LABEL_ES = " (variante {k})"
+DESPERATE_LABEL_ES = " (búsqueda a fondo)"
+
+# 1.0.1, R11: what a row of the running pass is doing, for the progress bar of its Estado cell
+# (SessionEvent kind "row_progress", field `phase`; the GUI turns it into the text and the bar)
+PHASE_WAITING = "espera"            # in the pass, not touched by the engine yet: «En espera»
+PHASE_CHECKING = "comprobando"      # its file has arrived and is being verified/converted: «Comprobando…»
+
+
+def query_label(q: SearchQuery) -> str:
+    return f"{q.artist} - {q.title}" if q.artist else q.title
+
+
+def _spellings_es(labels: list[str]) -> str:
+    quoted = [f"«{x}»" for x in labels]
+    return quoted[0] if len(quoted) == 1 else ", ".join(quoted[:-1]) + " y " + quoted[-1]
 
 
 def _row_error_es(e: BaseException) -> str:
@@ -119,12 +140,18 @@ def _write_text(path: Path, text: str) -> None:
 
 @dataclass(frozen=True)
 class SessionEvent:
-    kind: str            # "pass_started" | "row_state" | "log" | "pass_finished" | "finished" | "error"
+    kind: str            # "pass_started" | "row_state" | "row_progress" | "log" | "pass_finished" | "finished"
+    #                      | "error"
     uid: str | None = None
     state: ResultState | None = None
     message_es: str = ""
     done: int = 0
     total: int = 0
+    # "row_progress" only (1.0.1, R11): the phase (PHASE_* here, or engine.progress.PHASE_*) and the bytes of
+    # the file being downloaded (bytes_total None = the engine does not say the size)
+    phase: str = ""
+    bytes_done: int | None = None
+    bytes_total: int | None = None
 
 
 @dataclass(frozen=True)
@@ -565,11 +592,17 @@ class SetSession:
                                 if r.uid in uids and self._needs_file(r, relaxed_mode)]
                     if not rows:
                         continue
-                    stop = self._run_pass(relaxed(p) if relaxed_mode else p, rows, runner, creds, on_event, cancel,
-                                          total, banned)
+                    fmt = relaxed(p) if relaxed_mode else p
+                    stop = self._run_pass(fmt, rows, runner, creds, on_event, cancel, total, banned)
+                    if not stop:
+                        stop = self._variant_passes(fmt, rows, runner, creds, on_event, cancel, total, banned)
                     if stop:
                         on_event(SessionEvent("error", message_es=stop))
                         break
+            if relaxed_mode and not stop and not cancel.is_set():
+                stop = self._desperate_passes(groups, runner, creds, on_event, cancel, total)
+                if stop:
+                    on_event(SessionEvent("error", message_es=stop))
         except EngineError as e:
             for u in todo:
                 if self._res(u).state in (ResultState.PENDIENTE, ResultState.EN_CURSO):
@@ -584,23 +617,101 @@ class SetSession:
             self.save()
         on_event(SessionEvent("finished", message_es="Listo.", done=total, total=total))
 
+    def _variant_passes(self, fmt: FormatPass, rows: list[TrackRow], runner: EngineRunner, creds: Credentials,
+                        on_event: Callable[[SessionEvent], None], cancel: threading.Event, total: int,
+                        banned: tuple[str, ...] = (), *, desperate: bool = False) -> str | None:
+        """R4 (plan D4, notes v101-c 1.1): the rows of a pass that came back «no encontrado» are searched
+        again with their other spellings, one engine process per spelling rank (variant 1 of every such row,
+        then variant 2), with the same format and bans. Only NO_ENCONTRADO rows: a failed download, a file
+        out of format or a kept file is not a spelling problem. The row itself never changes; the reason
+        says which spelling found it, or which ones were tried."""
+        tried: dict[str, list[str]] = {}
+        stop = None
+        for k in range(1, MAX_VARIANTS + 1):
+            if cancel.is_set():
+                break
+            todo, queries = [], {}
+            for r in rows:
+                if self._res(r.uid).state != ResultState.NO_ENCONTRADO:
+                    continue
+                variants = row_variants(r)
+                if len(variants) >= k:
+                    todo.append(r)
+                    queries[r.uid] = variants[k - 1]
+                    tried.setdefault(r.uid, []).append(query_label(variants[k - 1]))
+            if not todo:
+                break
+            extra = VARIANT_LABEL_ES.format(k=k) + (DESPERATE_LABEL_ES if desperate else "")
+            stop = self._run_pass(fmt, todo, runner, creds, on_event, cancel, total, banned, queries=queries,
+                                  desperate=desperate, label_extra=extra)
+            if stop:
+                break
+        for uid, labels in tried.items():
+            res = self._res(uid)
+            if res.state == ResultState.NO_ENCONTRADO:
+                note = ALSO_SEARCHED_ES.format(queries=_spellings_es(labels))
+                if note not in res.reasons:
+                    res.reasons = res.reasons + [note]
+        if tried:
+            self.save()
+        return stop
+
+    def _desperate_passes(self, groups: list[tuple[set[str], tuple[str, ...]]], runner: EngineRunner,
+                          creds: Credentials, on_event: Callable[[SessionEvent], None], cancel: threading.Event,
+                          total: int) -> str | None:
+        """«Reintentar fallos», last: the engine's deep search (--desperate) for the rows still «no
+        encontrado», in every format of the preset (MP3 only for the rows the user approved), first with the
+        row as written and then with each of its other spellings (notes v101-c 1.1: the deep search keeps the
+        strict artist, so it never finds 'Jeroen Search' for 'Komplex aka Jeroen Search' by itself). Up to
+        DESPERATE_SEARCHES_PER_ITEM searches per row and spelling, all inside the app-wide search budget."""
+        stop = None
+        tried: set[str] = set()
+        for p in self.preset.passes:
+            for uids, banned in groups:
+                if cancel.is_set() or stop:
+                    return stop
+                rows = [r for r in sorted(self.doc.rows, key=lambda x: x.pos)
+                        if r.uid in uids and r.download and (r.title or "").strip()
+                        and self._res(r.uid).state == ResultState.NO_ENCONTRADO
+                        and (not p.lossy or r.uid in self.doc.lossy_approved)]
+                if not rows:
+                    continue
+                fmt = relaxed(p)
+                tried.update(r.uid for r in rows)
+                stop = self._run_pass(fmt, rows, runner, creds, on_event, cancel, total, banned, desperate=True,
+                                      label_extra=DESPERATE_LABEL_ES)
+                if not stop:
+                    stop = self._variant_passes(fmt, rows, runner, creds, on_event, cancel, total, banned,
+                                                desperate=True)
+        for uid in tried:
+            res = self._res(uid)
+            if res.state == ResultState.NO_ENCONTRADO and DESPERATE_TRIED_ES not in res.reasons:
+                res.reasons = res.reasons + [DESPERATE_TRIED_ES]
+        if tried:
+            self.save()
+        return stop
+
     def _run_pass(self, fmt: FormatPass, rows: list[TrackRow], runner: EngineRunner, creds: Credentials,
                   on_event: Callable[[SessionEvent], None], cancel: threading.Event, total: int,
-                  banned: tuple[str, ...] = ()) -> str | None:
-        """Run one pass; returns a Spanish message when the remaining passes must not run."""
+                  banned: tuple[str, ...] = (), *, queries: Mapping[str, SearchQuery] | None = None,
+                  desperate: bool = False, label_extra: str = "") -> str | None:
+        """Run one pass; returns a Spanish message when the remaining passes must not run.
+
+        `queries` (R4): another spelling for some rows (a search variant); `desperate`: the engine's deep
+        search (the last pass of «Reintentar fallos»); `label_extra` goes into the pass label."""
         index = len(self.doc.passes) + 1
         work = self.paths.work_dir / self.doc.set_id[:8] / f"p{index:02d}"
         if work.exists():
             shutil.rmtree(win_long(work), ignore_errors=True)
         work.mkdir(parents=True, exist_ok=True)
-        manifest = write_engine_csv(rows, work / "input.csv")
+        manifest = write_engine_csv(rows, work / "input.csv", queries=queries)
         by_snum = {m.snum: m for m in manifest}
         started = _now()
         pass_doc = {"schema": "tracklister.pass/1", "set_id": self.doc.set_id, "index": index, "name": fmt.name,
                     "engine": runner.spec.engine_id, "items": [m.to_dict() for m in manifest], "argv_redacted": [],
                     "started_at": started, "finished_at": None, "exit_code": None}
         write_json(work / PASS_JSON, pass_doc)
-        label = f"Pasada {index}: {fmt.name}" + ("" if fmt.strict_artist else " (relajada)")
+        label = f"Pasada {index}: {fmt.name}" + ("" if fmt.strict_artist else " (relajada)") + label_extra
         if banned:
             label += " sin los usuarios de los archivos rechazados"
         on_event(SessionEvent("pass_started", message_es=f"{label}: {len(rows)} pistas.", total=total))
@@ -612,11 +723,17 @@ class SetSession:
                 on_event(SessionEvent("row_state", r.uid, ResultState.EN_CURSO, "En cola", total=total))
             else:
                 self._set_state(r.uid, ResultState.EN_CURSO, on_event, "En cola", total=total)
+            on_event(SessionEvent("row_progress", r.uid, ResultState.EN_CURSO, total=total, phase=PHASE_WAITING))
         self.save()
 
         def on_engine(ev: EngineEvent) -> None:
             uid = by_snum[ev.snum].uid if ev.snum in by_snum else None
-            if ev.kind == "searching" and uid:
+            if ev.kind == "progress" and uid:
+                on_event(SessionEvent("row_progress", uid, ResultState.EN_CURSO, total=total, phase=ev.phase,
+                                      bytes_done=ev.bytes_done, bytes_total=ev.bytes_total))
+            elif ev.kind == "progress":
+                return
+            elif ev.kind == "searching" and uid:
                 on_event(SessionEvent("row_state", uid, ResultState.EN_CURSO, "Buscando...", total=total))
             elif ev.kind == "downloading" and uid:
                 on_event(SessionEvent("row_state", uid, ResultState.EN_CURSO, "Descargando...", total=total))
@@ -625,9 +742,12 @@ class SetSession:
 
         job = EngineJob(work, fmt, any(m.length for m in manifest), int(self.settings.listen_port),
                         int(self.settings.concurrent_downloads), int(self.settings.searches_per_time),
-                        int(self.settings.searches_renew_s), banned_users=tuple(banned))
+                        int(self.settings.searches_renew_s), banned_users=tuple(banned), desperate=desperate)
         result = runner.run(job, manifest, creds, on_engine, cancel)
-        self.doc.passes.append(PassRecord(index=index, name=fmt.name + ("" if fmt.strict_artist else "-relajada"),
+        name = fmt.name + ("" if fmt.strict_artist else "-relajada") + ("-a-fondo" if desperate else "")
+        if queries:
+            name += "-variante"
+        self.doc.passes.append(PassRecord(index=index, name=name,
                                           engine=runner.spec.engine_id, uids=[m.uid for m in manifest],
                                           started_at=started, finished_at=_now(), exit_code=result.exit_code,
                                           work_dir=str(work)))
@@ -644,8 +764,15 @@ class SetSession:
                 res.attempts += 1
                 res.pass_name = fmt.name
                 had_quarantined = m.uid in was_quarantined
+                if outcome is not None and outcome.file is not None:
+                    # R11: verify, the spectral check and a CDJ conversion run now («Comprobando…»)
+                    on_event(SessionEvent("row_progress", m.uid, ResultState.EN_CURSO, total=total,
+                                          phase=PHASE_CHECKING))
                 try:
                     self._settle_row(row, res, outcome, result, fmt, label, lossy_ok, width, bid, had_quarantined)
+                    q = (queries or {}).get(m.uid)
+                    if q is not None and outcome is not None and outcome.file is not None:
+                        res.reasons = res.reasons + [FOUND_AS_ES.format(query=query_label(q))]
                 except Exception as e:  # noqa: BLE001 - one bad file marks its row, never stops the pass
                     log.exception("row %s: processing the downloaded file failed", row.pos)
                     if had_quarantined:

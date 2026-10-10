@@ -21,7 +21,7 @@ import os
 import subprocess
 import sys
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
 
@@ -32,6 +32,7 @@ from tracklister.engine.csvwriter import ManifestItem
 from tracklister.engine.outputs import (
     EngineEvent, ItemOutcome, collect_outputs, fatal_reason_es, match_snum, parse_progress_line,
 )
+from tracklister.engine.progress import ProgressTracker
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.spec import EngineSpec
 
@@ -141,6 +142,9 @@ class EngineRunner:
         banned = threading.Event()
         fatal: list[str] = []
         arrays: list[list] = []
+        # R11: per-row progress from the same plain lines and the growing incomplete files (no download in
+        # the Diagnóstico's search-only mode, so no tracker there)
+        tracker = None if job.print_json_all else ProgressTracker(self.spec.dialect, job.out_dir, manifest)
 
         def reader() -> None:
             with open(job.stdout_path, "w", encoding="utf-8", newline="\n") as out:
@@ -166,7 +170,10 @@ class EngineRunner:
                     snum = match_snum(ev.subject, manifest) if ev.subject else None
                     if ev.kind == "ban":
                         banned.set()
-                    emit(EngineEvent(ev.kind, snum, ev.text, ev.subject))
+                    emit(replace(ev, snum=snum))
+                    if tracker is not None:
+                        for pev in tracker.on_event(ev, snum):
+                            emit(pev)
 
         t = threading.Thread(target=reader, name="engine-stdout", daemon=True)
         t.start()
@@ -176,6 +183,9 @@ class EngineRunner:
                 cancelled = True
                 _kill_tree(proc)
                 break
+            if tracker is not None and tracker.due():
+                for pev in tracker.poll():
+                    emit(pev)
         try:
             proc.wait(timeout=15)
         except subprocess.TimeoutExpired:
