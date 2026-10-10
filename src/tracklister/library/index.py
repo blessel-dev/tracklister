@@ -26,15 +26,30 @@ from tracklister.core.model import (
 )
 from tracklister.core.textnorm import classify_version, norm_key, split_artists, version_key
 from tracklister.organize.naming import win_long
+from tracklister.verify.spectral import LEGACY_FLAG, STRONG_FLAG, SpectralClass, legacy_class
 
 log = logging.getLogger("tracklister.library")
 
 DURATION_TOL_S = 3.0
 _LIBRARY_STATES = {ResultState.VERIFICADO, ResultState.REVISAR_CALIDAD, ResultState.YA_EN_BIBLIOTECA}
 # The quality marks of a file, which travel with it when another set reuses it ("Usar el que ya tengo").
-STRONG_SPECTRAL_FLAG = "probable_mp3_convertido"      # 1.0.1 (verify.spectral, class STRONG)
-LEGACY_SPECTRAL_FLAG = "posible_falso_lossless"       # 1.0.0: any sharp cut, strong or not
+STRONG_SPECTRAL_FLAG = STRONG_FLAG                    # 1.0.1 (verify.spectral, class STRONG)
+LEGACY_SPECTRAL_FLAG = LEGACY_FLAG                    # 1.0.0: any sharp cut, strong or not
 CARRIED_FLAGS = (LEGACY_SPECTRAL_FLAG, STRONG_SPECTRAL_FLAG)
+
+
+def carried_flags(flags: list[str], reasons: list[str]) -> list[str]:
+    """The marks a library entry keeps. A 1.0.0 mark whose own text shows a cut that 1.0.1 classes as
+    strong becomes the 1.0.1 mark, one that 1.0.1 no longer marks (~19.5-20.8 kHz) is dropped, and one
+    without a readable cut stays as it is."""
+    out = [f for f in CARRIED_FLAGS if f in flags]
+    if LEGACY_FLAG in out:
+        klass = legacy_class(reasons)
+        if klass is not None:
+            out.remove(LEGACY_FLAG)
+            if klass == SpectralClass.STRONG and STRONG_FLAG not in out:
+                out.append(STRONG_FLAG)
+    return out
 
 
 def library_key(artist: str, title: str, version: str | None) -> str:
@@ -122,7 +137,7 @@ class LibraryIndex:
                 version_kind=str(classify_version(row.version)), path=os.path.abspath(str(p)), set_id=doc.set_id,
                 set_name=doc.name, pos=row.pos, duration_s=res.duration_s, format=res.format,
                 size=os.path.getsize(win_long(p)), added_at=_now(),
-                flags=[f for f in CARRIED_FLAGS if f in res.flags]))
+                flags=carried_flags(res.flags, res.reasons)))
             added += 1
         return added
 

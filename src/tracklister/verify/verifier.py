@@ -15,10 +15,15 @@ Fixed rules, in order:
 5. |duration - expected| > duration_review_s            -> DUDOSO/DURACION
 6. score = round(0.35*artist + 0.45*title + 20*d): >= 80 VERIFICADO, 50-79 DUDOSO/REVISAR,
    < 50 DUDOSO/IDENTIDAD (d = 1 / 0.5 / 0.75 without an expected duration)
-7. suspicious spectrum on VERIFICADO/REVISAR (lossless only) -> DUDOSO/ESPECTRO, stays in the set
+7. spectrum, on VERIFICADO/REVISAR lossless files only (1.0.1, R6; verify.spectral):
+   - STRONG ("probable MP3 convertido"): VERIFICADO becomes REVISAR_CALIDAD («Verificado · revisar
+     calidad»), with doubt None and the same score (it measures identity); a REVISAR file stays REVISAR.
+     Both get the flag "probable_mp3_convertido" and the reason. The file stays in the set with its
+     number (A.4): only identity doubts go to _dudosos.
+   - AMBIGUOUS (a cut at ~19.5-20.8 kHz): no mark, no cap and no state change; one neutral line.
 Every failed check adds its Spanish reason; the doubt kind is the first rule that fired.
 A DUDOSO verdict never carries a score at or above the acceptance threshold: rules 2-5 cap it at
-49 and rule 7 at 79 (DECISIONES N.6).
+49 (DECISIONES N.6).
 """
 from __future__ import annotations
 
@@ -28,14 +33,15 @@ from pathlib import Path
 from tracklister.core.model import DoubtKind, ResultState, TrackRow
 from tracklister.engine.presets import AcceptRule
 from tracklister.verify.audioinfo import AudioInfo, probe
-from tracklister.verify.identity import identity_score
+from tracklister.verify.identity import ARTIST_MIN, TITLE_MIN, identity_score
 from tracklister.verify.quality import check_quality
-from tracklister.verify.spectral import fake_lossless_check
+from tracklister.verify.spectral import STRONG_FLAG, SpectralClass, SpectralResult, fake_lossless_check
 
 TRUNCATION_TOLERANCE_S = 2.0
-ARTIST_MIN, TITLE_MIN = 60.0, 70.0
 ACCEPT_SCORE, REVIEW_SCORE = 80, 50
 HARD_DOUBT_MAX_SCORE = REVIEW_SCORE - 1       # rules 2-5: capped at 49, never inside the 50-79 band
+__all__ = ["ACCEPT_SCORE", "ARTIST_MIN", "HARD_DOUBT_MAX_SCORE", "REVIEW_SCORE", "TITLE_MIN", "Verdict",
+           "verify_file"]
 
 
 @dataclass(frozen=True)
@@ -48,6 +54,7 @@ class Verdict:
     info: AudioInfo
     needs_conversion: bool = False
     identity: object | None = field(default=None, compare=False)
+    spectral: SpectralResult | None = field(default=None, compare=False)   # None = not analysed
 
 
 def _fmt_s(x: float | None) -> str:
@@ -134,13 +141,15 @@ def verify_file(row: TrackRow, path: Path, accept: AcceptRule, *, lossy_allowed:
     else:
         state, doubt = ResultState.DUDOSO, DoubtKind.IDENTIDAD
         reasons.append(f"Confianza {score}/100: probablemente no es la canción pedida.")
+    sp: SpectralResult | None = None
     if spectral and info.is_lossless and doubt in (None, DoubtKind.REVISAR):
         sp = fake_lossless_check(info.path)
-        if sp.suspicious:
-            if doubt == DoubtKind.REVISAR:
-                flags.append("revisar")
-            state, doubt = ResultState.DUDOSO, DoubtKind.ESPECTRO
-            score = min(score, ACCEPT_SCORE - 1)        # doubtful -> always below the acceptance threshold
-            flags.append("posible_falso_lossless")
-            reasons.append(sp.reason_es or "Posible lossless falso.")
-    return Verdict(state, doubt, score, reasons, flags, info, q.needs_conversion, ident)
+        if sp.klass == SpectralClass.STRONG:
+            # a quality mark, not an identity doubt: the identity score stays (plan D2)
+            if state == ResultState.VERIFICADO:
+                state = ResultState.REVISAR_CALIDAD
+            flags.append(STRONG_FLAG)
+            reasons.append(sp.reason_es or "Probable MP3 convertido.")
+        elif sp.klass == SpectralClass.AMBIGUOUS and sp.reason_es:
+            reasons.append(sp.reason_es)
+    return Verdict(state, doubt, score, reasons, flags, info, q.needs_conversion, ident, sp)

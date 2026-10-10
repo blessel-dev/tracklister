@@ -127,13 +127,19 @@ def test_radio_edit_too_short(tmp_path):
 
 
 def test_flac_transcodificado_stays_marked(tmp_path):
+    """1.0.1 (R6): a 16 kHz brick wall is «Verificado · revisar calidad», counted apart from «Dudoso», with
+    its number in the set; the advice never says «escúchalo»."""
     h = Harness(tmp_path)
     s, runner = h.session("flac_transcodificado")
     h.run(s, runner)
     r = _res(s, 1)
-    assert r.state == ResultState.DUDOSO and r.doubt == DoubtKind.ESPECTRO
-    assert r.file == "01 - DJ Dextro - Covil dos Abutres.flac" and "posible_falso_lossless" in r.flags
-    assert "posible lossless falso" in s.report_text()
+    assert r.state == ResultState.REVISAR_CALIDAD and r.doubt is None and r.score == 100
+    assert r.file == "01 - DJ Dextro - Covil dos Abutres.flac" and "probable_mp3_convertido" in r.flags
+    assert r.spectral_cutoff_hz is not None and r.spectral_cutoff_hz < 16500
+    rep = s.report_text()
+    assert "[Verificado \u00b7 revisar calidad, confianza 100/100]" in rep
+    assert "Resumen: verificado \u00b7 revisar calidad 1" in rep and "dudoso" not in rep.split("\n")[5]
+    assert "! Marca: probable MP3 convertido" in rep and "scúchalo" not in rep
 
 
 def test_truncado_and_sin_tags(tmp_path):
@@ -473,20 +479,21 @@ def test_n8_reused_file_keeps_its_fake_lossless_mark(tmp_path):
     a, ra = h.session("flac_transcodificado", name="Set A")
     h.run(a, ra)
     a.finalize(h.library)
-    assert [e.flags for e in h.library.entries] == [["posible_falso_lossless"]]
+    assert [e.flags for e in h.library.entries] == [["probable_mp3_convertido"]]     # 1.0.1 mark (R6)
     b, rb = h.session("flac_transcodificado", name="Set B")
     hits = b.find_duplicates(h.library)
     assert len(hits) == 1
     b.apply_duplicate_choice(hits[0].row.uid, DuplicateChoice.REUSE, hits[0].entries[0])
     r = _res(b, 1)
-    assert r.state == ResultState.YA_EN_BIBLIOTECA and r.flags == ["reutilizado", "posible_falso_lossless"]
-    assert any("Set A" in x and "posible lossless falso" in x for x in r.reasons)
+    assert r.state == ResultState.YA_EN_BIBLIOTECA and r.flags == ["reutilizado", "probable_mp3_convertido"]
+    assert any("Set A" in x and "probable MP3 convertido" in x for x in r.reasons)
     rep = b.report_text()
-    assert "! Marca: posible lossless falso" in rep and "Marca que trae del set 'Set A'" in rep
+    assert "! Marca: probable MP3 convertido" in rep and "Marca que trae del set 'Set A'" in rep
+    assert "scúchalo" not in rep
     h.run(b, rb)
     b.finalize(h.library)
     from_b = [e for e in h.library.entries if e.set_name == "Set B"]
-    assert len(from_b) == 1 and from_b[0].flags == ["posible_falso_lossless"]       # a set C keeps it too
+    assert len(from_b) == 1 and from_b[0].flags == ["probable_mp3_convertido"]      # a set C keeps it too
 
 
 # ---- external audit, round 2 (claude-audit-raw-r2.txt) ---------------------------------------------

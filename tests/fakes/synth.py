@@ -21,7 +21,9 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-_MP3_LEVEL_FOR_KBPS = {320: 0.0, 256: 0.2, 224: 0.3}
+# libsndfile 1.2.2 (soundfile 0.14.0, pinned) maps compression_level to LAME's CBR bitrate; measured on the
+# frame headers (tests/verify/test_spectral_calibration.py checks each one). VBR level 0.0 is LAME's V0.
+_MP3_LEVEL_FOR_KBPS = {320: 0.0, 256: 0.2, 224: 0.3, 192: 0.4, 160: 0.5, 128: 0.65}
 _SUBTYPE = {16: "PCM_16", 24: "PCM_24", 32: "PCM_32"}
 
 

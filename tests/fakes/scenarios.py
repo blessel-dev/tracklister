@@ -24,6 +24,8 @@ SCENARIOS = (
     "correcto", "version_equivocada", "radio_edit", "flac_transcodificado", "truncado", "sin_tags",
     "sin_resultados", "peer_timeout", "duplicado_entre_sets", "rerun", "nombres_raros", "ban",
     "mp3_vbr", "mp3_vbr_sin_cabecera", "mp3_256", "cdj_flac_96k", "todos_los_estados", "login_falla",
+    # 1.0.1
+    "todos_los_estados_101", "calidad_marcada", "casa_v101",
 )
 
 # Preset each scenario is meant to run with (default "lossless").
@@ -160,7 +162,72 @@ def _scenario(name: str, tmp: Path) -> tuple[list[TrackRow], dict]:
                  file("peerB", "@@x\\Chris Liebing\\Chris Liebing - Higher Things (FJAAK Remix).flac",
                       "Chris Liebing", "Higher Things (FJAAK Remix)", 32)]
         return rows, _net(files, peers={"lento": {"timeout": True}})
+    if name == "todos_los_estados_101":
+        # 1.0.1: every state of todos_los_estados plus «Verificado · revisar calidad» (row 8, a FLAC made from
+        # an MP3 at about 128 kbps). A separate scenario, so the GUI tests of todos_los_estados stay as they are.
+        rows, net = _scenario("todos_los_estados", tmp)
+        rows.append(row(8, "Border One", "Spectral Tension", dur=30))
+        net["files"].append(file("peerD", "@@x\\Border One\\Border One - Spectral Tension.flac", "Border One",
+                                 "Spectral Tension", 30, audio={"lowpass_hz": 16500}))
+        return rows, net
+    if name == "calidad_marcada":
+        # 1.0.1, R6: the right track, but a FLAC with a 16.25 kHz brick wall (probable converted MP3)
+        return ([row(1, "Border One", "Spectral Tension", dur=30)],
+                _net([file("peerMarca", "@@x\\Border One\\Border One - Spectral Tension.flac", "Border One",
+                           "Spectral Tension", 30, audio={"lowpass_hz": 16500})]))
+    if name == "casa_v101":
+        return _casa_v101()
     raise KeyError(name)
+
+
+# 1.0.1 acceptance (R3, R6): tracks of the user's public set (10 Oct) served with the file-name patterns of his
+# Diagnóstico and set report. Every personal folder is invented; the scene release folders are public names
+# (their group or hash suffix invented). No tags, so the name decides, as on the Diagnóstico. The spectral cuts
+# are the ones his report measured: a brick wall 250 Hz above each (the detector reports the band edge).
+CASA_V101 = [
+    # (pos, artist, title, version, file path, lowpass Hz or None, expected state)
+    (1, "Red Rooms", "Trip", None,
+     "@@x\\Red_Rooms-Blind_Spot-(PHORUM004)-16BIT-WEB-FLAC-2026-PTC\\04-red_rooms-trip.flac", None, "verificado"),
+    (2, "Kwartz", "Show Me That Light", "Cleric Remix",
+     "@@x\\Kwartz-Show_Me_That_Light_EP-(CRG014)-16BIT-WEB-FLAC-2018-BABAS\\"
+     "04-kwartz-show_me_that_light_(cleric_remix)-3fa1c09b.flac", None, "verificado"),
+    (3, "Phil Berg", "Seiko", None, "@@x\\Phil_Berg-Darin-MR047D-24BIT-WEB-FLAC-2026-WAVED\\06-phil_berg-seiko.flac",
+     None, "verificado"),
+    (4, "Rene Wise", "Dynamic", None, "@@x\\Coleccion Inventada\\1-04-Rene Wise-Dynamic.flac", 19000.0,
+     "revisar_calidad"),
+    (5, "Orbe", "Velocity", None, "@@x\\Novedades Inventadas\\Orbe - Velocity (Original Mix) 140.flac", None,
+     "verificado"),
+    (6, "Lucy & Xhin", "Lx2", None, "@@x\\Lista Ejemplo\\Lucy & Xhin - Album Inventado - 06 - Lx2.flac", 20750.0,
+     "verificado"),
+    (7, "Obscur", "Binary Drive", None, "@@x\\7 - Carpeta Inventada\\Obscur - Binary Drive [.wav", None, "verificado"),
+    (8, "Justine Perry", "Nova Voyager", None, "@@x\\Otra Lista\\Justine Perry - Nova Voyager.flac", 20500.0,
+     "verificado"),
+    (9, "Red Rooms", "Blind Spot", None,
+     "@@x\\Red Rooms - Album Inventado\\Red Rooms - Blind Spot (Original Mix) [www.dj-promo.org].flac", None,
+     "verificado"),
+    (10, "Border One", "Spectral Tension", None, "@@x\\Otra Lista\\Border One - Spectral Tension.flac", 16500.0,
+     "revisar_calidad"),
+    (11, "Holden Federico", "Crux", None, "@@x\\Otra Lista\\Holden Federico - Crux.flac", 20500.0, "verificado"),
+    (12, "GCOD", "Incentive Systems", None, "@@x\\Otra Lista\\GCOD - Incentive Systems.flac", 20000.0, "verificado"),
+    (13, "13130 Space Project", "Talitha", None,
+     "@@x\\Carpeta Inventada\\13130 Space Project - Talitha (Original Mix) electronicfresh.com.flac", None,
+     "verificado"),
+    # must stay doubts, both let through by --strict-title: a word more in the title ('Space' is another track
+    # than 'Space Noise'), and the radio edit of the wanted remix
+    (14, "Confusion", "Space", None, "@@x\\Lista Ejemplo\\Confusion - Space Noise.flac", None, "dudoso"),
+    (15, "Aidan Rudd", "Necromancer", "Connor Wall Remix",
+     "@@x\\Lista Ejemplo\\1-02-Aidan Rudd-Necromancer (Connor Wall Remix) (Radio Edit).flac", None, "dudoso"),
+]
+
+
+def _casa_v101() -> tuple[list[TrackRow], dict]:
+    rows, files = [], []
+    for pos, artist, title, version, path, lowpass, _ in CASA_V101:
+        rows.append(row(pos, artist, title, version, dur=24))
+        tag_title = f"{title} ({version})" if version else title
+        files.append(file(f"peer{pos:02d}", path, artist, tag_title, 24, fmt=path.rsplit(".", 1)[-1].lower(),
+                          audio={"tags": False, "lowpass_hz": lowpass}))
+    return rows, _net(files)
 
 
 def build_scenario(name: str, tmp_dir: Path) -> tuple[list[TrackRow], Path]:

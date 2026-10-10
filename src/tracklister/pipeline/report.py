@@ -8,10 +8,12 @@ from __future__ import annotations
 from collections import Counter
 
 from tracklister.core.layout import DUDOSOS, ORIGINALES
-from tracklister.core.model import DoubtKind, ResultState, SetDoc, TrackRow
+from tracklister.core.model import DoubtKind, ResultState, RowResult, SetDoc, TrackRow
+from tracklister.verify.spectral import LEGACY_FLAG, MARK_ES, STRONG_FLAG, SpectralClass, legacy_class
 
 STATE_ES = {
     ResultState.PENDIENTE: "Pendiente", ResultState.EN_CURSO: "En curso", ResultState.VERIFICADO: "Verificado",
+    ResultState.REVISAR_CALIDAD: "Verificado \u00b7 revisar calidad",
     ResultState.DUDOSO: "Dudoso", ResultState.NO_ENCONTRADO: "No encontrado",
     ResultState.NO_CUMPLE_FORMATO: "No cumple formato", ResultState.FALLIDA: "Fallida",
     ResultState.YA_EN_BIBLIOTECA: "Ya en biblioteca", ResultState.OMITIDA: "Omitida",
@@ -21,9 +23,24 @@ STRAY_TITLE_ES = ("Archivos de la carpeta que ya no son de ninguna pista de la t
 DOUBT_ES = {
     DoubtKind.IDENTIDAD: f"otra canción (en {DUDOSOS})", DoubtKind.VERSION: f"otra versión (en {DUDOSOS})",
     DoubtKind.DURACION: f"duración que no cuadra (en {DUDOSOS})",
-    DoubtKind.ESPECTRO: "posible lossless falso (se queda en el set)",
+    # only in sets of 1.0.0 that 1.0.1 has not checked again yet (pipeline.session._upgrade_results)
+    DoubtKind.ESPECTRO: "marca de espectro de la versión 1.0.0 (se queda en el set)",
     DoubtKind.REVISAR: "revisar (se queda en el set)",
 }
+# the order of the summary line: «Verificado · revisar calidad» right after «Verificado», apart from «Dudoso»
+SUMMARY_ORDER = [ResultState.VERIFICADO, ResultState.REVISAR_CALIDAD, ResultState.YA_EN_BIBLIOTECA,
+                 ResultState.DUDOSO, ResultState.NO_ENCONTRADO, ResultState.NO_CUMPLE_FORMATO, ResultState.FALLIDA,
+                 ResultState.OMITIDA, ResultState.PENDIENTE, ResultState.EN_CURSO]
+
+
+def has_quality_mark(res: RowResult) -> bool:
+    """The file carries the strong spectral mark ("probable MP3 convertido"). A 1.0.0 mark counts unless its
+    own text shows a cut that 1.0.1 no longer marks (~19.5-20.8 kHz: also genuine masters)."""
+    if STRONG_FLAG in res.flags:
+        return True
+    if LEGACY_FLAG in res.flags:
+        return legacy_class(res.reasons) in (None, SpectralClass.STRONG)
+    return False
 
 
 def fmt_time(s: int | None) -> str:
@@ -61,10 +78,7 @@ def report_text(doc: SetDoc, *, preset_label: str, engine_id: str | None = None,
     out = [f"Informe de Tracklister - {doc.name}", "",
            f"Preset: {preset_label}" + (f"   Motor: {engine_id}" if engine_id else ""),
            f"Actualizado: {doc.updated_at or '-'}", ""]
-    order = [ResultState.VERIFICADO, ResultState.YA_EN_BIBLIOTECA, ResultState.DUDOSO, ResultState.NO_ENCONTRADO,
-             ResultState.NO_CUMPLE_FORMATO, ResultState.FALLIDA, ResultState.OMITIDA, ResultState.PENDIENTE,
-             ResultState.EN_CURSO]
-    out.append("Resumen: " + ", ".join(f"{STATE_ES[s].lower()} {counts[s]}" for s in order if counts.get(s)))
+    out.append("Resumen: " + ", ".join(f"{STATE_ES[s].lower()} {counts[s]}" for s in SUMMARY_ORDER if counts.get(s)))
     out.append("")
     for r in rows:
         res = doc.results.get(r.uid)
@@ -72,7 +86,8 @@ def report_text(doc: SetDoc, *, preset_label: str, engine_id: str | None = None,
         head = f"{r.pos:0{width}d}. {row_label(r)}  [{STATE_ES[state]}"
         if res and res.doubt:
             head += f": {DOUBT_ES[res.doubt]}"
-        if res and res.score is not None and state in (ResultState.VERIFICADO, ResultState.DUDOSO):
+        if res and res.score is not None and state in (ResultState.VERIFICADO, ResultState.REVISAR_CALIDAD,
+                                                       ResultState.DUDOSO):
             head += f", confianza {res.score}/100"
         out.append(head + "]")
         if res:
@@ -82,8 +97,8 @@ def report_text(doc: SetDoc, *, preset_label: str, engine_id: str | None = None,
                 out.append(f"    Original: {res.original_file}")
             for reason in res.reasons:
                 out.append(f"    - {reason}")
-            if "posible_falso_lossless" in res.flags:
-                out.append("    ! Marca: posible lossless falso. Escúchalo antes de pincharlo.")
+            if has_quality_mark(res):
+                out.append(f"    ! {MARK_ES}")
     if stray_files:
         out += ["", STRAY_TITLE_ES]
         out += [f"    {f}" for f in stray_files]
