@@ -1,0 +1,96 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Lucy & Xhin Lx2"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 5,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1707048109,
+     "artistName": "Lucy & Xhin",
+     "trackName": "Lx2 ()",
+     "collectionName": "Lx2 / Lx3 - Single",
+     "trackTimeMillis": 458500,
+     "releaseDate": "2011-03-14T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1707048111,
+     "artistName": "Lucy & Xhin",
+     "trackName": "Lx3 ()",
+     "collectionName": "Lx2 / Lx3 - Single",
+     "trackTimeMillis": 442205,
+     "releaseDate": "2011-03-14T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1707217347,
+     "artistName": "Lucy & Xhin",
+     "trackName": "Lx5",
+     "collectionName": "LX 4 / LX 5 - EP",
+     "trackTimeMillis": 655327,
+     "releaseDate": "2015-08-15T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1589496990,
+     "artistName": "Lucy & Xhin",
+     "trackName": "Lx1",
+     "collectionName": "Delta Sampler",
+     "trackTimeMillis": 572492,
+     "releaseDate": "2010-10-28T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1707217346,
+     "artistName": "Lucy & Xhin",
+     "trackName": "Lx4",
+     "collectionName": "LX 4 / LX 5 - EP",
+     "trackTimeMillis": 371304,
+     "releaseDate": "2012-07-23T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

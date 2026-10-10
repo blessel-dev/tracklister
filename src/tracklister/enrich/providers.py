@@ -30,6 +30,7 @@ class Candidate:
     duration_s: int | None
     ids: TrackIds = field(default_factory=TrackIds)
     album: str | None = None
+    label: str | None = None      # the store's label, only when its answer carries one (06 R5)
 
     @property
     def title_with_version(self) -> str:
@@ -37,13 +38,15 @@ class Candidate:
 
     def to_dict(self) -> dict:
         return {"provider": self.provider, "artist": self.artist, "title": self.title, "version": self.version,
-                "duration_s": self.duration_s, "ids": self.ids.to_dict(), "album": self.album}
+                "duration_s": self.duration_s, "ids": self.ids.to_dict(), "album": self.album,
+                "label": self.label}
 
     @classmethod
     def from_dict(cls, d: dict) -> "Candidate":
+        """Tolerant: cache entries written by 1.0.0 have no 'label'."""
         return cls(provider=str(d["provider"]), artist=str(d.get("artist") or ""), title=str(d.get("title") or ""),
                    version=d.get("version"), duration_s=d.get("duration_s"), ids=TrackIds.from_dict(d.get("ids")),
-                   album=d.get("album"))
+                   album=d.get("album"), label=d.get("label") or None)
 
 
 def base_title(title: str) -> str:
@@ -52,10 +55,11 @@ def base_title(title: str) -> str:
 
 
 def make_candidate(provider: str, artist: str, full_title: str, duration_s, ids: TrackIds,
-                   album: str | None) -> Candidate:
+                   album: str | None, label: str | None = None) -> Candidate:
     base, version = split_title_version(full_title)
     dur = int(round(float(duration_s))) if duration_s else None
-    return Candidate(provider, nfc(artist), base or nfc(full_title), version, dur or None, ids, album or None)
+    return Candidate(provider, nfc(artist), base or nfc(full_title), version, dur or None, ids, album or None,
+                     nfc(label) or None)
 
 
 def _seconds_from_ms(ms) -> float | None:

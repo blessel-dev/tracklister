@@ -1,0 +1,84 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Border One Spectral Tension"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 4,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6773559061,
+     "artistName": "Border One",
+     "trackName": "Spectral Tension",
+     "collectionName": "Spectral Tension - EP",
+     "trackTimeMillis": 332308,
+     "releaseDate": "2026-06-19T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6773559062,
+     "artistName": "Border One",
+     "trackName": "Lens Flare",
+     "collectionName": "Spectral Tension - EP",
+     "trackTimeMillis": 323478,
+     "releaseDate": "2026-06-19T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6773559064,
+     "artistName": "Border One",
+     "trackName": "Dilated Horizon",
+     "collectionName": "Spectral Tension - EP",
+     "trackTimeMillis": 358248,
+     "releaseDate": "2026-06-19T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6773559065,
+     "artistName": "Border One",
+     "trackName": "Photon Decay",
+     "collectionName": "Spectral Tension - EP",
+     "trackTimeMillis": 332308,
+     "releaseDate": "2026-06-19T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

@@ -6,7 +6,9 @@ import unicodedata
 import pytest
 
 from tracklister.core.model import RowStatus, TrackRow
-from tracklister.inputs.clean import clean_row, clean_rows, renumber
+from tracklister.inputs.clean import (
+    clean_row, clean_rows, duplicate_key, is_label_credit, label_keys, looks_like_label, renumber,
+)
 
 
 def _row(artist: str, title: str, **kw) -> TrackRow:
@@ -121,6 +123,37 @@ def test_r4_v_duplicates_tell_the_three_versions_apart():
     rows = clean_rows([_row("Fjaak", "Spirit (Kai Remix) (Radio Edit)"), _row("Fjaak", "Spirit (Radio Edit)"),
                        _row("Fjaak", "Spirit (Kai Remix)"), _row("Fjaak", "Spirit (Kai Remix - Radio Edit)")])
     assert [r.notes for r in rows] == [[], [], [], ["repetida (fila 1)"]]
+
+
+def test_r4_3_n1_the_order_of_the_version_groups_does_not_make_another_track():
+    """Audit r4-3 N1 (1.0.1): '(Radio Edit) (Kai Remix)' is the same track as '(Kai Remix) (Radio Edit)'."""
+    rows = clean_rows([_row("Fjaak", "Spirit (Kai Remix) (Radio Edit)"), _row("Fjaak", "Spirit (Radio Edit) (Kai Remix)"),
+                       _row("Fjaak", "Spirit (Kai Remix)"), _row("Fjaak", "Spirit (Radio Edit)")])
+    assert rows[0].version == "Kai Remix - Radio Edit" and rows[1].version == "Radio Edit - Kai Remix"
+    assert duplicate_key(rows[0]) == duplicate_key(rows[1]) == "fjaak|spirit|kai remix radio edit"
+    assert [r.notes for r in rows] == [[], ["repetida (fila 1)"], [], []]
+    assert duplicate_key(_row("Fjaak", "Spirit (Original Mix)")) == duplicate_key(_row("Fjaak", "Spirit")) \
+        == "fjaak|spirit|original"
+
+
+@pytest.mark.parametrize("name,label_like", [
+    ("KYSH Records", True), ("Demolate Records", True), ("Sello Ejemplo Recordings", True),
+    ("Ejemplo Rec.", True), ("Casa Ejemplo Label", True), ("Ejemplo Records Ltd", True),
+    ("Records", False), ("Recordings", False),           # one word: not enough to call it a label
+    ("Ejemplo Music", False), ("Ejemplo Digital", False),  # these also end real artist names
+    ("Sandrien", False), ("Tino Machauer", False), ("Rec Room", False), ("", False), (None, False),
+])
+def test_r5_looks_like_label(name, label_like):
+    assert looks_like_label(name) is label_like
+
+
+def test_r5_label_credit_from_the_row_or_the_store_label():
+    keys = label_keys("KYSH")
+    assert is_label_credit("KYSH Records", keys) and is_label_credit("kysh", keys)
+    assert is_label_credit("Demolate Records", set())                          # label-shaped on its own
+    assert not is_label_credit("Sandrien", label_keys("Mutual Rytm"))           # E.24: a real co-artist
+    assert is_label_credit("Laster Records", label_keys("LASTER RECORDS"))
+    assert not is_label_credit("Tino Machauer", label_keys("KLAR")) and not is_label_credit("", keys)
 
 
 def test_clean_rows_is_idempotent_and_does_not_mutate_input():

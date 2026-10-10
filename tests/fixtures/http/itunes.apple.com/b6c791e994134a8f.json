@@ -1,0 +1,84 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Ricardo Garduno Space Noise"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 4,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1819754435,
+     "artistName": "Ricardo Garduno",
+     "trackName": "Space Noise",
+     "collectionName": "Hostile - Single",
+     "trackTimeMillis": 315643,
+     "releaseDate": "2025-07-07T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1886193393,
+     "artistName": "Ricardo Garduno",
+     "trackName": "Space Noise",
+     "collectionName": "Compilation",
+     "trackTimeMillis": 315643,
+     "releaseDate": "2025-07-07T12:00:00Z",
+     "primaryGenreName": "Electronic",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1449286184,
+     "artistName": "MTD",
+     "trackName": "Impulsive Noise (Hertz Collision Remix)",
+     "collectionName": "Imprint (feat. Hertz Collision & Ricardo Garduno) - EP",
+     "trackTimeMillis": 410000,
+     "releaseDate": "2019-01-01T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1449286182,
+     "artistName": "MTD",
+     "trackName": "Impulsive Noises",
+     "collectionName": "Imprint (feat. Hertz Collision & Ricardo Garduno) - EP",
+     "trackTimeMillis": 330000,
+     "releaseDate": "2019-01-01T12:00:00Z",
+     "primaryGenreName": "Techno",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

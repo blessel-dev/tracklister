@@ -1,0 +1,48 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "13130 Space Project Talitha"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 1,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1657024018,
+     "artistName": "13130 Space Project",
+     "trackName": "Talitha",
+     "collectionName": "Escape from 13130 - EP",
+     "trackTimeMillis": 296492,
+     "releaseDate": "2023-01-06T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

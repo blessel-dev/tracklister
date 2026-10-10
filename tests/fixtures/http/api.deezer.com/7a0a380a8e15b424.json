@@ -1,0 +1,154 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Aidan Rudd Necromancer"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 3648077382,
+     "type": "track",
+     "title": "Necromancer",
+     "title_short": "Necromancer",
+     "title_version": "",
+     "duration": 278,
+     "rank": 22468,
+     "isrc": "NLCK42518669",
+     "artist": {
+      "id": 12923393,
+      "name": "Aidan Rudd"
+     },
+     "album": {
+      "id": 853812452,
+      "title": "Necromancer EP"
+     }
+    },
+    {
+     "id": 3648077422,
+     "type": "track",
+     "title": "Blackout",
+     "title_short": "Blackout",
+     "title_version": "",
+     "duration": 381,
+     "rank": 26432,
+     "isrc": "NLCK42518673",
+     "artist": {
+      "id": 12923393,
+      "name": "Aidan Rudd"
+     },
+     "album": {
+      "id": 853812452,
+      "title": "Necromancer EP"
+     }
+    },
+    {
+     "id": 3648077402,
+     "type": "track",
+     "title": "Reputation",
+     "title_short": "Reputation",
+     "title_version": "",
+     "duration": 462,
+     "rank": 6988,
+     "isrc": "NLCK42518671",
+     "artist": {
+      "id": 12923393,
+      "name": "Aidan Rudd"
+     },
+     "album": {
+      "id": 853812452,
+      "title": "Necromancer EP"
+     }
+    },
+    {
+     "id": 3648077392,
+     "type": "track",
+     "title": "Coven",
+     "title_short": "Coven",
+     "title_version": "",
+     "duration": 368,
+     "rank": 2972,
+     "isrc": "NLCK42518670",
+     "artist": {
+      "id": 12923393,
+      "name": "Aidan Rudd"
+     },
+     "album": {
+      "id": 853812452,
+      "title": "Necromancer EP"
+     }
+    },
+    {
+     "id": 3648077412,
+     "type": "track",
+     "title": "K Hole",
+     "title_short": "K Hole",
+     "title_version": "",
+     "duration": 419,
+     "rank": 21483,
+     "isrc": "NLCK42518672",
+     "artist": {
+      "id": 12923393,
+      "name": "Aidan Rudd"
+     },
+     "album": {
+      "id": 853812452,
+      "title": "Necromancer EP"
+     }
+    },
+    {
+     "id": 3648077442,
+     "type": "track",
+     "title": "Necromancer (Connor Wall Remix)",
+     "title_short": "Necromancer",
+     "title_version": "(Connor Wall Remix)",
+     "duration": 343,
+     "rank": 31912,
+     "isrc": "NLCK42518675",
+     "artist": {
+      "id": 12923393,
+      "name": "Aidan Rudd"
+     },
+     "album": {
+      "id": 853812452,
+      "title": "Necromancer EP"
+     }
+    },
+    {
+     "id": 3648077432,
+     "type": "track",
+     "title": "Blackout (Obscur Remix)",
+     "title_short": "Blackout",
+     "title_version": "(Obscur Remix)",
+     "duration": 343,
+     "rank": 100000,
+     "isrc": "NLCK42518674",
+     "artist": {
+      "id": 12923393,
+      "name": "Aidan Rudd"
+     },
+     "album": {
+      "id": 853812452,
+      "title": "Necromancer EP"
+     }
+    }
+   ],
+   "total": 7
+  }
+ }
+}

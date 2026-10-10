@@ -1,0 +1,208 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://api.deezer.com/search",
+  "params": [
+   [
+    "q",
+    "Red Rooms Trip"
+   ],
+   [
+    "limit",
+    "10"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "json": {
+   "data": [
+    {
+     "id": 2669005952,
+     "type": "track",
+     "title": "Transcendency",
+     "title_short": "Transcendency",
+     "title_version": "",
+     "duration": 357,
+     "rank": 31785,
+     "isrc": "NLCK42402044",
+     "artist": {
+      "id": 13260555,
+      "name": "Red Rooms"
+     },
+     "album": {
+      "id": 549881052,
+      "title": "Emerge LP"
+     }
+    },
+    {
+     "id": 2401644715,
+     "type": "track",
+     "title": "Time Is Confusing",
+     "title_short": "Time Is Confusing",
+     "title_version": "",
+     "duration": 332,
+     "rank": 92189,
+     "isrc": "CH6542357649",
+     "artist": {
+      "id": 13260555,
+      "name": "Red Rooms"
+     },
+     "album": {
+      "id": 473900555,
+      "title": "Awakeness III"
+     }
+    },
+    {
+     "id": 140855999,
+     "type": "track",
+     "title": "Sonata No. 1 in G Minor \"The 12th Room\" for Solo Piano: II. Trio - Sospeso, Dolcemente - Con Moto - Agitato \"Dressing the Rooms, I (Re-Recorded Version)",
+     "title_short": "Sonata No. 1 in G Minor \"The 12th Room\" for Solo Piano: II. Trio - Sospeso, Dolcemente - Con Moto - Agitato \"Dressing the Rooms, I",
+     "title_version": "(Re-Recorded Version)",
+     "duration": 474,
+     "rank": 37297,
+     "isrc": "ITB001600922",
+     "artist": {
+      "id": 54997,
+      "name": "Ezio Bosso"
+     },
+     "album": {
+      "id": 15186603,
+      "title": "The 12th Room"
+     }
+    },
+    {
+     "id": 71705043,
+     "type": "track",
+     "title": "Tribute to the Reggae King Dub",
+     "title_short": "Tribute to the Reggae King Dub",
+     "title_version": "",
+     "duration": 234,
+     "rank": 1460,
+     "isrc": "GBUQC1300016",
+     "artist": {
+      "id": 167300,
+      "name": "The Roots Radics"
+     },
+     "album": {
+      "id": 7046082,
+      "title": "The Roots Radics at Midnight Rock"
+     }
+    },
+    {
+     "id": 1863006847,
+     "type": "track",
+     "title": "Trapped (Red Room) [feat. Thana Alexa]",
+     "title_short": "Trapped (Red Room) [feat. Thana Alexa]",
+     "title_version": "",
+     "duration": 269,
+     "rank": 33562,
+     "isrc": "DEA622101332",
+     "artist": {
+      "id": 1008897,
+      "name": "Antonio Sanchez"
+     },
+     "album": {
+      "id": 345520697,
+      "title": "SHIFT (Bad Hombre, Vol. II)"
+     }
+    },
+    {
+     "id": 3909215071,
+     "type": "track",
+     "title": "Trip",
+     "title_short": "Trip",
+     "title_version": "",
+     "duration": 305,
+     "rank": 25879,
+     "isrc": "UK6491400246",
+     "artist": {
+      "id": 13260555,
+      "name": "Red Rooms"
+     },
+     "album": {
+      "id": 942774041,
+      "title": "Blind Spot"
+     }
+    },
+    {
+     "id": 4259881421,
+     "type": "track",
+     "title": "Red Bull Espiral #06 (feat. 8belial, yyy891, roomtrash6 & cybernene)",
+     "title_short": "Red Bull Espiral #06 (feat. 8belial, yyy891, roomtrash6 & cybernene)",
+     "title_version": "",
+     "duration": 233,
+     "rank": 434040,
+     "isrc": "BK4DA2679200",
+     "artist": {
+      "id": 1433801,
+      "name": "Disobey"
+     },
+     "album": {
+      "id": 1068475821,
+      "title": "Red Bull Espiral #06 (feat. 8belial, yyy891, roomtrash6 & cybernene)"
+     }
+    },
+    {
+     "id": 530722631,
+     "type": "track",
+     "title": "Set Me Free (Empty Rooms) (Video Version)",
+     "title_short": "Set Me Free (Empty Rooms)",
+     "title_version": "(Video Version)",
+     "duration": 233,
+     "rank": 158979,
+     "isrc": "DEMW61200080",
+     "artist": {
+      "id": 137,
+      "name": "Jam & Spoon"
+     },
+     "album": {
+      "id": 68755271,
+      "title": "Tripomatic Fairytales 3003"
+     }
+    },
+    {
+     "id": 996189762,
+     "type": "track",
+     "title": "Set Me Free (Empty Rooms) (Pavel Khvaleev Extended Remix)",
+     "title_short": "Set Me Free (Empty Rooms)",
+     "title_version": "(Pavel Khvaleev Extended Remix)",
+     "duration": 418,
+     "rank": 99152,
+     "isrc": "NLE712000330",
+     "artist": {
+      "id": 137,
+      "name": "Jam & Spoon"
+     },
+     "album": {
+      "id": 155565682,
+      "title": "Set Me Free (Empty Rooms) (Pavel Khvaleev Remixes)"
+     }
+    },
+    {
+     "id": 996189752,
+     "type": "track",
+     "title": "Set Me Free (Empty Rooms) (Pavel Khvaleev Remix)",
+     "title_short": "Set Me Free (Empty Rooms)",
+     "title_version": "(Pavel Khvaleev Remix)",
+     "duration": 233,
+     "rank": 67623,
+     "isrc": "NLE712000329",
+     "artist": {
+      "id": 137,
+      "name": "Jam & Spoon"
+     },
+     "album": {
+      "id": 155565682,
+      "title": "Set Me Free (Empty Rooms) (Pavel Khvaleev Remixes)"
+     }
+    }
+   ],
+   "total": 12
+  }
+ }
+}

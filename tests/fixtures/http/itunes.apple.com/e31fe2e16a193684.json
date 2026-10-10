@@ -1,0 +1,48 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Komplex aka Jeroen Search Inject"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 1,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1714681389,
+     "artistName": "Komplex aka Jeroen Search",
+     "trackName": "Inject",
+     "collectionName": "Search Collection Volume 3",
+     "trackTimeMillis": 260621,
+     "releaseDate": "2015-05-18T12:00:00Z",
+     "primaryGenreName": "Electronica",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

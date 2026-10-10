@@ -1,0 +1,48 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Radio Slave RJ"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 1,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 442385456,
+     "artistName": "Radio Slave",
+     "trackName": "RJ (Original Mix)",
+     "collectionName": "Sex Trax EP - Single",
+     "trackTimeMillis": 583427,
+     "releaseDate": "2008-12-08T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

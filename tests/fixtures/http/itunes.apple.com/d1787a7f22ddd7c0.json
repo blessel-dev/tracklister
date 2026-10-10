@@ -1,0 +1,216 @@
+{
+ "schema": "tracklister.httpfixture/1",
+ "request": {
+  "method": "GET",
+  "url": "https://itunes.apple.com/search",
+  "params": [
+   [
+    "term",
+    "Red Rooms Blind Spot"
+   ],
+   [
+    "media",
+    "music"
+   ],
+   [
+    "entity",
+    "song"
+   ],
+   [
+    "limit",
+    "15"
+   ]
+  ]
+ },
+ "response": {
+  "status": 200,
+  "headers": {
+   "content-type": "text/javascript; charset=utf-8"
+  },
+  "json": {
+   "resultCount": 15,
+   "results": [
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1886233576,
+     "artistName": "Red Rooms",
+     "trackName": "Blind Spot",
+     "collectionName": "Blind Spot - EP",
+     "trackTimeMillis": 345429,
+     "releaseDate": "2026-05-28T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1886233574,
+     "artistName": "Red Rooms",
+     "trackName": "Axiom",
+     "collectionName": "Blind Spot - EP",
+     "trackTimeMillis": 297391,
+     "releaseDate": "2026-05-28T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1886233577,
+     "artistName": "Red Rooms",
+     "trackName": "Trip",
+     "collectionName": "Blind Spot - EP",
+     "trackTimeMillis": 305143,
+     "releaseDate": "2026-05-28T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1886233575,
+     "artistName": "Red Rooms",
+     "trackName": "Convergence",
+     "collectionName": "Blind Spot - EP",
+     "trackTimeMillis": 332571,
+     "releaseDate": "2026-05-28T12:00:00Z",
+     "primaryGenreName": "Dance",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1684362703,
+     "artistName": "Grudgebot",
+     "trackName": "Blind Spot",
+     "collectionName": "Grudgebot - EP",
+     "trackTimeMillis": 233187,
+     "releaseDate": "2023-04-24T12:00:00Z",
+     "primaryGenreName": "Metal",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1492641045,
+     "artistName": "ALO",
+     "trackName": "Baby Blind Spot",
+     "collectionName": "Creatures, Vol. 2: Weave - EP",
+     "trackTimeMillis": 395627,
+     "releaseDate": "2019-11-15T12:00:00Z",
+     "primaryGenreName": "Rock",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1481700049,
+     "artistName": "ALO",
+     "trackName": "Baby Blind Spot",
+     "collectionName": "Baby Blind Spot - Single",
+     "trackTimeMillis": 397171,
+     "releaseDate": "2019-11-15T12:00:00Z",
+     "primaryGenreName": "Rock",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 365795739,
+     "artistName": "Ivan Campo",
+     "trackName": "Blind Spot",
+     "collectionName": "A Holiday With The Sun",
+     "trackTimeMillis": 174465,
+     "releaseDate": "2010-04-26T12:00:00Z",
+     "primaryGenreName": "Pop",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1882379825,
+     "artistName": "BrownHouse",
+     "trackName": "Blind Spot",
+     "collectionName": "BrownHouse room 09",
+     "trackTimeMillis": 183320,
+     "releaseDate": "2026-03-04T12:00:00Z",
+     "primaryGenreName": "Jazz",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1645812400,
+     "artistName": "Jim L'Esperance",
+     "trackName": "Blind Spot (feat. David John, Matt Jones, Jake Lynn & Jung Jacob Song)",
+     "collectionName": "Everest",
+     "trackTimeMillis": 287229,
+     "releaseDate": "2022-09-19T12:00:00Z",
+     "primaryGenreName": "Singer/Songwriter",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1292737041,
+     "artistName": "Lush",
+     "trackName": "Lost Boy",
+     "collectionName": "Blind Spot - EP",
+     "trackTimeMillis": 198120,
+     "releaseDate": "2016-04-15T12:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 6771889632,
+     "artistName": "Litany Blue",
+     "trackName": "Blind Spot",
+     "collectionName": "Inquirer",
+     "trackTimeMillis": 177560,
+     "releaseDate": "2026-05-20T12:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1890460918,
+     "artistName": "New House",
+     "trackName": "Blind spot (Live 03/28/2026)",
+     "collectionName": "Live: VOL. 3 ~ Live in the Living Room (Live 03/28/2026)",
+     "trackTimeMillis": 168688,
+     "releaseDate": "2026-04-09T12:00:00Z",
+     "primaryGenreName": "Alternative",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1886561156,
+     "artistName": "Grudgebot",
+     "trackName": "Blind Spot",
+     "collectionName": "Blind Spot - Single",
+     "trackTimeMillis": 254627,
+     "releaseDate": "2026-04-02T12:00:00Z",
+     "primaryGenreName": "Metal",
+     "country": "USA"
+    },
+    {
+     "wrapperType": "track",
+     "kind": "song",
+     "trackId": 1850576213,
+     "artistName": "Basick",
+     "trackName": "Blind Spot",
+     "collectionName": "Blind Spot - Single",
+     "trackTimeMillis": 172406,
+     "releaseDate": "2025-10-30T12:00:00Z",
+     "primaryGenreName": "Rock",
+     "country": "USA"
+    }
+   ]
+  }
+ }
+}

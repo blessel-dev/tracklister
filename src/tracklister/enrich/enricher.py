@@ -24,7 +24,7 @@ from tracklister.core.model import RowStatus, TrackRow
 from tracklister.core.textnorm import norm_key, split_artists
 from tracklister.enrich.pick import Pick, pick_best
 from tracklister.enrich.providers import Candidate, DeezerProvider, ItunesProvider, MusicBrainzProvider
-from tracklister.inputs.clean import label_keys
+from tracklister.inputs.clean import is_label_credit, label_keys
 from tracklister.net.http import HttpClient, ReplayMiss
 
 CACHE_SCHEMA = "tracklister.enrichcache/1"
@@ -175,9 +175,12 @@ class Enricher:
             row.confidence = CONFIDENCE_ENRICHED
             changed.append("confidence")
         if provider in SPELLING_PROVIDERS and c.artist:
-            # the store's credit, minus the label: iTunes itself credits "Roll Dann & Laster Records"
-            label = label_keys(row.label)
-            new = [a for a in split_artists(c.artist) if norm_key(a) not in label]
+            # the store's credit, minus its labels: iTunes itself credits "Roll Dann & Laster Records", and
+            # "GCOD & KYSH Records" / "Ana Rs & Demolate Records" (06 R5). A co-artist is a label when it is
+            # the row's or the store's label (any source), or when it looks like one ("X Records"). The
+            # first store artist always stays: it is the one that must match the row.
+            label = label_keys(row.label) | label_keys(c.label)
+            new = [a for i, a in enumerate(split_artists(c.artist)) if i == 0 or not is_label_credit(a, label)]
             mine = row.artists or split_artists(row.artist_display)
             mine_keys = [norm_key(a) for a in mine]
             if new and [norm_key(a) for a in new] != mine_keys \
