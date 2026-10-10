@@ -92,7 +92,7 @@ Tracklister no está firmado digitalmente (la firma queda para más adelante), a
 
 Normalmente solo pasa la primera vez.
 
-- Para comprobar el zip que has bajado, en PowerShell, en la carpeta del zip: `Get-FileHash .\Tracklister-1.0.0-win64.zip -Algorithm SHA256` (con el nombre de tu zip) tiene que dar el mismo valor que pone `SHA256SUMS.txt`.
+- Para comprobar el zip que has bajado, en PowerShell, en la carpeta del zip: `Get-FileHash .\Tracklister-1.0.0-win64.zip -Algorithm SHA256` (con el nombre de tu zip) tiene que dar el mismo valor que pone `SHA256SUMS.txt`. PowerShell lo escribe en mayúsculas; eso da igual.
 - Si en vez de ese aviso sale «Control inteligente de aplicaciones» (Windows 11) y no deja abrirlo, no lo desactives solo por esto: pide ayuda con el mensaje exacto.
 
 ## 6. Actualizar a una versión nueva
@@ -124,7 +124,7 @@ Casos conocidos:
 - **«No se encuentra el motor…» o «No se pudo arrancar el motor…».** Vuelve a descomprimir el zip entero; puede que el antivirus haya quitado el motor. Si sigue, en «Ajustes» → «Red y motor» → «Motor», elige «sldl 2.6.0 (alternativa)».
 - **Una pista sale «Dudoso».** El motivo está debajo de la tabla y en el informe.
   - «otra canción», «otra versión» o «duración»: el archivo está en `_dudosos`. Corrige artista, título o versión en «Nuevo set» y vuelve a descargar, o pulsa «Reintentar fallos», que la busca otra vez sin el usuario que te dio ese archivo. El archivo rechazado nunca se borra.
-  - «posible lossless falso» o «revisar»: el archivo se queda en el set, con su número. Escúchalo y decide tú.
+  - «posible lossless falso» o «revisar»: el archivo se queda en el set, con su número, y decides tú. Con «revisar», escúchalo para confirmar que es la canción. Con «posible lossless falso», escucharlo no siempre lo resuelve: un MP3 de 320 convertido a FLAC puede sonar igual.
   - Tracklister prefiere una duda de más: una errata en un nombre corto del artista, o una etiqueta con solo el apellido, puede acabar en `_dudosos` aunque sea la canción buena. Si te pasa, mira el archivo en `_dudosos`.
 - **«No cumple formato».** El archivo llegó, pero no es lo que pide tu formato (por ejemplo, un MP3 VBR o de menos de 320). Pulsa «Reintentar fallos».
 - **No se leen los comentarios de YouTube.** «Ajustes» → «Actualizar yt-dlp». Si el vídeo es privado o se ha borrado, no tiene arreglo.
@@ -156,7 +156,7 @@ En Ajustes también están la cuenta, la carpeta de la biblioteca, el puerto, el
 
 ## Nota de seguridad: tu contraseña de Soulseek
 
-- Tu cuenta solo está en el Administrador de credenciales de Windows. Ningún archivo de Tracklister la guarda, y en los registros, los informes y el Diagnóstico sale como `***`.
+- Tu cuenta solo está en el Administrador de credenciales de Windows. Ningún archivo de Tracklister la guarda, y en los registros, los informes y el Diagnóstico sale tapada (`***` o `[censurado]`).
 - Para conectarse, el motor de descarga (Sockseek o sldl) necesita tu cuenta, y no ofrece otra forma de recibirla que su línea de comandos (`--user` y `--pass`) o un archivo de configuración con la contraseña escrita. Tracklister nunca escribe tu contraseña en un archivo, así que se la pasa por la línea de comandos.
 - Mientras el motor está en marcha, otros programas que se ejecutan en tu PC pueden leer su línea de comandos y, con ella, tu contraseña de Soulseek.
 - Por eso: usa en Soulseek una contraseña que no uses en ningún otro sitio, y no descargues desde un PC en el que no confíes.
