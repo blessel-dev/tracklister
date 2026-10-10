@@ -87,6 +87,31 @@ def test_r11_bytes_come_from_the_growing_incomplete_file(tmp_path):
     assert tr.poll() == []                                   # nothing new: nothing sent
 
 
+def test_v101_1_n2_a_long_incomplete_path_is_measured_with_the_long_path_prefix(tmp_path, monkeypatch):
+    """Audit v101-1 N2: the tracker listed and stat'ed in/<snum>/<name>.incomplete without the \\\\?\\ prefix.
+    On a PC with LongPathsEnabled=0 a long remote name has no bar, and tests/integration/test_long_paths.py
+    failed now and then (the poll only runs while a row downloads). Now it goes through the prefix, like
+    outputs._files_in: the bytes are seen and no unprefixed long path is tried."""
+    from tests.fakes.maxpath import simulate_max_path
+    from tracklister.organize.naming import win_long
+
+    clock = Clock()
+    out = tmp_path / ("w" * 120) / "in"
+    long_name = "Fjaak - Spirit (" + "Extended " * 14 + "Mix).flac"
+    tr = ProgressTracker(D2, out, _manifest(), clock=clock)
+    _feed(tr, D2, "Searching: Fjaak - Spirit (30s)", 1)
+    ev = _feed(tr, D2, f"Initialize: peerA\\..\\{long_name} [30s/44.1kHz/4.0MB]", None)
+    assert [(e.snum, e.phase) for e in ev] == [(1, PHASE_DOWNLOADING)]
+    part = out / "1" / (long_name + ".incomplete")
+    assert len(str(part)) > 260
+    os.makedirs(win_long(part.parent), exist_ok=True)
+    with open(win_long(part), "wb") as f:
+        f.write(b"x" * 4096)
+    refused = simulate_max_path(monkeypatch)
+    assert [(e.snum, e.bytes_done) for e in tr.poll()] == [(1, 4096)]
+    assert refused == []
+
+
 def test_r11_two_rows_with_the_same_file_name_get_no_bytes(tmp_path):
     clock = Clock()
     out = tmp_path / "in"

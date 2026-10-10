@@ -264,6 +264,99 @@ def test_r4_aliases_never_open_a_namesake():
     assert artist_match(["Komplex"], "Komplex aka Jeroen Search").same          # an alias in the file's name
 
 
+# ---- audit v101-1: a later reading never moves title words into the artist (B1), and a title tag never
+# makes the folder the artist of a name that says its own artist (B2) ------------------------------------
+B1_OTHER_TRACK = [
+    # (row, Soulseek path tail: another track whose title ENDS with the row's title, the row of that file)
+    (_row("Planetary Assault Systems", "Stop"), "Techno Inventado\\Planetary Assault Systems-Non-Stop.flac",
+     _row("Planetary Assault Systems", "Non-Stop")),
+    (_row("Planetary Assault Systems", "Stop"), "Techno Inventado\\03-planetary_assault_systems-non-stop.flac",
+     _row("Planetary Assault Systems", "Non-Stop")),
+    (TRIP, "Lista Ejemplo\\04-red_rooms-bad-trip-3fa1c09b.flac", _row("Red Rooms", "Bad-Trip")),
+    (_row("Chris Liebing", "Matter"), "Lista Ejemplo\\01-chris_liebing-anti-matter-3fa1c09b.flac",
+     _row("Chris Liebing", "Anti-Matter")),
+    (_row("Adam Beyer", "Time"), "Lista Ejemplo\\Adam Beyer-Space-Time.flac", _row("Adam Beyer", "Space-Time")),
+    (_row("Adam Beyer", "Rush"), "Lista Ejemplo\\Adam Beyer-Pilot-Rush.flac", _row("Adam Beyer", "Pilot-Rush")),
+]
+
+
+@pytest.mark.parametrize("row,tail,right", B1_OTHER_TRACK, ids=[t.split("\\")[-1][:40] for _, t, _ in B1_OTHER_TRACK])
+def test_v101_1_b1_a_later_reading_never_moves_title_words_into_the_artist(tmp_path, untagged, row, tail, right):
+    """'Planetary Assault Systems-Non-Stop.flac' was also read as 'Planetary Assault Systems-Non' + 'Stop';
+    the extra word passed the partial-artist rule, so «Non-Stop» was VERIFICADO 100 for the row «Stop».
+    Now that reading only counts with an artist part that is exactly a row name: a doubt, «Otro título»."""
+    s = identity_score(row, untagged, tail)
+    assert not (s.same_artist and s.artist >= 60 and s.title >= 70 and s.version_ok), s
+    assert not s.title_words_ok and s.same_artist, s          # the name's own reading: same artist, other title
+    p = make_track(tmp_path / "d.flac", fmt="flac", seconds=20)
+    timed = TrackRow(pos=1, title=row.title, artists=row.artists, artist_display=row.artist_display,
+                     expected_duration_s=20)
+    v = verify_file(timed, p, LOSSLESS, lossy_allowed=False, source_path_tail=tail)
+    assert v.state == ResultState.DUDOSO and v.score < 50, v.reasons_es
+    assert any(r.startswith("Otro título") for r in v.reasons_es), v.reasons_es
+    # an artist tag alone does not open it either (the title still comes from that reading of the name)
+    tagged = make_track(tmp_path / "a.flac", fmt="flac", seconds=20, tags={"artist": row.artist_display})
+    assert verify_file(timed, tagged, LOSSLESS, lossy_allowed=False,
+                       source_path_tail=tail).state == ResultState.DUDOSO
+    # the row of that file still verifies
+    good = TrackRow(pos=1, title=right.title, artists=right.artists, artist_display=right.artist_display,
+                    expected_duration_s=20)
+    assert verify_file(good, p, LOSSLESS, lossy_allowed=False, source_path_tail=tail).state == ResultState.VERIFICADO
+
+
+@pytest.mark.parametrize("row,tail", [
+    (_row("X-Ray Spex", "Oh Bondage"), "Lista Ejemplo\\x-ray_spex-oh_bondage.flac"),   # the 2nd split is the artist's
+    (_row("808 State", "Pacific State"), "Lista Ejemplo\\01-808_state-pacific_state.flac"),
+    (_row("808 State", "Pacific State"), "Lista Ejemplo\\808-state-pacific_state.flac"),
+    (_row("A-ha", "Take On Me"), "Lista Ejemplo\\A-ha-Take On Me.flac"),
+    (_row("Jay-Z", "Song Inventada"), "Lista Ejemplo\\Jay-Z-Song Inventada.flac"),
+    (_row("Fjaak", "Spirit"), "Fjaak\\Fjaak-Spirit.flac"),
+    (_row("2-4 Grooves", "Writing On The Wall"), "Lista Ejemplo\\2-4 Grooves - Writing On The Wall.flac"),
+    (_row("TR440", "Somewhen"), "Lista Ejemplo\\01-tr-440-somewhen.flac"),
+    (_row("Komplex aka Jeroen Search", "Inject"), "Lista Ejemplo\\01-jeroen_search-inject.flac"),
+])
+def test_v101_1_b1_a_later_reading_with_the_rows_exact_artist_still_counts(untagged, row, tail):
+    s = identity_score(row, untagged, tail)
+    assert s.same_artist and s.artist >= 85 and s.title == 100 and s.version_ok and s.title_words_ok, s
+
+
+B2_FOLDER_IS_NOT_THE_ARTIST = [
+    (_row("Adam Beyer", "Rush"), "Adam Beyer\\Adam Port - Rush.flac", "Rush"),
+    (_row("Chris Lake", "Rush"), "Chris Lake\\Chris Liebing - Rush.flac", "Rush"),
+    (TRIP, "Red_Rooms-Blind_Spot-(PHORUM004)-16BIT-WEB-FLAC-2026-PTC\\04-otro_artista-trip.flac", "Trip"),
+    (_row("Adam Beyer", "Rush"), "Adam Beyer\\01-adam_port-rush.flac", "Rush"),
+]
+
+
+@pytest.mark.parametrize("row,tail,title_tag", B2_FOLDER_IS_NOT_THE_ARTIST,
+                         ids=[t.split("\\")[-1][:40] for _, t, _ in B2_FOLDER_IS_NOT_THE_ARTIST])
+def test_v101_1_b2_a_title_tag_never_makes_the_folder_the_artist(tmp_path, row, tail, title_tag):
+    """'Adam Beyer\\Adam Port - Rush.flac' with only a title tag 'Rush' was VERIFICADO 100 for «Adam Beyer -
+    Rush»: the folder reading took the title tag. The name says its own artist (D10): «Otro artista»."""
+    p = make_track(tmp_path / "t.flac", fmt="flac", seconds=20, tags={"title": title_tag})
+    s = identity_score(row, probe(p), tail)
+    assert not s.same_artist, s
+    timed = TrackRow(pos=1, title=row.title, artists=row.artists, artist_display=row.artist_display,
+                     expected_duration_s=20)
+    v = verify_file(timed, p, LOSSLESS, lossy_allowed=False, source_path_tail=tail)
+    assert v.state == ResultState.DUDOSO and v.score < 50, v.reasons_es
+    assert any(r.startswith("Otro artista") for r in v.reasons_es), v.reasons_es
+
+
+@pytest.mark.parametrize("tail,title_tag", [
+    ("Fjaak\\Spirit.flac", "Spirit"),                         # a title-only name in the artist's folder
+    ("Fjaak\\03 Spirit.flac", "Spirit"),
+    ("Fjaak\\pista03.flac", "Spirit"),                         # a name that is no title: the folder and the tag
+    ("Fjaak\\Spirit - Original Mix.flac", "Spirit (Original Mix)"),   # the name's 'artist part' is the title
+    ("Fjaak - Album Inventado\\03 Spirit.flac", "Spirit"),
+])
+def test_v101_1_b2_the_folder_still_counts_when_the_name_says_no_artist(tmp_path, tail, title_tag):
+    p = make_track(tmp_path / "t.flac", fmt="flac", seconds=20, tags={"title": title_tag})
+    row = TrackRow(pos=1, title="Spirit", artists=["Fjaak"], artist_display="Fjaak", expected_duration_s=20)
+    v = verify_file(row, p, LOSSLESS, lossy_allowed=False, source_path_tail=tail)
+    assert v.state == ResultState.VERIFICADO, (tail, v.reasons_es)
+
+
 def test_r3_version_in_the_title_of_every_reading_counts_for_an_original_row(untagged):
     row = _row("Red Rooms", "Trip")
     s = identity_score(row, untagged, "Lista Ejemplo\\1-04-Red Rooms-Trip (Cleric Remix).flac")

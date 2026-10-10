@@ -20,7 +20,9 @@ from tracklister.core.textnorm import nfc, norm_key, versions_compatible
 from tracklister.organize.journal import Journal
 from tracklister.organize.naming import pad_width, track_filename, win_long
 from tracklister.verify.audioinfo import read_tags
-from tracklister.verify.identity import FileIdentity, artist_match, file_identities, row_artists, title_similarity
+from tracklister.verify.identity import (
+    FileIdentity, artist_match, file_identities, reading_fits, row_artists, title_similarity,
+)
 
 AUDIO_EXTS = (".flac", ".wav", ".aiff", ".aif", ".mp3", ".m4a", ".ogg", ".opus")
 MATCH_MIN = 75.0
@@ -61,7 +63,8 @@ def _reading_score(row: TrackRow, fi: FileIdentity) -> float:
         return 0.0
     title, _ = title_similarity(row.title, fi.base)
     m = artist_match(row_artists(row), fi.artist) if norm_key(fi.artist) else None
-    art = m.score if m is not None and m.same else 0.0
+    # audit v101-1 B1: a later reading of the name that moved title words into the artist is no artist
+    art = m.score if m is not None and m.same and reading_fits(row_artists(row), fi) else 0.0
     score = 0.4 * art + 0.6 * title
     if not versions_compatible(row.version, fi.version or fi.name_version)[0]:
         score *= 0.5

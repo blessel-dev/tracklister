@@ -16,6 +16,14 @@ organize.reorder take the reading that fits the row best, judged with the SAME a
 version rules as before, so every v1.0 rejection still holds ('Dust 1' / 'Dust 2', 'Feel It' /
 'Feel It All', 'Adam Port' / 'Adam Beyer', the remixer...). The parent folder is artist evidence
 only for the reading where the name has no artist part (plan D10).
+
+Audit v101-1 (DECISIONES X.37): the readings after the first are guesses of where the artist ends,
+so they must not move title words into the artist. Such a reading only counts when the artist part
+it gives is exactly one of the row's names, word for word (reading_fits): 'Planetary Assault
+Systems-Non-Stop' is never 'Planetary Assault Systems-Non' + 'Stop' for the row 'Stop' (B1), while
+'x-ray_spex-oh_bondage' is still 'X-Ray Spex' + 'Oh Bondage'. And a title tag never turns the
+folder into the artist of a name that says its own artist ('Adam Beyer\\Adam Port - Rush.flac'
+tagged 'Rush' is Adam Port's, B2).
 """
 from __future__ import annotations
 
@@ -639,6 +647,8 @@ class FileIdentity:
     version: str | None           # version of title_full
     name_version: str | None      # version written in the file name of this reading
     evidence: str                 # "tags" | "nombre" | "tags+nombre"
+    name_artist: str = ""         # the artist part the NAME gives in this reading ('' for the folder reading)
+    alternative: bool = False     # not the name's first reading: a later guess of where the artist ends
 
 
 def clean_artist(text: str | None) -> str | None:
@@ -646,35 +656,88 @@ def clean_artist(text: str | None) -> str | None:
     return s or None
 
 
+def _same_base_words(tag_title: str, reading_title: str) -> bool:
+    """Does a reading's title (the whole name, for the folder reading) say the same title as the title tag?
+    'Spirit - Original Mix' and the tag 'Spirit (Original Mix)' do; 'Adam Port - Rush' and 'Rush' do not."""
+    tag_base = split_title_version(tag_title)[0] or tag_title
+    got_base = split_title_version(reading_title)[0] or reading_title
+    return title_words_match(tag_base, got_base)
+
+
 def file_identities(file_name: str, parent: str | None, tag_artist: str | None,
                     tag_title: str | None) -> list[FileIdentity]:
     """The readings of a file as FileIdentity, tags first (watermarks and trailing metadata out). The
-    folder is only used by a reading without an artist part and only when there is no artist tag (D10)."""
+    folder is only used by a reading without an artist part and only when there is no artist tag (D10).
+
+    Audit v101-1, B2: when the name says its own artist ('Adam Port - Rush.flac' in the folder 'Adam
+    Beyer'), the folder reading is never combined with a title tag: the tag 'Rush' would make it 'Adam
+    Beyer - Rush'. It stays only when the whole name is that same title ('Spirit - Original Mix.flac'
+    tagged 'Spirit (Original Mix)'), i.e. when the name's 'artist part' is in fact the title."""
     ta, tt = clean_artist(tag_artist), (clean_title(tag_title) or None)
+    readings = name_readings(file_name, parent)
+    own_artist = any(r.artist and not r.from_folder for r in readings)
     out: list[FileIdentity] = []
-    for r in name_readings(file_name, parent):
+    for i, r in enumerate(readings):
+        if r.from_folder and own_artist and tt and not ta and not _same_base_words(tt, r.title):
+            continue
         artist = ta or r.artist
         title_full = tt or r.title
         base, version = split_title_version(title_full)
         name_version = split_title_version(r.title)[1]
         used = {"tags" if ta else "nombre", "tags" if tt else "nombre"}
         evidence = "tags+nombre" if used == {"tags", "nombre"} else used.pop()
-        fi = FileIdentity(artist, title_full, base or title_full, version, name_version, evidence)
+        fi = FileIdentity(artist, title_full, base or title_full, version, name_version, evidence,
+                          "" if r.from_folder else r.artist, i > 0)
         if fi not in out:
             out.append(fi)
     return out
 
 
+def name_artist_is_exact(wanted: Iterable[str | None], name_artist: str | None) -> bool:
+    """Is the artist part of a reading exactly one of the row's names (an alias, a single artist of a duo,
+    or the duo in another order), word for word, with no word more or less? 'Planetary Assault Systems-Non'
+    is not 'Planetary Assault Systems', and '04-red rooms' is not 'Red Rooms'; 'x-ray spex' is 'X-Ray Spex'
+    and 'TR-440' is 'TR440'. A typo in a long word is allowed (T.1), a word more is not."""
+    got = norm_key(name_artist)
+    if not got:
+        return False
+    keys = _artist_keys(wanted)
+
+    def exact(g: str) -> bool:
+        return any((len(w.split()) == len(g.split()) and _artist_pair(w, g).same)
+                   or w.replace(" ", "") == g.replace(" ", "") for w in keys)
+
+    if exact(got):
+        return True
+    parts = [k for k in (norm_key(p) for p in split_artists(name_artist)) if k]
+    return len(parts) > 1 and all(exact(p) for p in parts)
+
+
+def reading_fits(wanted: Iterable[str | None], fi: FileIdentity) -> bool:
+    """Audit v101-1, B1: a reading after the first one (a later split point of the name) only counts when
+    the artist part it gives is exactly a row name (name_artist_is_exact). Otherwise it moved title words
+    into the artist ('Adam Beyer-Space-Time.flac' read as 'Adam Beyer-Space' + 'Time'), and the shorter
+    title would let another track pass for the row. The first reading, and a reading whose artist is the
+    folder's or the tags' only, are judged as before."""
+    if not fi.alternative or not fi.name_artist:
+        return True
+    return name_artist_is_exact(wanted, fi.name_artist)
+
+
 def _score(row: TrackRow, wanted: list[str], fi: FileIdentity) -> tuple[tuple, IdentityScore]:
     versions = [v for v in (fi.version, fi.name_version) if v]
+    fits = reading_fits(wanted, fi)
     artist = artist_match(wanted, fi.artist)
+    if not fits:                     # B1: never the same artist through a reading that ate title words
+        artist = ArtistMatch(artist.score, False)
     title, numbers_ok = title_similarity(row.title, fi.base)
     words_ok = title_words_match(row.title, fi.base)
     ok, reason = _version_ok(row.version, versions)
     ident = IdentityScore(round(artist.score, 1), round(title, 1), ok, reason, fi.evidence, fi.artist,
                           fi.title_full, fi.version or fi.name_version, numbers_ok, artist.same, words_ok)
     same_song = artist.same and artist.score >= ARTIST_MIN and title >= TITLE_MIN
-    key = (same_song and ok, same_song, ok, 0.35 * artist.score + 0.45 * title)
+    # a reading that fits ranks before one that does not, so a doubt names the name's own reading
+    key = (same_song and ok, same_song, fits, ok, 0.35 * artist.score + 0.45 * title)
     return key, ident
 
 

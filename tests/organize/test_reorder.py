@@ -246,6 +246,31 @@ def test_v101_r3_reorder_reads_the_real_file_names(tmp_path):
                                                                    "Kwartz - Show me that light.flac"}
 
 
+def test_v101_1_b1_b2_reorder_never_proposes_another_track_or_artist(tmp_path):
+    """Audit v101-1, B1 and B2: «Reordenar» proposed 'Planetary Assault Systems-Non-Stop.flac' for the row
+    «Stop» (a later reading of the name took 'Non' into the artist) and 'Adam Beyer\\Adam Port - Rush.flac'
+    tagged only 'Rush' for «Adam Beyer - Rush» (the folder took the title tag). Both stay as they are now;
+    the right files are still found."""
+    rows = [_row(1, "Planetary Assault Systems", "Stop"), _row(2, "Adam Beyer", "Time"),
+            _row(3, "Red Rooms", "Trip"), _row(4, "Adam Beyer", "Rush")]
+    folder = tmp_path / "set"
+    wrong = ["Planetary Assault Systems-Non-Stop.flac", "Adam Beyer-Space-Time.flac",
+             "04-red_rooms-bad-trip-3fa1c09b.flac"]
+    _make(folder, wrong)
+    make_track(folder / "Adam Beyer" / "Adam Port - Rush.flac", fmt="flac", seconds=1, tags={"title": "Rush"})
+    props = propose_reorder(folder, rows)
+    by = _by_pos(props)
+    assert [by[p].status for p in (1, 2, 3, 4)] == ["missing"] * 4, props
+    assert {p.src.name for p in props if p.status == "extra"} == set(wrong) | {"Adam Port - Rush.flac"}
+    right = {1: "Planetary Assault Systems - Stop.flac", 2: "Adam Beyer - Time.flac", 3: "04-red_rooms-trip.flac"}
+    _make(folder, right.values())
+    make_track(folder / "Adam Beyer" / "Rush.flac", fmt="flac", seconds=1, tags={"title": "Rush"})
+    by = _by_pos(propose_reorder(folder, rows))
+    for pos, name in right.items():
+        assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
+    assert by[4].status == "match" and by[4].src == folder / "Adam Beyer" / "Rush.flac"
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])

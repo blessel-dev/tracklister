@@ -39,7 +39,7 @@ from typing import Callable, Sequence
 
 from tracklister.core.textnorm import norm_key
 from tracklister.engine.csvwriter import ManifestItem
-from tracklister.engine.outputs import INCOMPLETE_SUFFIXES, STAGING_DIRS, EngineEvent, _info_mb
+from tracklister.engine.outputs import INCOMPLETE_SUFFIXES, STAGING_DIRS, EngineEvent, _info_mb, _long
 from tracklister.engine.spec import EngineDialect
 
 POLL_S = 0.5                       # bytes are measured at most twice a second per row
@@ -197,7 +197,9 @@ class ProgressTracker:
                 folders.append(sub)
         for d in folders:
             try:
-                with os.scandir(d) as it:
+                # \\?\ form (as outputs._files_in): a long remote name in in/<snum>/ passes Windows' 260
+                # characters on a PC with LongPathsEnabled=0, and its stat must still see it (audit v101-1 N2)
+                with os.scandir(_long(d)) as it:
                     entries = [(e.name, e.path) for e in it if e.is_file()]
             except OSError:
                 continue
@@ -216,7 +218,7 @@ class ProgressTracker:
     @staticmethod
     def _subdirs(d: Path) -> list[Path]:
         try:
-            with os.scandir(d) as it:
+            with os.scandir(_long(d)) as it:
                 return [Path(e.path) for e in it if e.is_dir()]
         except OSError:
             return []
