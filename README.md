@@ -24,6 +24,7 @@
 
 <p>
   <a href="https://github.com/blessel-dev/tracklister/releases/latest">Descargar la última versión</a> ·
+  <a href="https://blessel-dev.github.io/tracklister/">Web</a> ·
   <a href="docs/GUIA.md">Guía de uso</a> ·
   <a href="#preguntas-frecuentes">Preguntas frecuentes</a> ·
   <a href="#in-english">In English</a>
@@ -344,7 +345,7 @@ Son planes, no promesas.
 
 ## Hecho por Blessel
 
-Tracklister es un proyecto de Blessel, hecho para preparar sus sets y los de sus amigos. Más de Blessel en [Mixcloud](https://www.mixcloud.com/blessel/) y en [MavelPoint](https://www.mavelpoint.com/artist/blessel/overview).
+Tracklister es un proyecto de Blessel, hecho para preparar sus sets y los de sus amigos. Más de Blessel en [Mixcloud](https://www.mixcloud.com/blessel/) y en [MavelPoint](https://www.mavelpoint.com/artist/blessel/overview). La web de Tracklister: https://blessel-dev.github.io/tracklister/
 
 <!-- TODO: Instagram -->
 
