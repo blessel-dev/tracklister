@@ -1,0 +1,697 @@
+# Tracklister website: English texts of the landing page (en/index.html).
+# site/build.py renders site/index.html with them. es.txt has the same keys in the same order, except
+# the three English-only notes that the app's interface is in Spanish (hero.idioma_app, faq.idioma.*).
+# Format: a line "== key", then its text up to the next "== " line. The texts are HTML
+# ({{attr:...}} ones are plain text: they go inside an attribute).
+# The app is in Spanish: its labels stay exactly as the app shows them, inside {{es:...}} (marked
+# lang="es"), with an English gloss in parentheses the first time. Same claims as the Spanish page.
+# US spelling (og:locale en_US).
+
+== head.title
+Tracklister · From a set's tracklist to a folder of verified music
+
+== head.description
+Free app for Windows 10 and 11 that turns a DJ set's tracklist into a folder of music from Soulseek, checked file by file and numbered in set order. The interface is in Spanish.
+
+== head.og_title
+Tracklister: from a set's tracklist to a folder of verified music
+
+== head.og_description
+Free app for Windows 10 and 11. It reads the tracklist, searches Soulseek with your account, checks every file and leaves you the set folder, numbered in order.
+
+== head.og_image_alt
+Tracklister by Blessel: the app window over the concrete texture.
+
+== skip
+Skip to content
+
+== lang.label
+Language
+
+== tema.label
+Theme
+
+== nav.label
+Sections
+
+== nav.que_hace
+What it does
+
+== nav.como_funciona
+How it works
+
+== nav.capturas
+Screenshots
+
+== nav.descargar
+Download
+
+== nav.preguntas
+FAQ
+
+== hero.eyebrow
+Free app for DJs · Windows 10/11
+
+== hero.tagline
+From a set's tracklist to a folder of verified music from Soulseek, numbered in set order.
+
+== descargar.boton
+Download for Windows
+
+== hero.codigo
+View the code on GitHub
+
+== hero.version
+Version
+
+== hero.ultima_version
+Latest release on GitHub
+
+== hero.plataforma
+Windows 10/11 (64-bit)
+
+== hero.idioma_app
+The app's interface is in Spanish.
+
+== hero.alt_hormigon
+Tracklister's “Nuevo set” (New set) screen in the Hormigón theme, with the tracklist of a public Fjaak set in the table, ready to download.
+
+== hero.alt_noche
+Tracklister's “Nuevo set” (New set) screen in the Noche theme, with the tracklist of a public Fjaak set in the table, ready to download.
+
+== que.titulo
+What it does
+
+== que.lead
+Give it a set's tracklist and it gives you back its tracks in a folder, checked one by one and numbered by their place in the set. Everyone uses it with their own Soulseek account.
+
+== que.orden.titulo
+A folder in set order
+
+== que.orden.p1
+Each file is named <code>01 - Artist - Title (Version).flac</code>, with the number of its row in the tracklist, never the download order. It never overwrites anything.
+
+== que.orden.p2
+For your older folders there's “{{es:Reordenar}}” (Reorder): it gives their files the tracklist numbers, with a preview and “{{es:Deshacer el último reordenado}}” (Undo the last reorder).
+
+== que.lee.titulo
+Reads the tracklist wherever it comes from
+
+== que.lee.trackid
+a trackid.net CSV (drag and drop; it tells you when one lands in your Downloads folder);
+
+== que.lee.excel
+Excel and CSV files;
+
+== que.lee.texto
+text pasted from 1001tracklists, MixesDB or a comment;
+
+== que.lee.enlace
+a YouTube or SoundCloud link: it picks the best tracklist from the description, the chapters and the comments, and you can swap it for another one.
+
+== que.lee.tabla
+It all goes into a table you can correct before downloading.
+
+== que.comprueba.titulo
+Checks every file
+
+== que.comprueba.p1
+Duration, artist, title and version (Original, Extended, Remix, Radio Edit), the numbers in the title (“Dust 1” is not “Dust 2”), the format and the spectrum.
+
+== que.comprueba.p2
+It never accepts a doubtful file without telling you: if it may be a different song or version, or the duration doesn't match, it goes to <code>_dudosos</code> (the “doubtful” folder) with its reason. If it only needs a check, it stays in the set, flagged.
+
+== que.formato.titulo
+Sticks to your format
+
+== que.formato.p1
+Lossless, “{{es:CDJ antiguos}}” (Old CDJs: AIFF or WAV, and FLACs become AIFF), “{{es:Solo MP3 320}}” (MP3 320 only) or “{{es:Personalizado}}” (Custom). The format is checked in the file itself, not in its name.
+
+== que.biblioteca.titulo
+Knows what you already have
+
+== que.biblioteca.p1
+If a track is already in an earlier set, it asks: “{{es:Usar el que ya tengo (copiar a este set)}}” (Use the one I have, copy it to this set) or “{{es:Descargar de nuevo en este set}}” (Download it again into this set). Running a set again doesn't re-download what's already there.
+
+== que.reintentos.titulo
+Retries, report and tracklist
+
+== que.reintentos.p1
+“{{es:Reintentar fallos}}” (Retry failed) looks for another copy, leaving out the user who sent the rejected file. Each set comes with its report, and “{{es:Copiar tracklist}}” (Copy tracklist) gives you the text with timestamps for Mixcloud or Instagram.
+
+== porque.titulo
+Why
+
+== porque.lead
+Downloading a whole set from Soulseek by hand, or in batches, usually ends in three problems. Tracklister is built to avoid them.
+
+== porque.problema
+Problem
+
+== porque.como
+How it avoids it
+
+== porque.p1.titulo
+Wrong songs
+
+== porque.p1.problema
+A file with a similar name passes for the right one: another artist, another version, a radio edit instead of the original, or “Dust 2” instead of “Dust 1”.
+
+== porque.p1.solucion
+Before searching, it fills in each track's duration and exact version, and uses them to filter the search. Then it checks every file: duration, artist and title word by word, version and the numbers in the title. If it may be a different song or version, the file goes to <code>_dudosos</code> with the reason and never enters the set as if it were right.
+
+== porque.p2.titulo
+Wrong formats
+
+== porque.p2.problema
+A lower-quality or VBR MP3, a FLAC your CDJs can't read, a WAV that isn't lossless inside, or a FLAC that actually comes from an MP3.
+
+== porque.p2.solucion
+You pick a format and it's checked in the file itself: an MP3 must be 320 kbps CBR (in “{{es:Personalizado}}” you choose the minimum), a WAV or AIFF must hold PCM, and in “{{es:CDJ antiguos}}” FLACs are converted to AIFF. If a file doesn't comply, it shows “{{es:No cumple formato}}” (Doesn't meet the format). The spectrum analysis flags a “{{es:posible lossless falso}}” (possible fake lossless) so you can decide whether it's good enough for you.
+
+== porque.p3.titulo
+Files out of order
+
+== porque.p3.problema
+Files arrive in the order they download, named however each user named them, so you end up renaming them one by one.
+
+== porque.p3.solucion
+Each file gets the number of its row in the tracklist and a clean name, <code>NN - Artist - Title (Version).ext</code>. If a name already exists, it adds “ (2)”: it never overwrites.
+
+== como.titulo
+How it works
+
+== como.lead
+Five steps, from the tracklist to the set folder.
+
+== como.paso1.titulo
+Bring the tracklist
+
+== como.paso1.texto
+A trackid.net CSV, an Excel or CSV file, pasted text or a YouTube or SoundCloud link. You review it in a table you can edit.
+
+== como.paso2.titulo
+Fill in the details
+
+== como.paso2.texto
+iTunes, then Deezer, then MusicBrainz give each track's duration and exact version. Only the artist and the title are sent.
+
+== como.paso3.titulo
+Search Soulseek
+
+== como.paso3.texto
+With the Sockseek engine and your own account, filtering by artist, title, duration and format.
+
+== como.paso4.titulo
+Check every file
+
+== como.paso4.texto
+Duration, artist, title, version, format and spectrum. Each track gets a confidence score from 0 to 100.
+
+== como.paso5.titulo
+The set folder
+
+== como.paso5.buenas
+The good ones, numbered in set order.
+
+== como.paso5.dudosas
+The ones that may be a different song or version, or whose duration doesn't match, in <code>_dudosos</code> with the reason.
+
+== como.paso5.revisar
+The ones that only need a check, in the set and flagged in the report.
+
+== como.paso5.informe
+Plus the report and the tracklist with timestamps.
+
+== capt.titulo
+Screenshots
+
+== capt.lead
+The real window of version 1.0.0, in Spanish, with a public set. The app has two themes, {{es:Hormigón}} (concrete, light) and {{es:Noche}} (night, dark): the screenshots that exist in both change with this website's theme.
+
+== capt.nuevo.alt_hormigon
+The “Nuevo set” (New set) screen in the Hormigón theme: the tracklist of a public Fjaak set in an editable table, with the set name filled in and the button to download.
+
+== capt.nuevo.alt_noche
+The “Nuevo set” (New set) screen in the Noche theme: the tracklist of a public Fjaak set in an editable table, with the set name filled in and the button to download.
+
+== capt.nuevo.titulo
+{{es:Nuevo set}} (New set)
+
+== capt.nuevo.texto
+You import the tracklist, review the table, give the set a name and press “{{es:Descargar}}” (Download).
+
+== capt.descarga.alt
+The “Descarga” (Download) screen when a set has finished: each track with its state, as an icon and text (Verificado, Dudoso, No encontrado, Ya en biblioteca, No cumple formato, Fallida, Omitida: verified, doubtful, not found, already in library, doesn't meet the format, failed, skipped), and below, the reasons for the selected track.
+
+== capt.descarga.titulo
+{{es:Descarga}} (Download)
+
+== capt.descarga.texto
+Each track with its state and, below, the reasons for the one you select. Example made with a test engine, offline.
+
+== capt.inicio.alt
+The first-run screen, “Bienvenido a Tracklister” (Welcome to Tracklister): your Soulseek account, your library folder, the format and the listening port.
+
+== capt.inicio.titulo
+First run
+
+== capt.inicio.texto
+Your own Soulseek account, your folder and your format. The account is stored in the Windows Credential Manager.
+
+== capt.ajustes.alt_hormigon
+The “Ajustes” (Settings) screen in the Hormigón theme: at the top, the theme selector and the saved Soulseek account.
+
+== capt.ajustes.alt_noche
+The “Ajustes” (Settings) screen in the Noche theme: at the top, the theme selector and the saved Soulseek account.
+
+== capt.ajustes.titulo
+{{es:Ajustes}} (Settings)
+
+== capt.ajustes.texto
+The theme, “{{es:Hormigón (claro)}}” (light) or “{{es:Noche (oscuro)}}” (dark), the account, the format, the folder, the network and the engine.
+
+== capt.repetida.alt
+The repeated-track question: use the file you already have from an earlier set or download it again into this set, with the checkbox to apply it to all the repeated tracks.
+
+== capt.repetida.titulo
+Repeated track
+
+== capt.repetida.texto
+If you already have it from an earlier set, you decide: copy it to this set or download it again.
+
+== est.titulo
+Track states
+
+== est.lead
+In “{{es:Descarga}}”, each track shows its state with an icon of its own and its name, never just a color.
+
+== est.verificado.nombre
+{{es:Verificado}} <span class="gloss">(Verified)</span>
+
+== est.verificado.texto
+The file matches its row: confidence of 80 or more.
+
+== est.verificado.donde
+In the set folder, with its number.
+
+== est.dudoso.nombre
+{{es:Dudoso}} <span class="gloss">(Doubtful)</span>
+
+== est.dudoso.texto
+Something doesn't match, and the reason says what: a different song, a different version, the duration, “{{es:posible lossless falso}}” or “{{es:revisar}}” (check it).
+
+== est.dudoso.donde
+A different song, version or duration: in <code>_dudosos</code>. Anything else: in the set, flagged.
+
+== est.no_encontrado.nombre
+{{es:No encontrado}} <span class="gloss">(Not found)</span>
+
+== est.no_encontrado.texto
+Soulseek returned no file that passes the filters.
+
+== est.no_encontrado.donde
+“{{es:Reintentar fallos}}” searches for it again.
+
+== est.ya_en_biblioteca.nombre
+{{es:Ya en biblioteca}} <span class="gloss">(Already in library)</span>
+
+== est.ya_en_biblioteca.texto
+You had it from an earlier set and chose “{{es:Usar el que ya tengo}}”.
+
+== est.ya_en_biblioteca.donde
+Copied to this set, with its number.
+
+== est.en_curso.nombre
+{{es:En curso}} <span class="gloss">(In progress)</span>
+
+== est.en_curso.texto
+It's being searched for or downloaded.
+
+== est.en_curso.donde
+Not in the set folder yet.
+
+== est.pendiente.nombre
+{{es:Pendiente}} <span class="gloss">(Pending)</span>
+
+== est.pendiente.texto
+Not searched for yet, or the download was canceled before it got there.
+
+== est.pendiente.donde
+“{{es:Continuar descarga}}” (Continue download) picks up where it left off.
+
+== est.no_cumple_formato.nombre
+{{es:No cumple formato}} <span class="gloss">(Doesn't meet the format)</span>
+
+== est.no_cumple_formato.texto
+The file arrived, but it isn't what your format asks for: for example, a VBR MP3 or one below 320 kbps.
+
+== est.no_cumple_formato.donde
+It isn't put in the set. “{{es:Reintentar fallos}}” looks for another copy.
+
+== est.fallida.nombre
+{{es:Fallida}} <span class="gloss">(Failed)</span>
+
+== est.fallida.texto
+The download failed or the file couldn't be saved: a user who doesn't respond, an engine error, a disconnected drive.
+
+== est.fallida.donde
+“{{es:Reintentar fallos}}” requests it again.
+
+== est.omitida.nombre
+{{es:Omitida}} <span class="gloss">(Skipped)</span>
+
+== est.omitida.texto
+“ID” rows (unidentified tracks) or rows unchecked in the table.
+
+== est.omitida.donde
+They aren't downloaded, but they keep their number.
+
+== fmt.titulo
+Formats
+
+== fmt.lead
+You choose your format at first run and can change it any time in “{{es:Ajustes}}”.
+
+== fmt.lossless.titulo
+{{es:Lossless (recomendado)}}
+
+== fmt.lossless.texto
+The recommended one: FLAC, WAV or AIFF. If a track is only available as MP3, it asks you once per set, with the list of those tracks, and only searches MP3 320 for the ones you tick.
+
+== fmt.cdj.titulo
+{{es:CDJ antiguos}} <span class="gloss">(Old CDJs)</span>
+
+== fmt.cdj.texto
+For CDJs older than the NXS2, which can't read FLAC: AIFF or WAV. FLACs become AIFF with the same sample rate and bit depth, their tags and their artwork. Above 48 kHz or 24 bits, they go down to 48 kHz/24-bit (88.2 and 176.4 kHz go down to 44.1), with a warning. The original stays in <code>_originales</code> (originals).
+
+== fmt.mp3.titulo
+{{es:Solo MP3 320}} <span class="gloss">(MP3 320 only)</span>
+
+== fmt.mp3.texto
+320 kbps CBR MP3, checked in the file itself. VBR, V0 included, doesn't count: it shows “{{es:No cumple formato}}”.
+
+== fmt.personalizado.titulo
+{{es:Personalizado}} <span class="gloss">(Custom)</span>
+
+== fmt.personalizado.texto
+You choose the formats, the minimum MP3 bitrate (320, 256 or 192 kbps), the maximum sample rate and bit depth, and whether it asks you about MP3 when there's no lossless.
+
+== descargar.titulo
+Download and install
+
+== descargar.lead
+For Windows 10 and 11, 64-bit. Nothing else to install, not even Python. The app's interface is in Spanish.
+
+== descargar.zip
+The zip, <code>Tracklister-&lt;version&gt;-win64.zip</code>, is in the latest release on GitHub, next to <code>SHA256SUMS.txt</code>.
+
+== descargar.paso1.titulo
+Download and extract
+
+== descargar.paso1.texto
+Right-click the zip → “Extract All…” and pick a folder of yours, for example Documents. Inside you'll find the <code>Tracklister</code> folder, with <code>Tracklister.exe</code>.
+
+== descargar.paso1.nota
+Don't open it from inside the zip or move the exe out of its folder: it needs what sits next to it (<code>_internal</code>, <code>engines</code> and <code>tools</code>).
+
+== descargar.paso2.titulo
+Get past the SmartScreen warning
+
+== descargar.paso2.texto
+Tracklister isn't digitally signed, so Windows may say “Windows protected your PC”. Click “More info”, then “Run anyway”. It usually only happens the first time.
+
+== descargar.paso3.titulo
+Check the zip (optional)
+
+== descargar.paso3.texto
+In PowerShell, in the zip's folder, this command must give the same value as <code>SHA256SUMS.txt</code>:
+
+== descargar.paso3.nota
+PowerShell prints it in uppercase; that doesn't matter.
+
+== descargar.paso4.titulo
+First run with your own account
+
+== descargar.paso4.cuenta
+Enter your Soulseek username and password: they're stored in the Windows Credential Manager, never in a file. If you don't have an account yet, make up a username and a password: Soulseek creates it the first time you connect.
+
+== descargar.paso4.carpeta
+Also choose your library folder (by default <code>Music\Tracklister</code>), the format and the listening port (49998). If a friend uses Tracklister on the same network, each of you needs a different port.
+
+== descargar.paso4.nota
+This step doesn't test the account: “{{es:Diagnóstico}}” (Diagnostics) and the first download do, and they tell you clearly if it fails. So start with a {{es:Diagnóstico}}.
+
+== descargar.paso5.titulo
+Allow the engine through the Firewall
+
+== descargar.paso5.texto
+The first time it searches Soulseek, Windows Firewall may ask about <code>sockseek.exe</code>, the download engine. Tick “Private networks” and click “Allow access”.
+
+== descargar.paso5.nota
+While you use Tracklister, don't have the same account open in Nicotine+ or any other Soulseek program: Soulseek would cut one of the two off.
+
+== descargar.guia
+The full guide, with a first set step by step and what to do if something fails: <a href="https://github.com/blessel-dev/tracklister/blob/main/docs/GUIA.md" hreflang="es" rel="noopener">Guide (in Spanish)</a>, docs/GUIA.md on GitHub.
+
+== diag.titulo
+Diagnostics
+
+== diag.texto
+“{{es:Diagnóstico}}” searches Soulseek for a few tracks without downloading them (5 by default, 20 at most) and explains which candidates turn up and why it accepts or rejects each one. It's the first thing to do when you start using Tracklister, and every time a track doesn't come out right.
+
+== diag.lleva
+It includes the Tracklister version, the engine, the Windows version, the port and, for each track, its candidates: folder and file, size, kbps, duration, score and reason.
+
+== diag.no_lleva
+It doesn't include your username, your password or your IP. The other users appear as peer-1, peer-2… and the last line confirms it.
+
+== diag.copiar
+“{{es:Copiar informe}}” (Copy report) gets it ready to paste wherever you ask for help. It's also saved in <code>%LOCALAPPDATA%\Tracklister\logs</code>.
+
+== diag.pie
+Excerpt from a sample report, in Spanish like the app, made with a test engine and offline. The folders are shortened here with “…”.
+
+== priv.titulo
+Privacy and responsible use
+
+== priv.cuenta.titulo
+Your account
+
+== priv.cuenta.texto
+Tracklister doesn't come with any account: everyone enters their own. It's stored only in the Windows Credential Manager; no Tracklister file stores it, and in logs, reports and {{es:Diagnóstico}} it's masked (<code>***</code> or <code lang="es">[censurado]</code>, “censored”).
+
+== priv.nota.p1
+<strong>An honest note about the password.</strong> The download engine (Sockseek, or sldl if you choose it) only accepts the account on its command line or in a configuration file with the password written in it. Tracklister never writes it to a file, so it passes it on the command line. While the engine is running, other programs on your PC could read it.
+
+== priv.nota.p2
+So: use a Soulseek password you don't use anywhere else, and don't download from a PC you don't trust.
+
+== priv.sale.titulo
+What leaves your PC
+
+== priv.sale.soulseek
+Soulseek searches and downloads, through the engine and with your account.
+
+== priv.sale.datos
+Each track's artist and title, to iTunes, Deezer and MusicBrainz, to fill in the details. If you turn off “{{es:Completar datos al importar}}” (Fill in details on import) in “{{es:Ajustes}}”, it only asks them when you press “{{es:Completar datos}}” (Fill in details) yourself.
+
+== priv.sale.github
+A request to GitHub to see whether there's a new version: at most once a day, and when you press “{{es:Buscar actualizaciones}}” (Check for updates) in “{{es:Ajustes}}”. It only shows a notice with the link; it never installs anything.
+
+== priv.sale.ytdlp
+When you paste a link, yt-dlp reads the description, the chapters and the comments of that YouTube or SoundCloud video or set; “{{es:Actualizar yt-dlp}}” (Update yt-dlp), when you press it, downloads its latest version.
+
+== priv.sale.nada_mas
+Nothing else: there are no usage statistics. This website doesn't use cookies or analytics either; it only asks GitHub which version is the latest.
+
+== priv.uso.titulo
+Responsible use
+
+== priv.uso.texto
+Only download music you have the right to download. Everyone uses their own account and is responsible for what they download and share.
+
+== priv.compartir.titulo
+Sharing
+
+== priv.compartir.texto
+Tracklister downloads in honest mode: it doesn't advertise shared folders on Soulseek that you don't have. Soulseek works because people share, so when you're not using Tracklister, share your music with Nicotine+. If you use both at the same time, use a different account in Nicotine+.
+
+== faq.titulo
+Frequently asked questions
+
+== faq.smartscreen.q
+Windows says “Windows protected your PC”. Is that normal?
+
+== faq.smartscreen.a1
+Yes. Tracklister isn't digitally signed, so Windows doesn't recognize it. Click “More info”, then “Run anyway”.
+
+== faq.smartscreen.a2
+If you get “Smart App Control” (Windows 11) instead and it won't let you open it, don't turn it off for this.
+
+== faq.red.q
+I get no results, or the downloads don't start.
+
+== faq.red.a
+Run a {{es:Diagnóstico}} and try this:
+
+== faq.red.puerto
+open TCP port 49998 (or the one in “{{es:Ajustes}}”) on your router, forwarded to this PC;
+
+== faq.red.firewall
+let <code>sockseek.exe</code> (or <code>sldl.exe</code>, if you use the alternative engine) through Windows Firewall, on private networks;
+
+== faq.red.nicotine
+close Nicotine+ or any other program that has the same account open;
+
+== faq.red.amigo
+if a friend uses Tracklister on the same network, use different ports;
+
+== faq.red.cgnat
+if your internet provider uses CGNAT, you won't be able to open the port: ask them for a public IP.
+
+== faq.dudoso.q
+What does “{{es:Dudoso}}” mean, and what's in the <code>_dudosos</code> folder?
+
+== faq.dudoso.a
+“{{es:Dudoso}}” (Doubtful) means something doesn't match, and the reason appears below the table and in the report.
+
+== faq.dudoso.carpeta
+“{{es:otra canción}}” (different song), “{{es:otra versión}}” (different version) or “{{es:duración}}” (duration): the file is in <code>_dudosos</code>. Fix the row in “{{es:Nuevo set}}” and download again, or press “{{es:Reintentar fallos}}”, which searches for it again, leaving out the user who sent you that file. The rejected file is never deleted.
+
+== faq.dudoso.set
+“{{es:posible lossless falso}}” (possible fake lossless) or “{{es:revisar}}” (check it): the file stays in the set, with its number, and you decide. With “{{es:revisar}}”, listen to it to confirm it's the song. With “{{es:posible lossless falso}}”, listening doesn't always settle it: a 320 MP3 converted to FLAC can sound the same.
+
+== faq.buena.q
+Why did a good track end up in <code>_dudosos</code>?
+
+== faq.buena.a
+Because the artist and the title are compared word by word, so that “Adam Port” never passes for “Adam Beyer”. The flip side: a typo in a short word, or a tag with only the surname or without the “DJ”, ends up in <code>_dudosos</code> even when it's the right song. Nothing is ever accepted silently: look at the file and decide.
+
+== faq.falso.q
+What does “{{es:posible lossless falso}}” mean?
+
+== faq.falso.a
+That the file's spectrum looks like that of an MP3 converted to FLAC or WAV (“possible fake lossless”). It's a hint, not proof: the file is never rejected for it; it stays in the set with its number, flagged in the report. The analysis can be turned off in “{{es:Ajustes}}”.
+
+== faq.vbr.q
+Why won't it accept my VBR MP3?
+
+== faq.vbr.a
+Because every format that takes MP3 requires CBR, read from the file itself: a VBR, V0 included, shows “{{es:No cumple formato}}”. In “Lossless”, “{{es:CDJ antiguos}}” and “{{es:Solo MP3 320}}” it must be 320 kbps; in “{{es:Personalizado}}” you choose the minimum. Press “{{es:Reintentar fallos}}” to look for another copy.
+
+== faq.id.q
+Why does an “ID” row keep its number?
+
+== faq.id.a
+Because each file's number is its row number in the tracklist, so the folder follows the real order of the set. “ID” rows (unidentified tracks) are left unchecked and aren't downloaded, but they keep their place: if one day you find out what it was, you type it into the table and it goes in with its number.
+
+== faq.trackid.q
+Can I paste a trackid.net link?
+
+== faq.trackid.a
+No: trackid.net doesn't let its tracklists be read automatically. Press “{{es:Abrir en trackid.net}}” (Open on trackid.net), export the CSV with “Export” and drag it into the window. If the app is open when the CSV lands in your Downloads folder, it lets you know so you can import it.
+
+== faq.idioma.q
+Is the app in English?
+
+== faq.idioma.a
+No: the app's interface is in Spanish. This page quotes its buttons and messages in Spanish, as you'll see them in the app, with an English translation in parentheses. The full guide is in Spanish too.
+
+== faq.macos.q
+Is there a macOS or Linux version?
+
+== faq.macos.a
+No. Tracklister 1.0 is for Windows 10 and 11 (64-bit) only.
+
+== faq.avisos.q
+Does it tell me when there's a new version?
+
+== faq.avisos.a
+Yes: at most once a day it checks GitHub for a new version and, if there is one, shows a notice with the link. It never installs anything by itself. To update, replace the <code>Tracklister</code> folder with the new one: your settings, your account and your library live outside it.
+
+== cred.titulo
+Credits and licenses
+
+== cred.lead
+Tracklister is free software, licensed under GPL-3.0 or later (GPL-3.0-or-later).
+
+== cred.motor
+<strong>Download engine:</strong> Sockseek 3.0.5, by fiso64 (AGPL-3.0). Alternative in “{{es:Ajustes}}”: sldl 2.6.0 (slsk-batchdl), also by fiso64 (GPL-3.0). They ship unmodified, as separate programs, and every Tracklister release on GitHub includes their source code.
+
+== cred.ytdlp
+<strong>yt-dlp</strong> (The Unlicense), to read tracklists from YouTube and SoundCloud.
+
+== cred.bibliotecas
+<strong>Qt and PySide6</strong> (LGPL-3.0), <strong>mutagen</strong> (GPL-2.0-or-later), <strong>libsndfile</strong> (LGPL-2.1-or-later, with soundfile), <strong>numpy</strong> (BSD-3-Clause and others) and the other libraries, each under its own license.
+
+== cred.tipografias
+<strong>Typefaces:</strong> Inter 4.1 and JetBrains Mono 2.304 (SIL Open Font License 1.1). This website uses a trimmed version of each (Latin characters only), with their licenses: <a href="{{v:root}}fonts/OFL-Inter.txt">Inter's OFL</a> and <a href="{{v:root}}fonts/OFL-JetBrainsMono.txt">JetBrains Mono's OFL</a>.
+
+== cred.datos
+<strong>Duration and version data:</strong> iTunes, Deezer and MusicBrainz.
+
+== cred.blessel
+<strong>The Blessel logo and name:</strong> they're the creator's signature, and the concrete texture comes from his own cover photo. As section 7(e) of the GPL-3.0 allows, the license grants no trademark rights to that name or to the logo.
+
+== cred.lista
+The full list, with versions, licenses and source code: <a href="https://github.com/blessel-dev/tracklister/blob/main/third_party/NOTICES.md" rel="noopener">NOTICES.md</a> and <a href="https://github.com/blessel-dev/tracklister/blob/main/LICENSE" rel="noopener">LICENSE</a>.
+
+# Section 12 is the short summary in the OTHER language: «En español» here, «In English» on the
+# Spanish page. Its id differs per page; data-other-id tells the language switch where to land.
+== otro.id
+en-espanol
+
+== otro.par
+in-english
+
+== otro.lang
+es
+
+== otro.titulo
+En español
+
+== otro.p1
+Tracklister es una app de escritorio gratuita para DJs, para Windows 10 y 11 (64 bits). Le das la tracklist de un set (el CSV de trackid.net, un Excel o CSV, un texto pegado o un enlace de YouTube o SoundCloud) y completa la duración y la versión exacta de cada pista con iTunes, Deezer y MusicBrainz, busca en Soulseek con tu propia cuenta y comprueba cada archivo: duración, artista, título, versión, formato y espectro.
+
+== otro.p2
+Te deja una carpeta numerada en el orden del set. Nunca acepta un archivo dudoso sin decírtelo: si puede ser otra canción u otra versión, va a <code>_dudosos</code> con el motivo. Software libre, GPL-3.0-or-later.
+
+== otro.descarga
+<a href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">Descarga la última versión en GitHub</a>.
+
+== otro.web
+Esta web también está en español: <a href="{{v:href_es}}" hreflang="es">lee la versión en español</a>.
+
+== pie.hecho
+Made by Blessel.
+
+== pie.mixcloud
+Blessel on Mixcloud
+
+== pie.mavelpoint
+Blessel on MavelPoint
+
+== pie.instagram
+Blessel on Instagram
+
+== pie.codigo
+Code on GitHub
+
+== pie.version
+Latest release
+
+== pie.licencia
+License: GPL-3.0-or-later
+
+== pie.cookies
+This website doesn't use cookies or analytics.
+
+== pie.arriba
+Back to top
+
+== visor.titulo
+Screenshot
+
+== visor.cerrar
+Close

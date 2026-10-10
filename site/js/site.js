@@ -1,10 +1,11 @@
-/* Tracklister website: theme toggle, live release line and screenshot viewer.
+/* Tracklister website: theme toggle, language switch, live release line and screenshot viewer.
    SPDX-License-Identifier: GPL-3.0-or-later
 
    Loaded in <head> (not deferred) so the saved theme applies before the page paints. Everything else
    waits for DOMContentLoaded. No cookies and no analytics: the only request that leaves the site is
    one anonymous GET to api.github.com for the latest release (tag and zip size), cached for the tab
-   session. If it fails, the page keeps «Última versión en GitHub» and says nothing. */
+   session. If it fails, the page keeps its «Última versión en GitHub» / «Latest release on GitHub»
+   and says nothing. Every text comes from the page itself (Spanish or English), never from here. */
 (function () {
   "use strict";
 
@@ -72,7 +73,54 @@
     });
   }
 
-  // ---- «Versión 1.0.0 · 132 MB · Windows 10/11 (64 bits)» --------------------------------------
+  // ---- language switch: plain links to the same page in the other language -------------------
+  // With JS they keep the current #section: the URL's fragment (set by the section links, a shared
+  // link or «Volver arriba»), if it names an element of this page. Both pages share their ids,
+  // except the section in the other language, which names its twin with data-other-id.
+  function sectionHash() {
+    var id = window.location.hash.slice(1);
+    if (!id) {
+      return "";
+    }
+    try {
+      id = decodeURIComponent(id);
+    } catch (e) {
+      return "";
+    }
+    var el = document.getElementById(id);
+    if (!el) {
+      return "";
+    }
+    var twin = el.closest ? el.closest("[data-other-id]") : null;
+    return "#" + encodeURIComponent(twin ? twin.getAttribute("data-other-id") : id);
+  }
+
+  function initLangSwitch() {
+    var links = document.querySelectorAll(".lang-switch a[hreflang]:not([aria-current])");
+    if (!links.length) {
+      return;
+    }
+    var bases = [];
+    for (var i = 0; i < links.length; i++) {
+      bases.push(links[i].getAttribute("href").split("#")[0]);
+    }
+    function update() {
+      var hash = sectionHash();
+      for (var j = 0; j < links.length; j++) {
+        links[j].setAttribute("href", bases[j] + hash);
+      }
+    }
+    window.addEventListener("hashchange", update);
+    for (var k = 0; k < links.length; k++) {
+      // and right before the browser follows the link, however it is opened
+      links[k].addEventListener("focus", update);
+      links[k].addEventListener("pointerdown", update);
+      links[k].addEventListener("click", update);
+    }
+    update();
+  }
+
+  // ---- «Versión 1.0.0 · 132 MB» / «Version 1.0.0 · 132 MB» -------------------------------------
   function releaseInfo(data) {
     if (!data || typeof data.tag_name !== "string") {
       return null;
@@ -93,8 +141,8 @@
     return { version: m[1], size: size };
   }
 
-  function releaseText(info) {
-    var text = "Versión " + info.version;
+  function releaseText(info, label) {
+    var text = label + " " + info.version;
     if (info.size > 0) {
       text += " · " + Math.round(info.size / 1048576) + " MB";
     }
@@ -103,8 +151,9 @@
 
   function showRelease(info) {
     var el = document.getElementById("release-version");
-    if (el && info) {
-      el.textContent = releaseText(info);
+    var label = el ? el.getAttribute("data-label") : "";
+    if (el && info && label) {
+      el.textContent = releaseText(info, label);
     }
   }
 
@@ -146,7 +195,7 @@
         /* no session storage: it is asked again on the next visit */
       }
     }).catch(function () {
-      /* offline, rate-limited or blocked: keep «Última versión en GitHub», silently */
+      /* offline, rate-limited or blocked: keep the page's fallback line, silently */
     });
   }
 
@@ -159,6 +208,7 @@
     var figure = dialog.querySelector(".viewer-figure");
     var caption = document.getElementById("visor-titulo");
     var close = dialog.querySelector(".viewer-close");
+    var defaultTitle = caption.textContent;      // «Captura» / «Screenshot», from the page
     var opener = null;
 
     function clear() {
@@ -188,7 +238,7 @@
       figure.appendChild(big);
       var fig = link.closest("figure");
       var title = fig ? fig.querySelector("figcaption strong") : null;
-      caption.textContent = title ? title.textContent : "Captura";
+      caption.textContent = title ? title.textContent : defaultTitle;
       dialog.showModal();
       close.focus();
     });
@@ -212,6 +262,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     initThemeToggle();
+    initLangSwitch();
     initRelease();
     initViewer();
   });

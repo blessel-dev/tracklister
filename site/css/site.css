@@ -247,11 +247,14 @@ kbd {
   background-image: url("../img/brand/header-noche.jpg");
 }
 
+/* Row 1: the lockup, then (at the right) the language switch, the theme toggle and GitHub; the
+   section links get a row of their own. On a phone the switch stays next to the lockup and the
+   theme toggle and GitHub wrap below. The DOM order is the visual order, so is the tab order. */
 .header-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem 1.5rem;
+  gap: 0.75rem;
   padding-block: 0.9rem;
 }
 
@@ -268,7 +271,7 @@ kbd {
 }
 
 .site-nav {
-  flex: 1 1 auto;
+  flex: 1 1 100%;
 }
 
 .site-nav ul {
@@ -292,11 +295,50 @@ kbd {
   text-decoration-thickness: 2px;
 }
 
-.header-tools {
+/* Language switch: plain links to the same page in the other language (site.js keeps the section).
+   The current language is inverted like the active theme AND underlined, so it never relies on
+   colour (the underline also survives Windows contrast themes). */
+.lang-switch {
+  margin-left: auto;
+}
+
+.lang-switch ul {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  border: var(--border-strong) solid var(--line-strong);
+  background: var(--surface);
+}
+
+.lang-switch li + li {
+  border-left: var(--border) solid var(--line-strong);
+}
+
+.lang-switch a {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-left: auto;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.6rem;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.lang-switch a:hover {
+  background: var(--selection);
+  color: var(--on-selection);
+}
+
+.lang-switch a[aria-current="page"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
 }
 
 .theme-toggle {
@@ -362,17 +404,9 @@ kbd {
   color: var(--on-selection);
 }
 
-@media (max-width: 60rem) {
-  .site-nav {
-    order: 3;
-    flex-basis: 100%;
-  }
-}
-
 @media (max-width: 26rem) {
-  .header-tools {
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  .header-row {
+    column-gap: 0.5rem;
   }
 
   .theme-toggle .toggle-label {
@@ -382,6 +416,10 @@ kbd {
   .theme-toggle button,
   .gh-link {
     padding-inline: 0.55rem;
+  }
+
+  .lang-switch a {
+    padding-inline: 0.5rem;
   }
 }
 
@@ -435,6 +473,12 @@ kbd {
   font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
   font-size: 0.875rem;
   color: var(--ink-muted);
+}
+
+/* English page only: «The app's interface is in Spanish.», right below the download button */
+.hero-note {
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
 .nowrap {
@@ -506,6 +550,20 @@ kbd {
 }
 
 .muted {
+  color: var(--ink-muted);
+}
+
+/* English page: the translation after a Spanish label of the app, e.g. «Verificado (Verified)» */
+.gloss {
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+/* 404.html: the English line of the bilingual title */
+.title-alt {
+  display: block;
+  margin-top: 0.35em;
+  font-size: 0.6em;
   color: var(--ink-muted);
 }
 

@@ -9,10 +9,30 @@ The same inputs give byte-identical output, locally and in .github/workflows/pag
 standard library plus the pinned site tools in site/requirements-site.lock.txt (fontTools and
 brotli, for the WOFF2 fonts).
 
+The landing page exists in two languages, built from ONE template so they never drift apart:
+- site/index.html is the template. It is rendered once per language in LANGS: Spanish to
+  index.html (https://blessel-dev.github.io/tracklister/) and English to en/index.html
+  (https://blessel-dev.github.io/tracklister/en/). Its marks:
+    {{t:KEY}}       the string KEY of site/i18n/<lang>.txt, as HTML;
+    {{attr:KEY}}    the same string as an attribute value (plain text, escaped here);
+    {{v:NAME}}      a value from page_vars(): lang, root (the relative path back to the site root),
+                    url (the page's canonical URL), the hreflang URLs, the switch links...;
+    {{only:LANG}}...{{/only}}  markup that only that language has (the English page's notes that
+                    the app's interface is in Spanish);
+    {{icon:NAME}}   the brand's single-path SVG icon src/tracklister/assets/icons/NAME.svg, inlined
+                    and coloured by CSS (currentColor).
+  Inside a string, {{es:TEXT}} is Spanish text on another language's page (the app's labels):
+  <span lang="es">TEXT</span>, so screen readers say it in Spanish. A string may use {{v:...}} and
+  {{icon:...}} too. Every key the template uses must exist in each language file, and every key of a
+  language file must be used: a missing or a left-over string stops the build.
+- site/i18n/<lang>.txt: one entry per key, a line "== key" followed by its text up to the next
+  "== " line (blank lines around it do not count). A line starting with "#" is a comment, wherever
+  it is (write &#35; for a text that starts with "#").
+- site/404.html is one bilingual page (GitHub Pages serves a single 404 for the whole site), with
+  root-relative /tracklister/ paths; only its {{icon:...}} marks are rendered.
+
 What it copies into --out:
-- site/: index.html, 404.html, css/, js/ (and img/, if site-only images are ever added). In the
-  HTML, every {{icon:NAME}} mark becomes the brand's single-path SVG icon
-  src/tracklister/assets/icons/NAME.svg, inlined and coloured by CSS (currentColor);
+- site/: the two landing pages, 404.html, css/, js/ (and img/, if site-only images are ever added);
 - css/tokens.css, written from src/tracklister/assets/tokens.json (the Hormigon and Noche colours),
   so the site never drifts from the app's palette;
 - img/: the README images, docs/readme/**/*.png (screenshots, logo, social preview, state icons);
@@ -23,13 +43,16 @@ What it copies into --out:
 Before it finishes it checks the result and exits 1 on any problem: every local href, src and CSS
 url() resolves; every same-page #anchor exists; every <img> has width and height with the file's
 own aspect ratio; there is no inline script, <style> element, style="" or on*="" attribute (the
-pages' CSP forbids them); and no {{...}} mark is left.
+pages' CSP forbids them); no {{...}} mark is left; and each landing page has its <html lang>, its
+canonical URL and the reciprocal hreflang links (es, en, x-default -> Spanish) to pages that exist.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import json
+import posixpath
 import re
 import shutil
 import struct
@@ -43,12 +66,19 @@ REPO = Path(__file__).resolve().parents[1]
 SITE = REPO / "site"
 ASSETS = REPO / "src" / "tracklister" / "assets"
 README_IMAGES = REPO / "docs" / "readme"
+I18N = SITE / "i18n"
 
 # site/ entries that are build inputs, not pages
-NOT_PUBLISHED = {"build.py", "requirements-site.lock.txt", "__pycache__"}
+NOT_PUBLISHED = {"build.py", "requirements-site.lock.txt", "__pycache__", "i18n"}
 # where the 404 page is served from on GitHub Pages (404.html must use root-relative paths, because
 # GitHub serves it for missing URLs at any depth)
 BASE_PATH = "/tracklister/"
+SITE_URL = "https://blessel-dev.github.io/tracklister/"
+PAGE_TEMPLATE = "index.html"      # site/index.html, rendered once per language
+LANGS = (  # (language, output folder under --out, og:locale); the first one is x-default
+    ("es", "", "es_ES"),
+    ("en", "en/", "en_US"),
+)
 
 BRAND = {  # src/tracklister/assets/<key> -> <out>/<value>
     "lockup/header-ink@2x.png": "img/brand/header-ink@2x.png",
@@ -69,15 +99,20 @@ FONTS = (  # (source in assets/fonts, output in fonts/)
     ("JetBrainsMono-Regular.ttf", "jetbrains-mono-400.woff2"),
 )
 FONT_LICENCES = ("OFL-Inter.txt", "OFL-JetBrainsMono.txt")
-# Basic Latin, Latin-1 Supplement and Latin Extended-A (Spanish, and names such as "Dārin"), plus
-# general punctuation (dashes, quotes, ellipsis, bullets), the euro and trade marks, arrows,
-# multiplication/minus signs and <= / >=.
+# Basic Latin, Latin-1 Supplement and Latin Extended-A (Spanish, English, and names such as
+# "Dārin"), plus general punctuation (dashes, curly quotes, ellipsis, bullets), the euro and trade
+# marks, arrows, multiplication/minus signs and <= / >=.
 UNICODE_RANGES = ((0x0020, 0x007E), (0x00A0, 0x017F), (0x2000, 0x206F), (0x20AC, 0x20AC),
                   (0x2122, 0x2122), (0x2190, 0x2193), (0x2212, 0x2212), (0x2264, 0x2265))
 
 MARKER = ".site-build"            # written into --out; a folder without it is never wiped
 TEXT_SUFFIXES = {".html", ".css", ".js", ".txt", ".svg", ".json", ".xml", ".webmanifest"}
 ICON_MARK = re.compile(r"\{\{icon:([a-z0-9_\-]+)\}\}")
+STRING_MARK = re.compile(r"\{\{(t|attr):([a-z0-9_.\-]+)\}\}")
+VAR_MARK = re.compile(r"\{\{v:([a-z0-9_]+)\}\}")
+ONLY_BLOCK = re.compile(r"\{\{only:([a-z]+)\}\}(.*?)\{\{/only\}\}", re.S)
+SPANISH_PART = re.compile(r"\{\{es:(.+?)\}\}", re.S)
+KEY = re.compile(r"[a-z0-9_.\-]+")
 
 
 class BuildError(Exception):
@@ -105,6 +140,91 @@ def icon_svg(name: str) -> str:
 
 def render_html(text: str) -> str:
     return ICON_MARK.sub(lambda m: icon_svg(m.group(1)), text)
+
+
+def read_strings(path: Path) -> dict[str, str]:
+    """site/i18n/<lang>.txt -> {key: text}. See the module docstring for the format."""
+    if not path.is_file():
+        raise BuildError(f"faltan los textos {path.relative_to(REPO)}")
+    entries: dict[str, str] = {}
+    key: str | None = None
+    lines: list[str] = []
+
+    def flush() -> None:
+        if key is not None:
+            entries[key] = "\n".join(line.rstrip() for line in lines).strip("\n")
+
+    for n, line in enumerate(lf(path.read_bytes()).decode("utf-8").split("\n"), 1):
+        if line.startswith("#"):
+            continue
+        if line.startswith("== "):
+            flush()
+            key, lines = line[3:].strip(), []
+            if not KEY.fullmatch(key):
+                raise BuildError(f"{path.name}:{n}: clave rara {key!r}")
+            if key in entries:
+                raise BuildError(f"{path.name}:{n}: clave repetida {key!r}")
+        elif key is None:
+            if line.strip():
+                raise BuildError(f"{path.name}:{n}: texto antes de la primera clave")
+        else:
+            lines.append(line)
+    flush()
+    return entries
+
+
+def page_vars(lang: str, folder: str, locale: str) -> dict[str, str]:
+    """The {{v:NAME}} values of one language's page."""
+    here = folder.rstrip("/") or "."
+    out = {
+        "lang": lang,
+        "root": "../" * folder.count("/"),
+        "url": SITE_URL + folder,
+        "locale": locale,
+        "locale_alt": " ".join(loc for code, _, loc in LANGS if code != lang),
+    }
+    for code, other_folder, _ in LANGS:
+        out[f"url_{code}"] = SITE_URL + other_folder
+        out[f"href_{code}"] = posixpath.relpath(other_folder + "index.html", here)
+        out[f"current_{code}"] = ' aria-current="page"' if code == lang else ""
+    return out
+
+
+def render_page(template: str, lang: str, strings: dict[str, str], values: dict[str, str]) -> tuple[str, set[str]]:
+    """One language's landing page and the string keys it used."""
+    def only(m: re.Match) -> str:
+        if m.group(1) not in {code for code, _, _ in LANGS}:
+            raise BuildError(f"{PAGE_TEMPLATE}: {{{{only:{m.group(1)}}}}} de un idioma desconocido")
+        return m.group(2) if m.group(1) == lang else ""
+
+    text = ONLY_BLOCK.sub(only, template)
+    if "{{only:" in text or "{{/only}}" in text:
+        raise BuildError(f"{PAGE_TEMPLATE}: un bloque {{{{only:...}}}} sin cerrar o anidado")
+    used: set[str] = set()
+
+    def string(m: re.Match) -> str:
+        kind, key = m.group(1), m.group(2)
+        if key not in strings:
+            raise BuildError(f"i18n/{lang}.txt: falta la clave {key!r}")
+        used.add(key)
+        value = strings[key]
+        if STRING_MARK.search(value) or ONLY_BLOCK.search(value):
+            raise BuildError(f"i18n/{lang}.txt: {key!r} no puede llevar otras marcas de texto")
+        if kind == "attr":
+            if "\n" in value or "<" in value or "{{" in value:
+                raise BuildError(f"i18n/{lang}.txt: {key!r} va en un atributo: una sola línea, sin HTML")
+            return html.escape(value, quote=True)
+        return SPANISH_PART.sub(lambda s: f'<span lang="es">{s.group(1)}</span>', value)
+
+    text = STRING_MARK.sub(string, text)
+
+    def var(m: re.Match) -> str:
+        if m.group(1) not in values:
+            raise BuildError(f"{PAGE_TEMPLATE}: variable desconocida {{{{v:{m.group(1)}}}}}")
+        return values[m.group(1)]
+
+    text = VAR_MARK.sub(var, text)
+    return render_html(text), used
 
 
 def tokens_css(tokens: dict) -> str:
@@ -190,12 +310,29 @@ def copy_file(src: Path, dst: Path) -> None:
     dst.write_bytes(data)
 
 
-def copy_site(out: Path) -> None:
+def build_pages(out: Path) -> list[str]:
+    """The landing page in every language of LANGS; returns one summary line per language."""
+    template = lf((SITE / PAGE_TEMPLATE).read_bytes()).decode("utf-8")
+    summary = []
+    for lang, folder, locale in LANGS:
+        strings = read_strings(I18N / f"{lang}.txt")
+        page, used = render_page(template, lang, strings, page_vars(lang, folder, locale))
+        unused = sorted(set(strings) - used)
+        if unused:
+            raise BuildError(f"i18n/{lang}.txt: textos que la plantilla no usa: {', '.join(unused)}")
+        dst = out / folder / "index.html"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(page.encode("utf-8"))
+        summary.append(f"{lang}: {(folder or '') + 'index.html'}, {len(used)} textos")
+    return summary
+
+
+def copy_site(out: Path) -> list[str]:
     for src in sorted(SITE.rglob("*")):
         rel = src.relative_to(SITE)
         if any(part in NOT_PUBLISHED for part in rel.parts) or not src.is_file():
             continue
-        if src.suffix in (".pyc", ".py"):
+        if src.suffix in (".pyc", ".py") or rel.as_posix() == PAGE_TEMPLATE:
             continue
         dst = out / rel
         if src.suffix.lower() == ".html":
@@ -204,6 +341,7 @@ def copy_site(out: Path) -> None:
             dst.write_bytes(render_html(text).encode("utf-8"))
         else:
             copy_file(src, dst)
+    return build_pages(out)
 
 
 def copy_readme_images(out: Path, readme_dir: Path) -> int:
@@ -262,12 +400,18 @@ class PageScan(HTMLParser):
         self.refs: list[tuple[str, str, int]] = []      # (attribute, value, line)
         self.ids: set[str] = set()
         self.imgs: list[tuple[dict, int]] = []
+        self.links: list[dict] = []                     # <link> attributes
+        self.html_lang = ""
         self.problems: list[str] = []
         self._in_script = False
 
     def handle_starttag(self, tag, attrs):
         a = {k: (v or "") for k, v in attrs}
         line = self.getpos()[0]
+        if tag == "html":
+            self.html_lang = a.get("lang", "")
+        if tag == "link":
+            self.links.append(a)
         if "id" in a:
             self.ids.add(a["id"])
         for k in a:
@@ -319,8 +463,37 @@ def resolve_local(out: Path, page: Path, ref: str) -> Path | None:
     return target
 
 
+def check_languages(out: Path, scans: dict[str, PageScan]) -> list[str]:
+    """<html lang>, canonical and reciprocal hreflang links of the landing pages."""
+    problems: list[str] = []
+    expected = {code: SITE_URL + folder for code, folder, _ in LANGS}
+    expected["x-default"] = SITE_URL + LANGS[0][1]
+    for lang, folder, _ in LANGS:
+        rel = folder + "index.html"
+        scan = scans.get(rel)
+        if scan is None:
+            problems.append(f"{rel}: no existe")
+            continue
+        if scan.html_lang != lang:
+            problems.append(f"{rel}: <html lang={scan.html_lang!r}>, se esperaba {lang!r}")
+        canon = [a.get("href") for a in scan.links if a.get("rel") == "canonical"]
+        if canon != [SITE_URL + folder]:
+            problems.append(f"{rel}: canonical {canon}, se esperaba {SITE_URL + folder}")
+        alt = {a.get("hreflang"): a.get("href") for a in scan.links if a.get("rel") == "alternate"}
+        if alt != expected:
+            problems.append(f"{rel}: hreflang {alt}, se esperaba {expected}")
+        for url in alt.values():
+            if not (url or "").startswith(SITE_URL):
+                continue
+            target = out / url[len(SITE_URL):] / "index.html"
+            if not target.is_file():
+                problems.append(f"{rel}: hreflang a {url}, que no existe en el sitio")
+    return problems
+
+
 def check(out: Path) -> list[str]:
     problems: list[str] = []
+    scans: dict[str, PageScan] = {}
     for page in sorted(out.rglob("*.html")):
         rel = page.relative_to(out).as_posix()
         text = page.read_text(encoding="utf-8")
@@ -329,6 +502,7 @@ def check(out: Path) -> list[str]:
         scan = PageScan()
         scan.feed(text)
         scan.close()
+        scans[rel] = scan
         problems += [f"{rel}: {p}" for p in scan.problems]
         for attr, ref, line in scan.refs:
             if ref.startswith("#") and len(ref) > 1 and unquote(ref[1:]) not in scan.ids:
@@ -349,6 +523,7 @@ def check(out: Path) -> list[str]:
             if size and abs((w / h) - (size[0] / size[1])) > 0.01 * (size[0] / size[1]):
                 problems.append(f"{rel}:{line}: {a.get('src')} mide {size[0]}x{size[1]}, "
                                 f"pero width/height dicen {w}x{h}")
+    problems += check_languages(out, scans)
     for css in sorted(out.rglob("*.css")):
         rel = css.relative_to(out).as_posix()
         for m in re.finditer(r"url\(\s*['\"]?([^'\")]+)['\"]?\s*\)", css.read_text(encoding="utf-8")):
@@ -371,7 +546,7 @@ def tree_digest(out: Path) -> tuple[int, int, str]:
 
 def build(out: Path, readme_dir: Path) -> int:
     prepare_out(out)
-    copy_site(out)
+    pages = copy_site(out)
     tokens = json.loads((ASSETS / "tokens.json").read_text(encoding="utf-8"))
     (out / "css").mkdir(parents=True, exist_ok=True)
     (out / "css" / "tokens.css").write_bytes(tokens_css(tokens).encode("utf-8"))
@@ -380,6 +555,7 @@ def build(out: Path, readme_dir: Path) -> int:
     build_fonts(out)
     problems = check(out)
     files, total, digest = tree_digest(out)
+    print(f"páginas: {'; '.join(pages)}")
     print(f"site: {files} archivos, {total / 1024:.0f} KB, {n_images} imágenes del README, sha256 {digest}")
     for p in problems:
         print(f"ERROR {p}")

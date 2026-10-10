@@ -1,61 +1,71 @@
 <!doctype html>
-<html lang="es" data-theme="hormigon">
+<html lang="{{v:lang}}" data-theme="hormigon">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src https://api.github.com; style-src 'self'; script-src 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tracklister · De la tracklist de un set a una carpeta de música verificada</title>
-  <meta name="description" content="App gratuita para Windows 10 y 11: convierte la tracklist de un set de DJ en una carpeta con la música de Soulseek comprobada archivo por archivo y numerada en el orden del set.">
-  <link rel="canonical" href="https://blessel-dev.github.io/tracklister/">
+  <title>{{t:head.title}}</title>
+  <meta name="description" content="{{attr:head.description}}">
+  <link rel="canonical" href="{{v:url}}">
+  <link rel="alternate" hreflang="es" href="{{v:url_es}}">
+  <link rel="alternate" hreflang="en" href="{{v:url_en}}">
+  <link rel="alternate" hreflang="x-default" href="{{v:url_es}}">
   <meta name="theme-color" content="#afafaf">
   <meta property="og:type" content="website">
-  <meta property="og:locale" content="es_ES">
+  <meta property="og:locale" content="{{v:locale}}">
+  <meta property="og:locale:alternate" content="{{v:locale_alt}}">
   <meta property="og:site_name" content="Tracklister">
-  <meta property="og:title" content="Tracklister: de la tracklist de un set a una carpeta de música verificada">
-  <meta property="og:description" content="App gratuita para Windows 10 y 11. Lee la tracklist, busca en Soulseek con tu cuenta, comprueba cada archivo y te deja la carpeta del set numerada en orden.">
-  <meta property="og:url" content="https://blessel-dev.github.io/tracklister/">
+  <meta property="og:title" content="{{attr:head.og_title}}">
+  <meta property="og:description" content="{{attr:head.og_description}}">
+  <meta property="og:url" content="{{v:url}}">
   <meta property="og:image" content="https://blessel-dev.github.io/tracklister/img/social-preview.png">
   <meta property="og:image:width" content="1280">
   <meta property="og:image:height" content="640">
-  <meta property="og:image:alt" content="Tracklister by Blessel: la ventana de la app sobre la textura de hormigón.">
+  <meta property="og:image:alt" content="{{attr:head.og_image_alt}}">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Tracklister: de la tracklist de un set a una carpeta de música verificada">
-  <meta name="twitter:description" content="App gratuita para Windows 10 y 11. Lee la tracklist, busca en Soulseek con tu cuenta, comprueba cada archivo y te deja la carpeta del set numerada en orden.">
+  <meta name="twitter:title" content="{{attr:head.og_title}}">
+  <meta name="twitter:description" content="{{attr:head.og_description}}">
   <meta name="twitter:image" content="https://blessel-dev.github.io/tracklister/img/social-preview.png">
-  <meta name="twitter:image:alt" content="Tracklister by Blessel: la ventana de la app sobre la textura de hormigón.">
-  <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="icon" href="img/brand/tracklister-32.png" type="image/png" sizes="32x32">
-  <link rel="apple-touch-icon" href="img/brand/tracklister-256.png">
-  <link rel="stylesheet" href="css/tokens.css">
-  <link rel="stylesheet" href="css/site.css">
-  <script src="js/site.js"></script>
+  <meta name="twitter:image:alt" content="{{attr:head.og_image_alt}}">
+  <link rel="icon" href="{{v:root}}favicon.ico" sizes="any">
+  <link rel="icon" href="{{v:root}}img/brand/tracklister-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="{{v:root}}img/brand/tracklister-256.png">
+  <link rel="stylesheet" href="{{v:root}}css/tokens.css">
+  <link rel="stylesheet" href="{{v:root}}css/site.css">
+  <script src="{{v:root}}js/site.js"></script>
 </head>
 <body>
-  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <!-- One template for the Spanish (index.html) and English (en/index.html) pages: site/build.py
+       fills in the texts of site/i18n/es.txt and site/i18n/en.txt. -->
+  <a class="skip-link" href="#contenido">{{t:skip}}</a>
 
   <header class="site-header" id="inicio">
     <div class="wrap header-row">
       <a class="brand" href="#inicio">
-        <img class="only-hormigon" src="img/brand/header-ink@2x.png" width="214" height="40" alt="Tracklister by Blessel" loading="lazy" decoding="async">
-        <img class="only-noche" src="img/brand/header-light@2x.png" width="214" height="40" alt="Tracklister by Blessel" loading="lazy" decoding="async">
+        <img class="only-hormigon" src="{{v:root}}img/brand/header-ink@2x.png" width="214" height="40" alt="Tracklister by Blessel" loading="lazy" decoding="async">
+        <img class="only-noche" src="{{v:root}}img/brand/header-light@2x.png" width="214" height="40" alt="Tracklister by Blessel" loading="lazy" decoding="async">
       </a>
-      <nav class="site-nav" aria-label="Secciones">
+      <nav class="lang-switch" aria-label="{{attr:lang.label}}">
         <ul>
-          <li><a href="#que-hace">Qué hace</a></li>
-          <li><a href="#como-funciona">Cómo funciona</a></li>
-          <li><a href="#capturas">Capturas</a></li>
-          <li><a href="#descargar">Descargar</a></li>
-          <li><a href="#preguntas">Preguntas</a></li>
+          <li><a href="{{v:href_es}}" hreflang="es" lang="es"{{v:current_es}}>ES</a></li>
+          <li><a href="{{v:href_en}}" hreflang="en" lang="en"{{v:current_en}}>EN</a></li>
         </ul>
       </nav>
-      <div class="header-tools">
-        <div class="theme-toggle" role="group" aria-labelledby="tema-etiqueta" hidden>
-          <span class="toggle-label" id="tema-etiqueta">Tema</span>
-          <button type="button" data-theme-choice="hormigon" aria-pressed="true">Hormigón</button>
-          <button type="button" data-theme-choice="noche" aria-pressed="false">Noche</button>
-        </div>
-        <a class="gh-link" href="https://github.com/blessel-dev/tracklister" rel="noopener">{{icon:ui-enlace}}<span>GitHub</span></a>
+      <div class="theme-toggle" role="group" aria-labelledby="tema-etiqueta" hidden>
+        <span class="toggle-label" id="tema-etiqueta">{{t:tema.label}}</span>
+        <button type="button" lang="es" data-theme-choice="hormigon" aria-pressed="true">Hormigón</button>
+        <button type="button" lang="es" data-theme-choice="noche" aria-pressed="false">Noche</button>
       </div>
+      <a class="gh-link" href="https://github.com/blessel-dev/tracklister" rel="noopener">{{icon:ui-enlace}}<span>GitHub</span></a>
+      <nav class="site-nav" aria-label="{{attr:nav.label}}">
+        <ul>
+          <li><a href="#que-hace">{{t:nav.que_hace}}</a></li>
+          <li><a href="#como-funciona">{{t:nav.como_funciona}}</a></li>
+          <li><a href="#capturas">{{t:nav.capturas}}</a></li>
+          <li><a href="#descargar">{{t:nav.descargar}}</a></li>
+          <li><a href="#preguntas">{{t:nav.preguntas}}</a></li>
+        </ul>
+      </nav>
     </div>
   </header>
 
@@ -63,18 +73,19 @@
     <section class="hero" aria-labelledby="titulo">
       <div class="wrap hero-grid">
         <div class="hero-copy slab">
-          <p class="eyebrow">App gratuita para DJs · Windows 10/11</p>
+          <p class="eyebrow">{{t:hero.eyebrow}}</p>
           <h1 id="titulo">Tracklister</h1>
-          <p class="tagline">De la tracklist de un set a una carpeta de música verificada de Soulseek, numerada en el orden del set.</p>
+          <p class="tagline">{{t:hero.tagline}}</p>
           <div class="cta-row">
-            <a class="btn btn-primary" href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">Descargar para Windows</a>
-            <a class="btn btn-secondary" href="https://github.com/blessel-dev/tracklister" rel="noopener">Ver el código en GitHub</a>
+            <a class="btn btn-primary" href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">{{t:descargar.boton}}</a>
+            <a class="btn btn-secondary" href="https://github.com/blessel-dev/tracklister" rel="noopener">{{t:hero.codigo}}</a>
           </div>
-          <p class="release-line"><span class="nowrap" id="release-version">Última versión en GitHub</span> · <span class="nowrap">Windows 10/11 (64 bits)</span></p>
+          <p class="release-line"><span class="nowrap" id="release-version" data-label="{{attr:hero.version}}">{{t:hero.ultima_version}}</span> · <span class="nowrap">{{t:hero.plataforma}}</span></p>
+          {{only:en}}<p class="hero-note">{{t:hero.idioma_app}}</p>{{/only}}
         </div>
         <figure class="hero-shot">
-          <img class="only-hormigon" src="img/nuevo-set-hormigon.png" width="1280" height="900" fetchpriority="high" decoding="async" alt="La pantalla «Nuevo set» de Tracklister en el tema Hormigón, con la tracklist de un set público de Fjaak en la tabla, lista para descargar.">
-          <img class="only-noche" src="img/nuevo-set-noche.png" width="1280" height="900" loading="lazy" decoding="async" alt="La pantalla «Nuevo set» de Tracklister en el tema Noche, con la tracklist de un set público de Fjaak en la tabla, lista para descargar.">
+          <img class="only-hormigon" src="{{v:root}}img/nuevo-set-hormigon.png" width="1280" height="900" fetchpriority="high" decoding="async" alt="{{attr:hero.alt_hormigon}}">
+          <img class="only-noche" src="{{v:root}}img/nuevo-set-noche.png" width="1280" height="900" loading="lazy" decoding="async" alt="{{attr:hero.alt_noche}}">
         </figure>
       </div>
     </section>
@@ -83,41 +94,41 @@
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">01</p>
-          <h2 id="que-hace-titulo">Qué hace</h2>
-          <p class="lead">Le das la tracklist de un set y te devuelve sus pistas en una carpeta, comprobadas una a una y con el número de su sitio en el set. Cada uno la usa con su propia cuenta de Soulseek.</p>
+          <h2 id="que-hace-titulo">{{t:que.titulo}}</h2>
+          <p class="lead">{{t:que.lead}}</p>
         </div>
         <div class="grid">
           <article class="card">
-            <h3>{{icon:ui-carpeta}}Una carpeta en el orden del set</h3>
-            <p>Cada archivo se llama <code>01 - Artista - Título (Versión).flac</code>, con el número de su fila en la tracklist, nunca el del orden de descarga. Nunca sobrescribe nada.</p>
-            <p>Para tus carpetas de antes está «Reordenar»: les pone el número de la tracklist, con vista previa y «Deshacer el último reordenado».</p>
+            <h3>{{icon:ui-carpeta}}{{t:que.orden.titulo}}</h3>
+            <p>{{t:que.orden.p1}}</p>
+            <p>{{t:que.orden.p2}}</p>
           </article>
           <article class="card">
-            <h3>{{icon:ui-pegar}}Lee la tracklist venga de donde venga</h3>
+            <h3>{{icon:ui-pegar}}{{t:que.lee.titulo}}</h3>
             <ul>
-              <li>el CSV de trackid.net (arrastrar y soltar; te avisa si te llega uno a Descargas);</li>
-              <li>Excel y CSV;</li>
-              <li>texto pegado de 1001tracklists, MixesDB o un comentario;</li>
-              <li>un enlace de YouTube o SoundCloud: elige la mejor tracklist entre la descripción, los capítulos y los comentarios, y puedes cambiarla por otra.</li>
+              <li>{{t:que.lee.trackid}}</li>
+              <li>{{t:que.lee.excel}}</li>
+              <li>{{t:que.lee.texto}}</li>
+              <li>{{t:que.lee.enlace}}</li>
             </ul>
-            <p>Todo pasa por una tabla que puedes corregir antes de descargar.</p>
+            <p>{{t:que.lee.tabla}}</p>
           </article>
           <article class="card">
-            <h3>{{icon:ui-diagnostico}}Comprueba cada archivo</h3>
-            <p>Duración, artista, título y versión (Original, Extended, Remix, Radio Edit), los números del título («Dust 1» no es «Dust 2»), el formato y el espectro.</p>
-            <p>Nunca acepta un archivo dudoso sin decírtelo: si puede ser otra canción u otra versión, o la duración no cuadra, va a <code>_dudosos</code> con su motivo. Si solo hay que revisarlo, se queda en el set, marcado.</p>
+            <h3>{{icon:ui-diagnostico}}{{t:que.comprueba.titulo}}</h3>
+            <p>{{t:que.comprueba.p1}}</p>
+            <p>{{t:que.comprueba.p2}}</p>
           </article>
           <article class="card">
-            <h3>{{icon:ui-ajustes}}Respeta tu formato</h3>
-            <p>Lossless, «CDJ antiguos» (AIFF o WAV, y los FLAC pasan a AIFF), «Solo MP3 320» o Personalizado. El formato se comprueba en el propio archivo, no en su nombre.</p>
+            <h3>{{icon:ui-ajustes}}{{t:que.formato.titulo}}</h3>
+            <p>{{t:que.formato.p1}}</p>
           </article>
           <article class="card">
-            <h3>{{icon:state-ya_en_biblioteca}}Sabe lo que ya tienes</h3>
-            <p>Si una pista ya está en un set anterior, te pregunta: «Usar el que ya tengo (copiar a este set)» o «Descargar de nuevo en este set». Repetir un set no vuelve a bajar lo que ya está.</p>
+            <h3>{{icon:state-ya_en_biblioteca}}{{t:que.biblioteca.titulo}}</h3>
+            <p>{{t:que.biblioteca.p1}}</p>
           </article>
           <article class="card">
-            <h3>{{icon:ui-copiar}}Reintentos, informe y tracklist</h3>
-            <p>«Reintentar fallos» busca otra copia sin el usuario que dio el archivo rechazado. Cada set lleva su informe, y «Copiar tracklist» te da el texto con tiempos para Mixcloud o Instagram.</p>
+            <h3>{{icon:ui-copiar}}{{t:que.reintentos.titulo}}</h3>
+            <p>{{t:que.reintentos.p1}}</p>
           </article>
         </div>
       </div>
@@ -127,41 +138,41 @@
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">02</p>
-          <h2 id="por-que-titulo">Por qué</h2>
-          <p class="lead">Bajar un set entero de Soulseek a mano, o por lotes, suele acabar en tres problemas. Tracklister está hecho para evitarlos.</p>
+          <h2 id="por-que-titulo">{{t:porque.titulo}}</h2>
+          <p class="lead">{{t:porque.lead}}</p>
         </div>
         <div class="problems">
           <article class="problem">
             <div class="problem-q">
-              <p class="tag">Problema 1</p>
-              <h3>Canciones equivocadas</h3>
-              <p>Un archivo con un nombre parecido pasa por bueno: otro artista, otra versión, un radio edit en vez de la original o «Dust 2» en vez de «Dust 1».</p>
+              <p class="tag">{{t:porque.problema}} 1</p>
+              <h3>{{t:porque.p1.titulo}}</h3>
+              <p>{{t:porque.p1.problema}}</p>
             </div>
             <div>
-              <p class="tag">Cómo lo evita</p>
-              <p>Antes de buscar, completa la duración y la versión exacta de cada pista, y con ellas filtra la búsqueda. Después comprueba cada archivo: duración, artista y título palabra por palabra, versión y números del título. Si puede ser otra canción u otra versión, el archivo va a <code>_dudosos</code> con el motivo y nunca entra en el set como si fuera bueno.</p>
+              <p class="tag">{{t:porque.como}}</p>
+              <p>{{t:porque.p1.solucion}}</p>
             </div>
           </article>
           <article class="problem">
             <div class="problem-q">
-              <p class="tag">Problema 2</p>
-              <h3>Formatos equivocados</h3>
-              <p>Un MP3 de menos calidad o VBR, un FLAC que tus CDJ no leen, un WAV que por dentro no es lossless o un FLAC que en realidad viene de un MP3.</p>
+              <p class="tag">{{t:porque.problema}} 2</p>
+              <h3>{{t:porque.p2.titulo}}</h3>
+              <p>{{t:porque.p2.problema}}</p>
             </div>
             <div>
-              <p class="tag">Cómo lo evita</p>
-              <p>Eliges un formato y se comprueba en el propio archivo: un MP3 tiene que ser CBR de 320 kbps (en «Personalizado» eliges el mínimo), un WAV o AIFF tiene que llevar PCM, y en «CDJ antiguos» los FLAC se convierten a AIFF. Si no cumple, sale «No cumple formato». El análisis de espectro marca un «posible lossless falso» para que decidas tú si te vale.</p>
+              <p class="tag">{{t:porque.como}}</p>
+              <p>{{t:porque.p2.solucion}}</p>
             </div>
           </article>
           <article class="problem">
             <div class="problem-q">
-              <p class="tag">Problema 3</p>
-              <h3>Archivos desordenados</h3>
-              <p>Los archivos llegan en el orden en que se descargan y con el nombre que les puso cada usuario, así que luego toca renombrarlos uno a uno.</p>
+              <p class="tag">{{t:porque.problema}} 3</p>
+              <h3>{{t:porque.p3.titulo}}</h3>
+              <p>{{t:porque.p3.problema}}</p>
             </div>
             <div>
-              <p class="tag">Cómo lo evita</p>
-              <p>Cada archivo lleva el número de su fila de la tracklist y un nombre limpio, <code>NN - Artista - Título (Versión).ext</code>. Si un nombre ya existe, añade « (2)»: nunca sobrescribe.</p>
+              <p class="tag">{{t:porque.como}}</p>
+              <p>{{t:porque.p3.solucion}}</p>
             </div>
           </article>
         </div>
@@ -172,33 +183,33 @@
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">03</p>
-          <h2 id="como-funciona-titulo">Cómo funciona</h2>
-          <p class="lead">Cinco pasos, de la tracklist a la carpeta del set.</p>
+          <h2 id="como-funciona-titulo">{{t:como.titulo}}</h2>
+          <p class="lead">{{t:como.lead}}</p>
         </div>
         <ol class="flow">
           <li>
-            <h3>Trae la tracklist</h3>
-            <p>El CSV de trackid.net, un Excel o CSV, un texto pegado o un enlace de YouTube o SoundCloud. La revisas en una tabla que puedes editar.</p>
+            <h3>{{t:como.paso1.titulo}}</h3>
+            <p>{{t:como.paso1.texto}}</p>
           </li>
           <li>
-            <h3>Completar datos</h3>
-            <p>iTunes, luego Deezer y luego MusicBrainz dan la duración y la versión exacta de cada pista. Solo se envían el artista y el título.</p>
+            <h3>{{t:como.paso2.titulo}}</h3>
+            <p>{{t:como.paso2.texto}}</p>
           </li>
           <li>
-            <h3>Busca en Soulseek</h3>
-            <p>Con el motor Sockseek y tu propia cuenta, filtrando por artista, título, duración y formato.</p>
+            <h3>{{t:como.paso3.titulo}}</h3>
+            <p>{{t:como.paso3.texto}}</p>
           </li>
           <li>
-            <h3>Comprueba cada archivo</h3>
-            <p>Duración, artista, título, versión, formato y espectro. Cada pista recibe una confianza de 0 a 100.</p>
+            <h3>{{t:como.paso4.titulo}}</h3>
+            <p>{{t:como.paso4.texto}}</p>
           </li>
           <li>
-            <h3>Carpeta del set</h3>
+            <h3>{{t:como.paso5.titulo}}</h3>
             <ul class="outcomes">
-              <li>Las buenas, numeradas en el orden del set.</li>
-              <li>Las que pueden ser otra canción u otra versión, o no cuadran en duración, en <code>_dudosos</code> con el motivo.</li>
-              <li>Las que solo hay que revisar, en el set y marcadas en el informe.</li>
-              <li>Y el informe y la tracklist con tiempos.</li>
+              <li>{{t:como.paso5.buenas}}</li>
+              <li>{{t:como.paso5.dudosas}}</li>
+              <li>{{t:como.paso5.revisar}}</li>
+              <li>{{t:como.paso5.informe}}</li>
             </ul>
           </li>
         </ol>
@@ -209,31 +220,31 @@
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">04</p>
-          <h2 id="capturas-titulo">Capturas</h2>
-          <p class="lead">La ventana real de la versión 1.0.0, con un set público. La app tiene dos temas, Hormigón y Noche: las capturas que existen en los dos cambian con el tema de esta web.</p>
+          <h2 id="capturas-titulo">{{t:capt.titulo}}</h2>
+          <p class="lead">{{t:capt.lead}}</p>
         </div>
         <div class="gallery">
           <figure>
-            <a class="shot only-hormigon" href="img/nuevo-set-hormigon.png"><img src="img/nuevo-set-hormigon.png" width="1280" height="900" loading="lazy" decoding="async" alt="La pantalla «Nuevo set» en el tema Hormigón: la tracklist de un set público de Fjaak en una tabla editable, con el nombre del set escrito y el botón para descargar."></a>
-            <a class="shot only-noche" href="img/nuevo-set-noche.png"><img src="img/nuevo-set-noche.png" width="1280" height="900" loading="lazy" decoding="async" alt="La pantalla «Nuevo set» en el tema Noche: la tracklist de un set público de Fjaak en una tabla editable, con el nombre del set escrito y el botón para descargar."></a>
-            <figcaption><strong>Nuevo set</strong> Importas la tracklist, revisas la tabla, le pones nombre al set y pulsas «Descargar».</figcaption>
+            <a class="shot only-hormigon" href="{{v:root}}img/nuevo-set-hormigon.png"><img src="{{v:root}}img/nuevo-set-hormigon.png" width="1280" height="900" loading="lazy" decoding="async" alt="{{attr:capt.nuevo.alt_hormigon}}"></a>
+            <a class="shot only-noche" href="{{v:root}}img/nuevo-set-noche.png"><img src="{{v:root}}img/nuevo-set-noche.png" width="1280" height="900" loading="lazy" decoding="async" alt="{{attr:capt.nuevo.alt_noche}}"></a>
+            <figcaption><strong>{{t:capt.nuevo.titulo}}</strong> {{t:capt.nuevo.texto}}</figcaption>
           </figure>
           <figure>
-            <a class="shot" href="img/descarga-hormigon.png"><img src="img/descarga-hormigon.png" width="1280" height="1130" loading="lazy" decoding="async" alt="La pantalla «Descarga» al terminar un set: cada pista con su estado, con icono y texto (Verificado, Dudoso, No encontrado, Ya en biblioteca, No cumple formato, Fallida, Omitida), y debajo los motivos de la pista seleccionada."></a>
-            <figcaption><strong>Descarga</strong> Cada pista con su estado y, debajo, los motivos de la que selecciones. Ejemplo hecho con un motor de prueba, sin conexión.</figcaption>
+            <a class="shot" href="{{v:root}}img/descarga-hormigon.png"><img src="{{v:root}}img/descarga-hormigon.png" width="1280" height="1130" loading="lazy" decoding="async" alt="{{attr:capt.descarga.alt}}"></a>
+            <figcaption><strong>{{t:capt.descarga.titulo}}</strong> {{t:capt.descarga.texto}}</figcaption>
           </figure>
           <figure>
-            <a class="shot" href="img/primer-inicio-hormigon.png"><img src="img/primer-inicio-hormigon.png" width="1280" height="900" loading="lazy" decoding="async" alt="La pantalla de primer inicio, «Bienvenido a Tracklister»: tu cuenta de Soulseek, la carpeta de tu biblioteca, el formato y el puerto de escucha."></a>
-            <figcaption><strong>Primer inicio</strong> Tu propia cuenta de Soulseek, tu carpeta y tu formato. La cuenta se guarda en el Administrador de credenciales de Windows.</figcaption>
+            <a class="shot" href="{{v:root}}img/primer-inicio-hormigon.png"><img src="{{v:root}}img/primer-inicio-hormigon.png" width="1280" height="900" loading="lazy" decoding="async" alt="{{attr:capt.inicio.alt}}"></a>
+            <figcaption><strong>{{t:capt.inicio.titulo}}</strong> {{t:capt.inicio.texto}}</figcaption>
           </figure>
           <figure>
-            <a class="shot only-hormigon" href="img/ajustes-hormigon.png"><img src="img/ajustes-hormigon.png" width="1280" height="900" loading="lazy" decoding="async" alt="La pantalla «Ajustes» en el tema Hormigón: arriba, el selector de tema y la cuenta de Soulseek guardada."></a>
-            <a class="shot only-noche" href="img/ajustes-noche.png"><img src="img/ajustes-noche.png" width="1280" height="900" loading="lazy" decoding="async" alt="La pantalla «Ajustes» en el tema Noche: arriba, el selector de tema y la cuenta de Soulseek guardada."></a>
-            <figcaption><strong>Ajustes</strong> El tema «Hormigón (claro)» o «Noche (oscuro)», la cuenta, el formato, la carpeta, la red y el motor.</figcaption>
+            <a class="shot only-hormigon" href="{{v:root}}img/ajustes-hormigon.png"><img src="{{v:root}}img/ajustes-hormigon.png" width="1280" height="900" loading="lazy" decoding="async" alt="{{attr:capt.ajustes.alt_hormigon}}"></a>
+            <a class="shot only-noche" href="{{v:root}}img/ajustes-noche.png"><img src="{{v:root}}img/ajustes-noche.png" width="1280" height="900" loading="lazy" decoding="async" alt="{{attr:capt.ajustes.alt_noche}}"></a>
+            <figcaption><strong>{{t:capt.ajustes.titulo}}</strong> {{t:capt.ajustes.texto}}</figcaption>
           </figure>
           <figure class="wide">
-            <a class="shot small-shot" href="img/repetida-hormigon.png"><img src="img/repetida-hormigon.png" width="564" height="229" loading="lazy" decoding="async" alt="La pregunta de pista repetida: usar el archivo que ya tienes de un set anterior o descargarlo de nuevo en este set, con la casilla para aplicarlo a todos los repetidos."></a>
-            <figcaption><strong>Pista repetida</strong> Si ya la tienes de un set anterior, decides tú: copiarla a este set o descargarla de nuevo.</figcaption>
+            <a class="shot small-shot" href="{{v:root}}img/repetida-hormigon.png"><img src="{{v:root}}img/repetida-hormigon.png" width="564" height="229" loading="lazy" decoding="async" alt="{{attr:capt.repetida.alt}}"></a>
+            <figcaption><strong>{{t:capt.repetida.titulo}}</strong> {{t:capt.repetida.texto}}</figcaption>
           </figure>
         </div>
       </div>
@@ -243,37 +254,37 @@
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">05</p>
-          <h2 id="estados-titulo">Estados de cada pista</h2>
-          <p class="lead">En «Descarga», cada pista lleva su estado con un icono propio y su nombre, nunca solo un color.</p>
+          <h2 id="estados-titulo">{{t:est.titulo}}</h2>
+          <p class="lead">{{t:est.lead}}</p>
         </div>
         <ul class="states">
-          <li class="state">{{icon:state-verificado}}<span class="state-name st-verificado">Verificado</span>
-            <p>El archivo cuadra con su fila: confianza de 80 o más.</p>
-            <p class="where">En la carpeta del set, con su número.</p></li>
-          <li class="state">{{icon:state-dudoso}}<span class="state-name st-dudoso">Dudoso</span>
-            <p>Algo no cuadra, y el motivo lo dice: otra canción, otra versión, la duración, «posible lossless falso» o «revisar».</p>
-            <p class="where">Otra canción, versión o duración: en <code>_dudosos</code>. Lo demás: en el set, marcado.</p></li>
-          <li class="state">{{icon:state-no_encontrado}}<span class="state-name st-no-encontrado">No encontrado</span>
-            <p>Soulseek no dio ningún archivo que pase los filtros.</p>
-            <p class="where">«Reintentar fallos» la vuelve a buscar.</p></li>
-          <li class="state">{{icon:state-ya_en_biblioteca}}<span class="state-name st-ya-en-biblioteca">Ya en biblioteca</span>
-            <p>La tenías de un set anterior y elegiste «Usar el que ya tengo».</p>
-            <p class="where">Copiada a este set, con su número.</p></li>
-          <li class="state">{{icon:state-en_curso}}<span class="state-name st-en-curso">En curso</span>
-            <p>Se está buscando o descargando.</p>
-            <p class="where">Aún no está en la carpeta del set.</p></li>
-          <li class="state">{{icon:state-pendiente}}<span class="state-name st-pendiente">Pendiente</span>
-            <p>Aún no se ha buscado, o la descarga se canceló antes de llegar a ella.</p>
-            <p class="where">«Continuar descarga» sigue por donde iba.</p></li>
-          <li class="state">{{icon:state-no_cumple_formato}}<span class="state-name st-no-cumple-formato">No cumple formato</span>
-            <p>El archivo llegó, pero no es lo que pide tu formato: por ejemplo, un MP3 VBR o de menos de 320 kbps.</p>
-            <p class="where">No se pone en el set. «Reintentar fallos» busca otra copia.</p></li>
-          <li class="state">{{icon:state-fallida}}<span class="state-name st-fallida">Fallida</span>
-            <p>La descarga falló o no se pudo guardar el archivo: un usuario que no responde, un error del motor, un disco desconectado.</p>
-            <p class="where">«Reintentar fallos» la vuelve a pedir.</p></li>
-          <li class="state">{{icon:state-omitida}}<span class="state-name st-omitida">Omitida</span>
-            <p>Filas «ID» (pistas sin identificar) o desmarcadas en la tabla.</p>
-            <p class="where">No se descargan, pero conservan su número.</p></li>
+          <li class="state">{{icon:state-verificado}}<span class="state-name st-verificado">{{t:est.verificado.nombre}}</span>
+            <p>{{t:est.verificado.texto}}</p>
+            <p class="where">{{t:est.verificado.donde}}</p></li>
+          <li class="state">{{icon:state-dudoso}}<span class="state-name st-dudoso">{{t:est.dudoso.nombre}}</span>
+            <p>{{t:est.dudoso.texto}}</p>
+            <p class="where">{{t:est.dudoso.donde}}</p></li>
+          <li class="state">{{icon:state-no_encontrado}}<span class="state-name st-no-encontrado">{{t:est.no_encontrado.nombre}}</span>
+            <p>{{t:est.no_encontrado.texto}}</p>
+            <p class="where">{{t:est.no_encontrado.donde}}</p></li>
+          <li class="state">{{icon:state-ya_en_biblioteca}}<span class="state-name st-ya-en-biblioteca">{{t:est.ya_en_biblioteca.nombre}}</span>
+            <p>{{t:est.ya_en_biblioteca.texto}}</p>
+            <p class="where">{{t:est.ya_en_biblioteca.donde}}</p></li>
+          <li class="state">{{icon:state-en_curso}}<span class="state-name st-en-curso">{{t:est.en_curso.nombre}}</span>
+            <p>{{t:est.en_curso.texto}}</p>
+            <p class="where">{{t:est.en_curso.donde}}</p></li>
+          <li class="state">{{icon:state-pendiente}}<span class="state-name st-pendiente">{{t:est.pendiente.nombre}}</span>
+            <p>{{t:est.pendiente.texto}}</p>
+            <p class="where">{{t:est.pendiente.donde}}</p></li>
+          <li class="state">{{icon:state-no_cumple_formato}}<span class="state-name st-no-cumple-formato">{{t:est.no_cumple_formato.nombre}}</span>
+            <p>{{t:est.no_cumple_formato.texto}}</p>
+            <p class="where">{{t:est.no_cumple_formato.donde}}</p></li>
+          <li class="state">{{icon:state-fallida}}<span class="state-name st-fallida">{{t:est.fallida.nombre}}</span>
+            <p>{{t:est.fallida.texto}}</p>
+            <p class="where">{{t:est.fallida.donde}}</p></li>
+          <li class="state">{{icon:state-omitida}}<span class="state-name st-omitida">{{t:est.omitida.nombre}}</span>
+            <p>{{t:est.omitida.texto}}</p>
+            <p class="where">{{t:est.omitida.donde}}</p></li>
         </ul>
       </div>
     </section>
@@ -282,25 +293,25 @@
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">06</p>
-          <h2 id="formatos-titulo">Formatos</h2>
-          <p class="lead">Lo eliges en el primer inicio y lo cambias cuando quieras en «Ajustes».</p>
+          <h2 id="formatos-titulo">{{t:fmt.titulo}}</h2>
+          <p class="lead">{{t:fmt.lead}}</p>
         </div>
         <div class="grid grid-4">
           <article class="card">
-            <h3>Lossless (recomendado)</h3>
-            <p>FLAC, WAV o AIFF. Si alguna pista solo está en MP3, te pregunta una vez por set, con la lista de esas pistas, y solo busca en MP3 320 las que marques.</p>
+            <h3>{{t:fmt.lossless.titulo}}</h3>
+            <p>{{t:fmt.lossless.texto}}</p>
           </article>
           <article class="card">
-            <h3>CDJ antiguos</h3>
-            <p>Para CDJ anteriores al NXS2, que no leen FLAC: AIFF o WAV. Los FLAC pasan a AIFF con el mismo sample rate y bits, sus tags y su carátula. Si pasan de 48 kHz o 24 bits, bajan a 48 kHz/24 bits (88,2 y 176,4 kHz bajan a 44,1), con aviso. El original queda en <code>_originales</code>.</p>
+            <h3>{{t:fmt.cdj.titulo}}</h3>
+            <p>{{t:fmt.cdj.texto}}</p>
           </article>
           <article class="card">
-            <h3>Solo MP3 320</h3>
-            <p>MP3 CBR de 320 kbps, comprobado en el propio archivo. El VBR, también el V0, no vale: sale «No cumple formato».</p>
+            <h3>{{t:fmt.mp3.titulo}}</h3>
+            <p>{{t:fmt.mp3.texto}}</p>
           </article>
           <article class="card">
-            <h3>Personalizado</h3>
-            <p>Eliges los formatos, el MP3 mínimo (320, 256 o 192 kbps), el sample rate y los bits máximos, y si te pregunta por MP3 cuando no hay lossless.</p>
+            <h3>{{t:fmt.personalizado.titulo}}</h3>
+            <p>{{t:fmt.personalizado.texto}}</p>
           </article>
         </div>
       </div>
@@ -310,42 +321,42 @@
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">07</p>
-          <h2 id="descargar-titulo">Descargar e instalar</h2>
-          <p class="lead">Para Windows 10 y 11 de 64 bits. No hay que instalar nada más, tampoco Python.</p>
+          <h2 id="descargar-titulo">{{t:descargar.titulo}}</h2>
+          <p class="lead">{{t:descargar.lead}}</p>
         </div>
         <div class="download-box slab">
-          <a class="btn btn-primary" href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">Descargar para Windows</a>
-          <p>El zip <code>Tracklister-&lt;versión&gt;-win64.zip</code> está en la última versión publicada en GitHub, junto a <code>SHA256SUMS.txt</code>.</p>
+          <a class="btn btn-primary" href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">{{t:descargar.boton}}</a>
+          <p>{{t:descargar.zip}}</p>
         </div>
         <ol class="steps">
           <li>
-            <h3>Descarga y descomprime</h3>
-            <p>Clic derecho en el zip → «Extraer todo…» y elige una carpeta tuya, por ejemplo Documentos. Dentro queda la carpeta <code>Tracklister</code>, con <code>Tracklister.exe</code>.</p>
-            <p class="muted">No lo abras desde dentro del zip ni saques el exe de su carpeta: necesita lo que tiene al lado (<code>_internal</code>, <code>engines</code> y <code>tools</code>).</p>
+            <h3>{{t:descargar.paso1.titulo}}</h3>
+            <p>{{t:descargar.paso1.texto}}</p>
+            <p class="muted">{{t:descargar.paso1.nota}}</p>
           </li>
           <li>
-            <h3>Pasa el aviso de SmartScreen</h3>
-            <p>Tracklister no está firmado digitalmente, así que Windows puede decir «Windows protegió su PC». Pulsa «Más información» y luego «Ejecutar de todas formas». Normalmente solo pasa la primera vez.</p>
+            <h3>{{t:descargar.paso2.titulo}}</h3>
+            <p>{{t:descargar.paso2.texto}}</p>
           </li>
           <li>
-            <h3>Comprueba el zip (opcional)</h3>
-            <p>En PowerShell, en la carpeta del zip, este comando tiene que dar el mismo valor que pone en <code>SHA256SUMS.txt</code>:</p>
+            <h3>{{t:descargar.paso3.titulo}}</h3>
+            <p>{{t:descargar.paso3.texto}}</p>
             <pre><code>Get-FileHash .\Tracklister-*-win64.zip -Algorithm SHA256</code></pre>
-            <p class="muted">PowerShell lo escribe en mayúsculas; eso da igual.</p>
+            <p class="muted">{{t:descargar.paso3.nota}}</p>
           </li>
           <li>
-            <h3>Primer inicio con tu propia cuenta</h3>
-            <p>Pon tu usuario y tu contraseña de Soulseek: se guardan en el Administrador de credenciales de Windows, nunca en un archivo. Si aún no tienes cuenta, inventa un usuario y una contraseña: Soulseek la crea la primera vez que conectas.</p>
-            <p>Elige también la carpeta de tu biblioteca (de serie, <code>Música\Tracklister</code>), el formato y el puerto de escucha (49998). Si otro amigo usa Tracklister en tu misma red, cada uno necesita un puerto distinto.</p>
-            <p class="muted">En este paso no se prueba la cuenta: lo hacen el Diagnóstico y la primera descarga, que te dicen claramente si falla. Por eso, empieza por un Diagnóstico.</p>
+            <h3>{{t:descargar.paso4.titulo}}</h3>
+            <p>{{t:descargar.paso4.cuenta}}</p>
+            <p>{{t:descargar.paso4.carpeta}}</p>
+            <p class="muted">{{t:descargar.paso4.nota}}</p>
           </li>
           <li>
-            <h3>Permite el motor en el Firewall</h3>
-            <p>La primera vez que busque en Soulseek, el Firewall de Windows puede preguntar por <code>sockseek.exe</code>, el motor de descarga. Marca «Redes privadas» y pulsa «Permitir acceso».</p>
-            <p class="muted">Mientras uses Tracklister, no tengas la misma cuenta abierta en Nicotine+ ni en otro programa de Soulseek: Soulseek cortaría una de las dos.</p>
+            <h3>{{t:descargar.paso5.titulo}}</h3>
+            <p>{{t:descargar.paso5.texto}}</p>
+            <p class="muted">{{t:descargar.paso5.nota}}</p>
           </li>
         </ol>
-        <p class="after-steps">La guía completa, con el primer set paso a paso y qué hacer si algo falla: <a href="https://github.com/blessel-dev/tracklister/blob/main/docs/GUIA.md" rel="noopener">docs/GUIA.md en GitHub</a>.</p>
+        <p class="after-steps">{{t:descargar.guia}}</p>
       </div>
     </section>
 
@@ -354,19 +365,19 @@
         <div>
           <div class="section-head">
             <p class="index" aria-hidden="true">08</p>
-            <h2 id="diagnostico-titulo">Diagnóstico</h2>
+            <h2 id="diagnostico-titulo">{{t:diag.titulo}}</h2>
           </div>
           <div class="prose">
-            <p>Busca unas pocas pistas en Soulseek sin descargarlas (5 de serie, como mucho 20) y explica qué candidatos aparecen y por qué acepta o rechaza cada uno. Es lo primero que conviene hacer al estrenar Tracklister, y cada vez que una pista no sale bien.</p>
+            <p>{{t:diag.texto}}</p>
             <ul>
-              <li>Lleva la versión de Tracklister, el motor, la versión de Windows, el puerto y, por cada pista, sus candidatos: carpeta y archivo, tamaño, kbps, duración, puntuación y motivo.</li>
-              <li>No lleva tu usuario, tu contraseña ni tu IP. Los demás usuarios salen como peer-1, peer-2… y la última línea lo confirma.</li>
-              <li>«Copiar informe» lo deja listo para pegarlo donde pidas ayuda. También se guarda en <code>%LOCALAPPDATA%\Tracklister\logs</code>.</li>
+              <li>{{t:diag.lleva}}</li>
+              <li>{{t:diag.no_lleva}}</li>
+              <li>{{t:diag.copiar}}</li>
             </ul>
           </div>
         </div>
         <figure class="report">
-          <pre><code>Diagnóstico de Tracklister
+          <pre lang="es"><code>Diagnóstico de Tracklister
 
 Tracklister 1.0.0  |  Motor sockseek-3.0.5  |  Windows 11 (build 10.0.26100)
 Puerto de escucha: 49998
@@ -376,7 +387,7 @@ Puerto de escucha: 49998
     - peer-2 | …\02 - Blasha &amp; Allatt - 8AM in Salford.flac | 41.3 MB | ? kbps | 6:01 | 100/100 | elegido: aceptable: confianza 100/100
 
 Comprobación: este informe no contiene tu usuario, tu contraseña ni direcciones IP; los usuarios de Soulseek aparecen como peer-1, peer-2...</code></pre>
-          <figcaption class="muted">Extracto de un informe de ejemplo, hecho con un motor de prueba y sin conexión. Aquí las carpetas van recortadas con «…».</figcaption>
+          <figcaption class="muted">{{t:diag.pie}}</figcaption>
         </figure>
       </div>
     </section>
@@ -385,30 +396,30 @@ Comprobación: este informe no contiene tu usuario, tu contraseña ni direccione
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">09</p>
-          <h2 id="privacidad-titulo">Privacidad y uso responsable</h2>
+          <h2 id="privacidad-titulo">{{t:priv.titulo}}</h2>
         </div>
         <div class="two-col">
           <div class="prose">
-            <h3>Tu cuenta</h3>
-            <p>Tracklister no lleva ninguna cuenta: cada persona pone la suya. Se guarda solo en el Administrador de credenciales de Windows; ningún archivo de Tracklister la guarda, y en registros, informes y Diagnóstico sale tapada (<code>***</code> o <code>[censurado]</code>).</p>
+            <h3>{{t:priv.cuenta.titulo}}</h3>
+            <p>{{t:priv.cuenta.texto}}</p>
             <div class="note">
-              <p><strong>Una nota honesta sobre la contraseña.</strong> El motor de descarga (Sockseek, o sldl si lo eliges) solo acepta la cuenta por su línea de comandos o en un archivo de configuración con la contraseña escrita. Tracklister nunca la escribe en un archivo, así que se la pasa por la línea de comandos. Mientras el motor está en marcha, otros programas de tu PC podrían leerla.</p>
-              <p>Por eso: usa en Soulseek una contraseña que no uses en ningún otro sitio, y no descargues desde un PC en el que no confíes.</p>
+              <p>{{t:priv.nota.p1}}</p>
+              <p>{{t:priv.nota.p2}}</p>
             </div>
-            <h3>Qué sale de tu PC</h3>
+            <h3>{{t:priv.sale.titulo}}</h3>
             <ul>
-              <li>Las búsquedas y descargas de Soulseek, a través del motor y con tu cuenta.</li>
-              <li>El artista y el título de cada pista a iTunes, Deezer y MusicBrainz, para completar datos. Si apagas «Completar datos al importar» en «Ajustes», solo les pregunta cuando pulsas tú «Completar datos».</li>
-              <li>Una pregunta a GitHub para saber si hay versión nueva: como mucho una vez al día, y cuando pulsas «Buscar actualizaciones» en «Ajustes». Solo muestra un aviso con el enlace; nunca instala nada.</li>
-              <li>Cuando pegas un enlace, yt-dlp lee la descripción, los capítulos y los comentarios de ese vídeo o set de YouTube o SoundCloud; «Actualizar yt-dlp», cuando lo pulsas, baja su última versión.</li>
+              <li>{{t:priv.sale.soulseek}}</li>
+              <li>{{t:priv.sale.datos}}</li>
+              <li>{{t:priv.sale.github}}</li>
+              <li>{{t:priv.sale.ytdlp}}</li>
             </ul>
-            <p>Nada más: no hay estadísticas de uso. Esta web tampoco usa cookies ni analítica; solo pregunta a GitHub cuál es la última versión.</p>
+            <p>{{t:priv.sale.nada_mas}}</p>
           </div>
           <div class="prose">
-            <h3>Uso responsable</h3>
-            <p>Descarga solo música que tengas derecho a descargar. Cada persona usa su cuenta y es responsable de lo que descarga y comparte.</p>
-            <h3>Compartir</h3>
-            <p>Tracklister descarga en modo honesto: no anuncia en Soulseek carpetas compartidas que no tienes. Soulseek funciona porque la gente comparte, así que cuando no uses Tracklister, comparte tu música con Nicotine+. Si usas los dos a la vez, pon otra cuenta en Nicotine+.</p>
+            <h3>{{t:priv.uso.titulo}}</h3>
+            <p>{{t:priv.uso.texto}}</p>
+            <h3>{{t:priv.compartir.titulo}}</h3>
+            <p>{{t:priv.compartir.texto}}</p>
           </div>
         </div>
       </div>
@@ -418,79 +429,85 @@ Comprobación: este informe no contiene tu usuario, tu contraseña ni direccione
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">10</p>
-          <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+          <h2 id="preguntas-titulo">{{t:faq.titulo}}</h2>
         </div>
         <div class="faq">
           <details>
-            <summary><span>Windows dice «Windows protegió su PC». ¿Es normal?</span></summary>
+            <summary><span>{{t:faq.smartscreen.q}}</span></summary>
             <div class="answer">
-              <p>Sí. Tracklister no está firmado digitalmente, así que Windows no lo conoce. Pulsa «Más información» y luego «Ejecutar de todas formas».</p>
-              <p>Si en vez de eso sale «Control inteligente de aplicaciones» (Windows 11) y no te deja abrirlo, no lo desactives por esto.</p>
+              <p>{{t:faq.smartscreen.a1}}</p>
+              <p>{{t:faq.smartscreen.a2}}</p>
             </div>
           </details>
           <details>
-            <summary><span>No me llega ningún resultado, o las descargas no arrancan.</span></summary>
+            <summary><span>{{t:faq.red.q}}</span></summary>
             <div class="answer">
-              <p>Haz un Diagnóstico y prueba esto:</p>
+              <p>{{t:faq.red.a}}</p>
               <ul>
-                <li>abre el puerto TCP 49998 (o el que tengas en «Ajustes») en el router, hacia este PC;</li>
-                <li>deja pasar a <code>sockseek.exe</code> (o a <code>sldl.exe</code>, si usas el motor alternativo) en el Firewall de Windows, en redes privadas;</li>
-                <li>cierra Nicotine+ u otro programa que tenga abierta la misma cuenta;</li>
-                <li>si otro amigo usa Tracklister en tu misma red, usad puertos distintos;</li>
-                <li>si tu operador usa CGNAT, no podrás abrir el puerto: pídele una IP pública.</li>
+                <li>{{t:faq.red.puerto}}</li>
+                <li>{{t:faq.red.firewall}}</li>
+                <li>{{t:faq.red.nicotine}}</li>
+                <li>{{t:faq.red.amigo}}</li>
+                <li>{{t:faq.red.cgnat}}</li>
               </ul>
             </div>
           </details>
           <details>
-            <summary><span>¿Qué es «Dudoso» y qué hay en la carpeta <code>_dudosos</code>?</span></summary>
+            <summary><span>{{t:faq.dudoso.q}}</span></summary>
             <div class="answer">
-              <p>«Dudoso» quiere decir que algo no cuadra, y el motivo sale debajo de la tabla y en el informe.</p>
+              <p>{{t:faq.dudoso.a}}</p>
               <ul>
-                <li>«otra canción», «otra versión» o «duración»: el archivo está en <code>_dudosos</code>. Corrige la fila en «Nuevo set» y vuelve a descargar, o pulsa «Reintentar fallos», que la busca otra vez sin el usuario que te dio ese archivo. El archivo rechazado nunca se borra.</li>
-                <li>«posible lossless falso» o «revisar»: el archivo se queda en el set, con su número, y decides tú. Con «revisar», escúchalo para confirmar que es la canción. Con «posible lossless falso», escucharlo no siempre lo resuelve: un MP3 de 320 convertido a FLAC puede sonar igual.</li>
+                <li>{{t:faq.dudoso.carpeta}}</li>
+                <li>{{t:faq.dudoso.set}}</li>
               </ul>
             </div>
           </details>
           <details>
-            <summary><span>¿Por qué una pista buena ha acabado en <code>_dudosos</code>?</span></summary>
+            <summary><span>{{t:faq.buena.q}}</span></summary>
             <div class="answer">
-              <p>Porque el artista y el título se comparan palabra por palabra, para que «Adam Port» nunca pase por «Adam Beyer». A cambio, una errata en una palabra corta, una etiqueta con solo el apellido o sin el «DJ» acaban en <code>_dudosos</code> aunque sea la canción buena. Nunca se acepta nada en silencio: mira el archivo y decide tú.</p>
+              <p>{{t:faq.buena.a}}</p>
             </div>
           </details>
           <details>
-            <summary><span>¿Qué significa «posible lossless falso»?</span></summary>
+            <summary><span>{{t:faq.falso.q}}</span></summary>
             <div class="answer">
-              <p>Que el espectro del archivo parece el de un MP3 convertido a FLAC o WAV. Es una pista, no una prueba: el archivo nunca se rechaza por eso, se queda en el set con su número y la marca en el informe. El análisis se puede apagar en «Ajustes».</p>
+              <p>{{t:faq.falso.a}}</p>
             </div>
           </details>
           <details>
-            <summary><span>¿Por qué no acepta mi MP3 VBR?</span></summary>
+            <summary><span>{{t:faq.vbr.q}}</span></summary>
             <div class="answer">
-              <p>Porque en los formatos con MP3 se exige CBR, leído en el propio archivo: un VBR, también el V0, sale «No cumple formato». En «Lossless», «CDJ antiguos» y «Solo MP3 320» tiene que ser de 320 kbps; en «Personalizado» eliges el mínimo. Pulsa «Reintentar fallos» para buscar otra copia.</p>
+              <p>{{t:faq.vbr.a}}</p>
             </div>
           </details>
           <details>
-            <summary><span>¿Por qué una fila «ID» conserva su número?</span></summary>
+            <summary><span>{{t:faq.id.q}}</span></summary>
             <div class="answer">
-              <p>Porque el número de cada archivo es el de su fila en la tracklist, así la carpeta sigue el orden real del set. Las filas «ID» (pistas sin identificar) van desmarcadas y no se descargan, pero guardan su sitio: si un día sabes cuál era, la escribes en la tabla y entra con su número.</p>
+              <p>{{t:faq.id.a}}</p>
             </div>
           </details>
           <details>
-            <summary><span>¿Puedo pegar el enlace de trackid.net?</span></summary>
+            <summary><span>{{t:faq.trackid.q}}</span></summary>
             <div class="answer">
-              <p>No: trackid.net no deja leer sus tracklists automáticamente. Pulsa «Abrir en trackid.net», exporta el CSV con «Export» y arrástralo a la ventana. Si la app está abierta cuando te llega a Descargas, te avisa para importarlo.</p>
+              <p>{{t:faq.trackid.a}}</p>
+            </div>
+          </details>
+          {{only:en}}<details>
+            <summary><span>{{t:faq.idioma.q}}</span></summary>
+            <div class="answer">
+              <p>{{t:faq.idioma.a}}</p>
+            </div>
+          </details>
+          {{/only}}<details>
+            <summary><span>{{t:faq.macos.q}}</span></summary>
+            <div class="answer">
+              <p>{{t:faq.macos.a}}</p>
             </div>
           </details>
           <details>
-            <summary><span>¿Hay versión para macOS o Linux?</span></summary>
+            <summary><span>{{t:faq.avisos.q}}</span></summary>
             <div class="answer">
-              <p>No. Tracklister 1.0 es solo para Windows 10 y 11 de 64 bits.</p>
-            </div>
-          </details>
-          <details>
-            <summary><span>¿Me avisa cuando hay versión nueva?</span></summary>
-            <div class="answer">
-              <p>Sí: como mucho una vez al día mira en GitHub si hay versión nueva y, si la hay, muestra un aviso con el enlace. Nunca instala nada solo. Para actualizar, cambia la carpeta <code>Tracklister</code> por la nueva: tus ajustes, tu cuenta y tu biblioteca están fuera de ella.</p>
+              <p>{{t:faq.avisos.a}}</p>
             </div>
           </details>
         </div>
@@ -501,31 +518,32 @@ Comprobación: este informe no contiene tu usuario, tu contraseña ni direccione
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">11</p>
-          <h2 id="creditos-titulo">Créditos y licencias</h2>
-          <p class="lead">Tracklister es software libre, con licencia GPL-3.0 o posterior (GPL-3.0-or-later).</p>
+          <h2 id="creditos-titulo">{{t:cred.titulo}}</h2>
+          <p class="lead">{{t:cred.lead}}</p>
         </div>
         <ul class="credits">
-          <li><strong>Motor de descarga:</strong> Sockseek 3.0.5, de fiso64 (AGPL-3.0). Alternativa en «Ajustes»: sldl 2.6.0 (slsk-batchdl), también de fiso64 (GPL-3.0). Van sin modificar, como programas aparte, y cada versión de Tracklister en GitHub adjunta su código fuente.</li>
-          <li><strong>yt-dlp</strong> (The Unlicense), para leer las tracklists de YouTube y SoundCloud.</li>
-          <li><strong>Qt y PySide6</strong> (LGPL-3.0), <strong>mutagen</strong> (GPL-2.0-or-later), <strong>libsndfile</strong> (LGPL-2.1-or-later, con soundfile), <strong>numpy</strong> (BSD-3-Clause y otras) y el resto de bibliotecas, cada una con su licencia.</li>
-          <li><strong>Tipografías:</strong> Inter 4.1 y JetBrains Mono 2.304 (SIL Open Font License 1.1). Esta web usa una versión recortada de cada una (solo los caracteres latinos), con sus licencias: <a href="fonts/OFL-Inter.txt">OFL de Inter</a> y <a href="fonts/OFL-JetBrainsMono.txt">OFL de JetBrains Mono</a>.</li>
-          <li><strong>Datos de duración y versión:</strong> iTunes, Deezer y MusicBrainz.</li>
-          <li><strong>Logo y nombre Blessel:</strong> son la firma del creador, y la textura de hormigón sale de su propia foto de portada. Como permite la sección 7(e) de la GPL-3.0, la licencia no da derechos de marca sobre ese nombre ni sobre el logo.</li>
-          <li>La lista completa, con versiones, licencias y código fuente: <a href="https://github.com/blessel-dev/tracklister/blob/main/third_party/NOTICES.md" rel="noopener">NOTICES.md</a> y <a href="https://github.com/blessel-dev/tracklister/blob/main/LICENSE" rel="noopener">LICENSE</a>.</li>
+          <li>{{t:cred.motor}}</li>
+          <li>{{t:cred.ytdlp}}</li>
+          <li>{{t:cred.bibliotecas}}</li>
+          <li>{{t:cred.tipografias}}</li>
+          <li>{{t:cred.datos}}</li>
+          <li>{{t:cred.blessel}}</li>
+          <li>{{t:cred.lista}}</li>
         </ul>
       </div>
     </section>
 
-    <section class="section" id="in-english" lang="en" aria-labelledby="in-english-titulo">
+    <section class="section" id="{{attr:otro.id}}" data-other-id="{{attr:otro.par}}" lang="{{attr:otro.lang}}" aria-labelledby="{{attr:otro.id}}-titulo">
       <div class="wrap">
         <div class="section-head">
           <p class="index" aria-hidden="true">12</p>
-          <h2 id="in-english-titulo">In English</h2>
+          <h2 id="{{attr:otro.id}}-titulo">{{t:otro.titulo}}</h2>
         </div>
         <div class="prose">
-          <p>Tracklister is a free desktop app for DJs, for Windows 10 and 11 (64-bit). Give it a DJ-set tracklist (a trackid.net CSV, an Excel or CSV file, pasted text, or a YouTube or SoundCloud link) and it fills in each track's duration and exact version from iTunes, Deezer and MusicBrainz, searches Soulseek with your own account, and checks every file: duration, artist, title, version, format and spectrum.</p>
-          <p>You get a folder numbered in set order. It never accepts a doubtful file without telling you: a possible wrong song or version goes to <code>_dudosos</code> with the reason. The interface is in Spanish. Free software, GPL-3.0-or-later.</p>
-          <p><a href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">Download the latest release on GitHub</a>.</p>
+          <p>{{t:otro.p1}}</p>
+          <p>{{t:otro.p2}}</p>
+          <p>{{t:otro.descarga}}</p>
+          <p>{{t:otro.web}}</p>
         </div>
       </div>
     </section>
@@ -534,28 +552,28 @@ Comprobación: este informe no contiene tu usuario, tu contraseña ni direccione
   <footer class="site-footer">
     <div class="wrap footer-grid">
       <div class="signature">
-        <img class="only-hormigon" src="img/brand/blessel-ink@2x.png" width="120" height="30" alt="Blessel" loading="lazy" decoding="async">
-        <img class="only-noche" src="img/brand/blessel-light@2x.png" width="120" height="30" alt="Blessel" loading="lazy" decoding="async">
-        <p><strong>Hecho por Blessel.</strong></p>
+        <img class="only-hormigon" src="{{v:root}}img/brand/blessel-ink@2x.png" width="120" height="30" alt="Blessel" loading="lazy" decoding="async">
+        <img class="only-noche" src="{{v:root}}img/brand/blessel-light@2x.png" width="120" height="30" alt="Blessel" loading="lazy" decoding="async">
+        <p><strong>{{t:pie.hecho}}</strong></p>
       </div>
       <ul class="footer-links">
-        <li><a href="https://www.mixcloud.com/blessel/" rel="noopener">Blessel en Mixcloud</a></li>
-        <li><a href="https://www.mavelpoint.com/artist/blessel/overview" rel="noopener">Blessel en MavelPoint</a></li>
-        <!-- TODO: Instagram (handle unknown; add the link here once it is confirmed, never a guess) -->
+        <li><a href="https://www.mixcloud.com/blessel/" rel="noopener">{{t:pie.mixcloud}}</a></li>
+        <li><a href="https://www.mavelpoint.com/artist/blessel/overview" rel="noopener">{{t:pie.mavelpoint}}</a></li>
+        <li><a href="https://www.instagram.com/blessel.live/" rel="noopener">{{t:pie.instagram}}</a></li>
       </ul>
       <ul class="footer-links">
-        <li><a href="https://github.com/blessel-dev/tracklister" rel="noopener">Código en GitHub</a></li>
-        <li><a href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">Última versión</a></li>
-        <li><a href="https://github.com/blessel-dev/tracklister/blob/main/LICENSE" rel="noopener">Licencia GPL-3.0-or-later</a></li>
+        <li><a href="https://github.com/blessel-dev/tracklister" rel="noopener">{{t:pie.codigo}}</a></li>
+        <li><a href="https://github.com/blessel-dev/tracklister/releases/latest" rel="noopener">{{t:pie.version}}</a></li>
+        <li><a href="https://github.com/blessel-dev/tracklister/blob/main/LICENSE" rel="noopener">{{t:pie.licencia}}</a></li>
       </ul>
-      <p class="small">Esta web no usa cookies ni analítica. <a href="#inicio">Volver arriba</a></p>
+      <p class="small">{{t:pie.cookies}} <a href="#inicio">{{t:pie.arriba}}</a></p>
     </div>
   </footer>
 
   <dialog class="viewer" id="visor" aria-labelledby="visor-titulo">
     <div class="viewer-bar">
-      <p id="visor-titulo">Captura</p>
-      <button type="button" class="viewer-close">Cerrar</button>
+      <p id="visor-titulo">{{t:visor.titulo}}</p>
+      <button type="button" class="viewer-close">{{t:visor.cerrar}}</button>
     </div>
     <figure class="viewer-figure"></figure>
   </dialog>
