@@ -1,10 +1,10 @@
 {
  "id": "7CXp2EaRaIU",
  "title": "andré dancekowski | HÖR - November 6 / 2023",
- "provenance": "fuentes/youtube/parse_7CXp2EaRaIU.json (prototype)",
+ "provenance": "fuentes/youtube/parse_7CXp2EaRaIU.json (prototype); comentarios inventados en la 1.0.1 (06 R9): las líneas de pistas son las del set, el autor y los likes no",
  "chosen": {
   "source": "comment",
-  "author": "@jussivalter",
+  "author": "@oyente-0116",
   "rows": 11
  },
  "rows": [

@@ -23,27 +23,27 @@ def _ytdlp(tmp_path: Path, info: dict | None, code: int = 0, err: bytes = b"") -
     return YtDlp(exe, tmp_path / "cache", run=FakeRun({"--dump-single-json": (code, out, err)}))
 
 
-def test_fjaak_link_gives_the_travo1001_comment(tmp_path):
+def test_fjaak_link_gives_the_tracklist_comment(tmp_path):
     res = import_source(FJAAK, ytdlp=_ytdlp(tmp_path, full_info()))
     assert res.kind == InputKind.YOUTUBE
     assert len(res.rows) == 22 and res.chosen == 0
     assert [r.pos for r in res.rows] == list(range(1, 23))
     assert sum(r.is_id for r in res.rows) == 4 and not any(r.download for r in res.rows if r.is_id)
-    assert all(r.source == "youtube_comment:@travo1001" and r.source_url == FJAAK for r in res.rows)
+    assert all(r.source == "youtube_comment:@oyente-0879" and r.source_url == FJAAK for r in res.rows)
     first = res.candidates[0]
-    assert first.label_es == "Comentario de @travo1001 · 22 pistas con tiempos · 11 likes"
-    assert (first.n_rows, first.has_times, first.likes) == (22, True, 11)
+    assert first.label_es == "Comentario de @oyente-0879 · 22 pistas con tiempos · 13 likes"
+    assert (first.n_rows, first.has_times, first.likes) == (22, True, 13)
     assert first.rows is res.rows and first.source_ref is res.sources[0]
-    assert [c.source for c in res.candidates[1:3]] == ["youtube_comment:@acieeeeeed",
-                                                         "youtube_comment:@antonioaranda8030"]
-    alt = res.candidates[1]                     # no times of its own: merged from @travo1001's comment
-    assert alt.label_es == "Comentario de @acieeeeeed · 17 pistas con tiempos · 78 likes"
+    assert [c.source for c in res.candidates[1:3]] == ["youtube_comment:@oyente-0877",
+                                                         "youtube_comment:@oyente-0906"]
+    alt = res.candidates[1]                     # no times of its own: merged from @oyente-0879's comment
+    assert alt.label_es == "Comentario de @oyente-0877 · 17 pistas con tiempos · 90 likes"
     assert alt.n_rows == 17 and alt.has_times
-    assert sum("ts de @travo1001" in r.notes for r in alt.rows) >= 15
+    assert sum("ts de @oyente-0879" in r.notes for r in alt.rows) >= 15
     (src,) = res.sources
-    assert (src.kind, src.ref, src.detail) == ("youtube", FJAAK, "youtube_comment:@travo1001 (22 pistas)")
+    assert (src.kind, src.ref, src.detail) == ("youtube", FJAAK, "youtube_comment:@oyente-0879 (22 pistas)")
     assert res.suggested_name == "FJAAK | Techno DJ Set | SECTION. | May 2026"
-    assert res.message_es.startswith("YouTube: Comentario de @travo1001")
+    assert res.message_es.startswith("YouTube: Comentario de @oyente-0879")
     assert "alternativas en el desplegable" in res.message_es
     blasha = res.rows[1]
     assert (blasha.artists, blasha.title, blasha.ts_start, blasha.ts_end) == (["Blasha", "Allatt"],
@@ -54,7 +54,7 @@ def test_switching_candidate_gives_ready_rows(tmp_path):
     res = import_source(FJAAK, ytdlp=_ytdlp(tmp_path, full_info()))
     alt = res.candidates[1]
     assert len(alt.rows) == 17 and all(r.source == alt.source for r in alt.rows)
-    assert alt.source_ref.detail == "youtube_comment:@acieeeeeed (17 pistas)"
+    assert alt.source_ref.detail == "youtube_comment:@oyente-0877 (17 pistas)"
     assert [r.pos for r in alt.rows] == list(range(1, 18))
 
 

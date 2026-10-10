@@ -15,17 +15,24 @@ opened, so the scan looks for SHAPES of real credentials, minus the dummy test v
   `--user x` / `--pass x` command line, `"password": "x"` in JSON, `password = "x"` in Python;
 - this laptop's Windows account name and computer name (a public repo must not carry them).
 
+- (1.0.1, 06 R9) what is left of the real YouTube/SoundCloud comments that the 1.0.0 test fixtures
+  carried: their authors' @aliases and display names («alias retirados») and their text («comentarios
+  retirados»). Only SHA-256 fingerprints are kept (tools/retired_handles.sha256 and
+  tools/retired_comments.sha256), never the names or the text themselves.
+
 Output: one line per pattern with its count and, for a non-zero count, the file paths only.
 Exit code 0 when every count is 0, else 1.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import subprocess
 import sys
-from collections.abc import Iterable
+import unicodedata
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -104,6 +111,87 @@ def is_dummy(value: str) -> bool:
     return not v or v.lower() in DUMMY_VALUES or bool(_PLACEHOLDER.match(v))
 
 
+# ---- retired comments (06 R9): fingerprints only ---------------------------------------------------------
+RETIRED_HANDLES_FILE = REPO / "tools" / "retired_handles.sha256"
+RETIRED_COMMENTS_FILE = REPO / "tools" / "retired_comments.sha256"
+_AT_TOKEN = re.compile(r"@[\w.\-]+")
+_ESCAPED_SPACE = re.compile(r"\\[nrt]")
+_ESCAPED_CHAR = re.compile(r"\\u([0-9a-fA-F]{4})")
+_WORD = re.compile(r"[^\W_]+")
+NGRAM_HEX = 16
+
+
+def handle_digest(token: str) -> str:
+    """SHA-256 of an @alias as it is compared: lower case, with its '@', without a trailing '.' or '-'
+    (the end of a sentence)."""
+    return hashlib.sha256(token.strip().rstrip(".-").lower().encode("utf-8")).hexdigest()
+
+
+def text_words(text: str) -> list[str]:
+    """The comparison words of a text: JSON/Python escapes (\\n, \\u2019) undone, accents removed, lower case,
+    runs of letters and digits of any script. 'Don\u2019t STOP\\nnow' -> ['don', 't', 'stop', 'now']."""
+    text = _ESCAPED_CHAR.sub(lambda m: chr(int(m.group(1), 16)), _ESCAPED_SPACE.sub(" ", text))
+    text = "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+    return _WORD.findall(text.lower())
+
+
+def ngram_digest(words: Sequence[str]) -> str:
+    """First NGRAM_HEX hex digits of the SHA-256 of n consecutive comparison words joined by spaces."""
+    return hashlib.sha256(" ".join(words).encode("utf-8")).hexdigest()[:NGRAM_HEX]
+
+
+def _fingerprint_lines(path: Path) -> list[str]:
+    """The data lines of a fingerprint file ('#' lines are comments). A missing file is an error: the scan
+    must never pass because its list went missing."""
+    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    return [ln.strip() for ln in lines if ln.strip() and not ln.lstrip().startswith("#")]
+
+
+@dataclass
+class FingerprintRule:
+    """Counts the words or @aliases of a text whose fingerprint is in a list. Never sees a real value."""
+    key: str
+    label_es: str
+    source: Path
+    kind: str                       # "handles": SHA-256 of '@alias'; "ngrams": 'n hex16' of n words
+    scope: str = "text"
+    _handles: frozenset[str] | None = field(default=None, repr=False)
+    _ngrams: dict[int, frozenset[str]] | None = field(default=None, repr=False)
+
+    def load(self) -> None:
+        if self.kind == "handles":
+            if self._handles is None:
+                self._handles = frozenset(ln.split()[0].lower() for ln in _fingerprint_lines(self.source))
+        elif self._ngrams is None:
+            by_n: dict[int, set[str]] = {}
+            for ln in _fingerprint_lines(self.source):
+                n, digest = ln.split()[:2]
+                by_n.setdefault(int(n), set()).add(digest.lower())
+            self._ngrams = {n: frozenset(d) for n, d in by_n.items()}
+
+    def size(self) -> int:
+        self.load()
+        return len(self._handles) if self.kind == "handles" else sum(len(d) for d in self._ngrams.values())
+
+    def count(self, text: str) -> int:
+        self.load()
+        if self.kind == "handles":
+            return sum(1 for m in _AT_TOKEN.finditer(text) if handle_digest(m.group(0)) in self._handles)
+        words = text_words(text)
+        hits = 0
+        for n, digests in self._ngrams.items():
+            hits += sum(1 for i in range(len(words) - n + 1) if ngram_digest(words[i:i + n]) in digests)
+        return hits
+
+
+def retired_rules(handles: Path = RETIRED_HANDLES_FILE, comments: Path = RETIRED_COMMENTS_FILE
+                  ) -> tuple[FingerprintRule, ...]:
+    return (FingerprintRule("retired_handle", "alias retirados (autores de los comentarios reales de los fixtures "
+                                              "de la 1.0.0)", Path(handles), "handles"),
+            FingerprintRule("retired_comment", "comentarios retirados (texto de los comentarios reales de los "
+                                               "fixtures de la 1.0.0)", Path(comments), "ngrams"))
+
+
 @dataclass
 class ScanResult:
     files_scanned: int = 0
@@ -179,6 +267,12 @@ def scan(paths: Iterable[Path], patterns: Iterable[Pattern] = PATTERNS, *, root:
         for p in pats:
             if not _applies(p, Path(path), is_text):
                 continue
+            if isinstance(p, FingerprintRule):
+                n = p.count(text)
+                if n:
+                    res.counts[p.key] += n
+                    res.files[p.key].add(shown)
+                continue
             n = 0
             for m in p.regex.finditer(text):
                 if p.value_group and is_dummy(m.group(p.value_group)):
@@ -232,7 +326,7 @@ def main(argv=None) -> int:
     ap.add_argument("--extra", type=Path, action="append", default=[], help="carpeta o archivo extra")
     args = ap.parse_args(argv)
     paths = publishable_files(REPO) + files_under(args.extra)
-    res = scan(paths, PATTERNS + local_identity_patterns(), root=REPO)
+    res = scan(paths, PATTERNS + local_identity_patterns() + retired_rules(), root=REPO)
     for line in report_lines(res):
         print(line)
     return 0 if res.total == 0 else 1

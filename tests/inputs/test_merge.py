@@ -45,7 +45,7 @@ def test_base_wins_on_names_and_differences_go_to_notes():
     out = merge_sources(base, extra)
     stipp = next(r for r in out if r.title == "Corrie")
     assert stipp.artist_display == "STIPP" and stipp.artists == ["STIPP"]
-    assert "según youtube_comment:@travo1001: 'STIPP, Sandrien - Corrie'" in stipp.notes
+    assert "según youtube_comment:@oyente-0879: 'STIPP, Sandrien - Corrie'" in stipp.notes
     dextro = next(r for r in out if r.title == "Covil dos Abutres")    # 79 s apart: matched by name
     assert dextro.ts_start == 581 and dextro.source == "trackid_csv"
     blasha = next(r for r in out if r.title == "8AM in Salford")

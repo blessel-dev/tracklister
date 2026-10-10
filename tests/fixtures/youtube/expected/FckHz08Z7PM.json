@@ -1,10 +1,10 @@
 {
  "id": "FckHz08Z7PM",
  "title": "Ben Sims B2B Oscar Mulero - Stone Techno Festival 2022 - @ARTE Concert",
- "provenance": "fuentes/youtube/parse_FckHz08Z7PM.json (prototype)",
+ "provenance": "fuentes/youtube/parse_FckHz08Z7PM.json (prototype); comentarios inventados en la 1.0.1 (06 R9): las líneas de pistas son las del set, el autor y los likes no",
  "chosen": {
   "source": "comment",
-  "author": "@brelant9692",
+  "author": "@oyente-0326",
   "rows": 80
  },
  "rows": [

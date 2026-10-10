@@ -1,8 +1,15 @@
-"""Candidate choice on real YouTube/SoundCloud metadata (tests/fixtures/youtube).
+"""Candidate choice on YouTube/SoundCloud metadata (tests/fixtures/youtube).
 
-The *.meta.json files are copies of fuentes/youtube/*.meta.json (yt-dlp output trimmed to the
-fields of fuentes/yt_meta.py; the unused per-comment ids/timestamps were dropped). The expected
-row tables in expected/<id>.json come from the prototype's fuentes/youtube/parse_<id>.json.
+The *.meta.json files started as copies of fuentes/youtube/*.meta.json (yt-dlp output trimmed to the
+fields of fuentes/yt_meta.py; the unused per-comment ids/timestamps were dropped). In 1.0.1 (06 R9)
+every comment was replaced by an invented one: invented authors ('@oyente-0001'...; an author named
+after the DJ keeps the DJ's name, '@funktribu-ejemplo', so the 'autor~DJ' rule still applies), invented
+like counts in the same order and invented text. The track lines of the tracklist comments are the
+sets' public tracklists and stay as they were; every other line was rewritten with the same shape
+(timestamps, ID rows, rows without a separator, a question that reads like 'Artist - Title'), so
+choose() ranks and parses them exactly as before. Video titles, channels and descriptions are not
+comments and stay. tools/secrets_scan.py checks that none of the old authors or texts is left.
+The expected row tables in expected/<id>.json come from the prototype's fuentes/youtube/parse_<id>.json.
 INTENDED_FIXES lists the rows where v1.0 deliberately parses better than the prototype.
 """
 from __future__ import annotations
@@ -51,7 +58,7 @@ def test_real_set_chooses_same_candidate_and_rows(vid):
 
 def test_fjaak_gives_22_rows_with_4_ids():
     best, ranked, merged = choose(_meta("mD9ELt_Pvp4"))
-    assert best.author == "@travo1001"
+    assert best.author == "@oyente-0879"
     assert len(merged) == 22
     assert [i for i, r in enumerate(merged, 1) if r.is_id] == [1, 12, 17, 18]
     assert [r.pos for r in merged] == list(range(1, 23))
@@ -59,7 +66,7 @@ def test_fjaak_gives_22_rows_with_4_ids():
 
 def test_fjaak_spam_list_from_another_video_is_rejected():
     _, ranked, _ = choose(_meta("mD9ELt_Pvp4"))
-    spam = next(c for c in ranked if c.author == "@antonioaranda8030")
+    spam = next(c for c in ranked if c.author == "@oyente-0906")
     assert spam.strong == 17
     assert "enlaza a otro video/mix" in spam.why
     assert spam.score < 0.2 * ranked[0].score
@@ -67,9 +74,9 @@ def test_fjaak_spam_list_from_another_video_is_rejected():
 
 def test_funk_tribu_merges_times_from_second_comment():
     best, _, merged = choose(_meta("cmUov7X5Pjc"))
-    assert best.author == "@funktribumusic" and "autor~DJ" in best.why
+    assert best.author == "@funktribu-ejemplo" and "autor~DJ" in best.why
     assert all(r.ts is not None for r in merged)
-    assert all("ts de @skibiditomboy" in r.notes for r in merged)
+    assert all("ts de @oyente-0632" in r.notes for r in merged)
 
 
 def test_video_without_tracklist_chooses_nothing():

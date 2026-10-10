@@ -1,10 +1,10 @@
 {
  "id": "mD9ELt_Pvp4",
  "title": "FJAAK | Techno DJ Set | SECTION. | May 2026",
- "provenance": "fuentes/youtube/parse_mD9ELt_Pvp4.json (prototype)",
+ "provenance": "fuentes/youtube/parse_mD9ELt_Pvp4.json (prototype); comentarios inventados en la 1.0.1 (06 R9): las líneas de pistas son las del set, el autor y los likes no",
  "chosen": {
   "source": "comment",
-  "author": "@travo1001",
+  "author": "@oyente-0879",
   "rows": 22
  },
  "rows": [
