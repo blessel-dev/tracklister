@@ -186,8 +186,10 @@ def test_norm_and_artists():
     assert split_artists("Blasha & Allatt") == ["Blasha", "Allatt"]
 
 
-def test_safety_net_blocks_network_and_uses_fake_keyring(fake_keyring):
+def test_safety_net_blocks_network_and_uses_fake_keyring(fake_keyring, _no_network):
     with pytest.raises(RuntimeError):
         socket.create_connection(("server.slsknet.org", 2242), timeout=1)
+    assert _no_network == ["DNS lookup blocked in tests: 'server.slsknet.org'"]
+    _no_network.clear()                          # expected: the guard would otherwise fail this test
     keyring.set_password("svc", "u", "p")
     assert fake_keyring.store[("svc", "u")] == "p"

@@ -205,6 +205,47 @@ def test_the_real_config_has_the_lines_the_workflow_edits():
     assert ci._OWNER_LINE.search(text) and ci._REPO_LINE.search(text).group(1) == "tracklister"
 
 
+def _run_ci_on_the_real_config(tmp_path, monkeypatch, owner: str) -> tuple[int, str, str, str]:
+    """main() on a copy of the real config.py: (exit code, stdout, original text, text afterwards)."""
+    original = (REPO / "src" / "tracklister" / "config.py").read_text(encoding="utf-8")
+    copy = tmp_path / "config.py"
+    copy.write_text(original, encoding="utf-8", newline="\n")
+    monkeypatch.setattr(ci, "CONFIG", copy)
+    import io
+    from contextlib import redirect_stdout
+    out = io.StringIO()
+    with redirect_stdout(out):
+        code = ci.main(["--tag", f"v{__version__}", "--owner", owner, "--repo", "tracklister"])
+    return code, out.getvalue(), original, copy.read_text(encoding="utf-8")
+
+
+def test_r12_the_real_owner_is_in_the_code():
+    from tracklister import config
+    assert config.GITHUB_OWNER == "blessel-dev" and "TODO(publish)" not in (
+        REPO / "src" / "tracklister" / "config.py").read_text(encoding="utf-8")
+    assert config.project_url() == "https://github.com/blessel-dev/tracklister"
+    assert config.user_agent() == f"Tracklister/{__version__} ( https://github.com/blessel-dev/tracklister )"
+
+
+def test_r12_ci_is_silent_with_the_real_owner(tmp_path, monkeypatch):
+    code, out, original, after = _run_ci_on_the_real_config(tmp_path, monkeypatch, "blessel-dev")
+    assert code == 0 and "::warning::" not in out and "::error::" not in out
+    assert after == original                                               # nothing injected
+
+
+def test_r12_ci_keeps_the_owner_and_warns_in_a_fork(tmp_path, monkeypatch):
+    code, out, original, after = _run_ci_on_the_real_config(tmp_path, monkeypatch, "dj-amigo")
+    assert code == 0 and out.count("::warning::") == 1 and "(¿un fork?)" in out and "'dj-amigo'" in out
+    assert after == original and 'GITHUB_OWNER = "blessel-dev"' in after   # the update notice keeps our repo
+
+
+def test_r12_ci_still_injects_into_a_placeholder_tree(tmp_path, monkeypatch):
+    monkeypatch.setattr(ci, "CONFIG", tmp_path / "config.py")
+    ci.CONFIG.write_text(CONFIG, encoding="utf-8", newline="\n")
+    assert ci.main(["--tag", f"v{__version__}", "--owner", "dj-amigo"]) == 0
+    assert 'GITHUB_OWNER = "dj-amigo"' in ci.CONFIG.read_text(encoding="utf-8")
+
+
 # ---- fetch_ytdlp.py ---------------------------------------------------------------------------------------------
 def test_ytdlp_pin_is_consistent():
     assert re.fullmatch(r"[0-9a-f]{64}", ytdlp.EXE_SHA256)

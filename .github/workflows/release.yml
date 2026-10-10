@@ -3,9 +3,10 @@
 #
 # Publish from the home PC:   git tag v1.0.1   then   git push origin v1.0.1
 # - The tag must be "v" + __version__ (src/tracklister/__init__.py); otherwise the job stops.
-# - The GitHub owner lives in ONE place: GITHUB_OWNER in src/tracklister/config.py. While it is
-#   still the placeholder below, packaging/ci_prepare.py fills it in with this repository's owner
-#   for this build only (nothing is committed) and leaves a warning on the run.
+# - The GitHub owner lives in ONE place: GITHUB_OWNER in src/tracklister/config.py. When it names
+#   this repository's owner the check is silent. A fork keeps it, with a warning; an old tree that
+#   still has the placeholder below gets this repository's owner for this build only (nothing is
+#   committed), also with a warning.
 # - Everything is offline-tested first (fake engine, no network); the real engines and yt-dlp are
 #   only downloaded and checked against their pinned SHA-256, never run.
 name: release
