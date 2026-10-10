@@ -1,0 +1,85 @@
+# Build the Tracklister website (site/) and publish it on GitHub Pages:
+#   https://blessel-dev.github.io/tracklister/
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Once, on GitHub: Settings > Pages > "Build and deployment" > Source: "GitHub Actions".
+# - Runs when the site, the README images, the guide, the brand assets or this file change on main,
+#   and on demand (Actions > pages > "Run workflow").
+# - site/build.py copies the README screenshots (docs/readme/) and the app's brand assets
+#   (src/tracklister/assets/) into the site, so it never drifts from the repo.
+# - Every action is pinned to a full commit SHA (the version is in the comment). checkout and
+#   setup-python use the same commits as release.yml.
+# - The app download itself is served by GitHub Releases, not by this site.
+name: pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "site/**"
+      - "docs/readme/**"
+      - "docs/GUIA.md"
+      - "src/tracklister/assets/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  PYTHONUTF8: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Install the pinned site tools (fontTools, brotli)
+        run: python -m pip install --no-input -r site/requirements-site.lock.txt
+
+      - name: Build the site
+        run: python site/build.py --out _site
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+          # The action's default, written out: dotfiles stay out of the published site, so the
+          # .site-build marker (build.py's guard against wiping a folder it did not build) is
+          # never served.
+          include-hidden-files: false
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
