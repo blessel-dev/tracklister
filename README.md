@@ -1,3 +1,5 @@
+**Español** · [English](README.en.md)
+
 <div align="center">
 
 <picture>
@@ -27,7 +29,7 @@
   <a href="https://blessel-dev.github.io/tracklister/">Web</a> ·
   <a href="docs/GUIA.md">Guía de uso</a> ·
   <a href="#preguntas-frecuentes">Preguntas frecuentes</a> ·
-  <a href="#in-english">In English</a>
+  <a href="README.en.md">In English</a>
 </p>
 
 <picture>
@@ -365,10 +367,5 @@ Tracklister es un proyecto de Blessel, hecho para preparar sus sets y los de sus
 
 ## In English
 
-**Tracklister** is a free desktop app for DJs on Windows 10 and 11 (64-bit), licensed GPL-3.0-or-later.
-Give it a set's tracklist (a trackid.net CSV, an Excel or CSV file, pasted text, or a YouTube or SoundCloud link) and it finds every track on Soulseek.
-It checks each file (artist, title, version, duration, format and spectrum) and builds a folder numbered in set order.
-A doubtful file is never accepted silently: a possible wrong song or version goes to `_dudosos` with the reason.
-Everyone uses their own Soulseek account, stored only in the Windows Credential Manager.
-The interface is in Spanish.
-[Download the latest release](https://github.com/blessel-dev/tracklister/releases/latest).
+**Tracklister** is a free desktop app for DJs on Windows 10 and 11 (64-bit); its interface is in Spanish.
+Read the full README in English: **[README.en.md](README.en.md)**.
