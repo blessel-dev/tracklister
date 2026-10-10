@@ -22,6 +22,7 @@ never been downloaded: once the set folder holds files, the numbers are the file
 from __future__ import annotations
 
 import copy
+from collections.abc import Collection
 from dataclasses import dataclass
 
 from tracklister.core.model import RowStatus, TrackRow
@@ -140,31 +141,48 @@ def _neighbour(rows: list[TrackRow], i: int, step: int) -> str | None:
     return None
 
 
-def recompute_gaps(rows: list[TrackRow], *, threshold_s: int = DEFAULT_THRESHOLD_S) -> GapRecompute:
+GapKey = tuple[str | None, str | None]
+
+
+def gap_key(rows: list[TrackRow], i: int) -> GapKey:
+    """Where a gap row sits, in a way that survives renumbering: (uid of the row before it, uid of the
+    row after it), automatic gap rows skipped. The window keeps the keys of the gap rows the user
+    deletes and passes them back as `dismissed`, so a deleted gap does not come back."""
+    return _neighbour(rows, i, -1), _neighbour(rows, i, 1)
+
+
+def recompute_gaps(rows: list[TrackRow], *, threshold_s: int = DEFAULT_THRESHOLD_S,
+                   dismissed: Collection[GapKey] = ()) -> GapRecompute:
     """Automatic gap rows again, with the durations the rows have now. A no-op (changed=False, the same
     list) unless a row comes from trackid.net. An automatic gap that ends up between the same two rows
-    keeps its uid (only its times and notes change). Never edits the input rows: when something changes
-    the result holds copies, renumbered."""
+    keeps its uid (only its times and notes change). A gap the rule supports in a slot of `dismissed`
+    is not added again (the user deleted it). Never edits the input rows: when something changes the
+    result holds copies, renumbered."""
     if not any(r.source == SOURCE and not is_auto_gap(r) for r in rows):
         return GapRecompute(rows, 0, 0, False)
     work = [copy.deepcopy(r) for r in rows]
-    old: dict[tuple[str | None, str | None], list[TrackRow]] = {}
+    old: dict[GapKey, list[TrackRow]] = {}
     n_old = 0
     for i, r in enumerate(work):
         if is_auto_gap(r):
-            old.setdefault((_neighbour(work, i, -1), _neighbour(work, i, 1)), []).append(r)
+            old.setdefault(gap_key(work, i), []).append(r)
             n_old += 1
     fresh = insert_gaps(work, threshold_s=threshold_s)
+    dismissed = set(dismissed)
+    keep: list[TrackRow] = []
     added = kept = 0
     for i, r in enumerate(fresh):
-        if not is_auto_gap(r):
-            continue
-        same_place = old.get((_neighbour(fresh, i, -1), _neighbour(fresh, i, 1)))
-        if same_place:
-            r.uid = same_place.pop(0).uid
-            kept += 1
-        else:
-            added += 1
-    renumber(fresh)
-    changed = [r.to_dict() for r in fresh] != [r.to_dict() for r in rows]
-    return GapRecompute(fresh if changed else rows, added, n_old - kept, changed)
+        if is_auto_gap(r):
+            key = gap_key(fresh, i)
+            same_place = old.get(key)
+            if same_place:
+                r.uid = same_place.pop(0).uid
+                kept += 1
+            elif key in dismissed:
+                continue
+            else:
+                added += 1
+        keep.append(r)
+    renumber(keep)
+    changed = [r.to_dict() for r in keep] != [r.to_dict() for r in rows]
+    return GapRecompute(keep if changed else rows, added, n_old - kept, changed)

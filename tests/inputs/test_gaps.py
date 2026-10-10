@@ -8,8 +8,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from tracklister.core.model import RowStatus, TrackRow
+from tracklister.inputs.clean import renumber
 from tracklister.inputs.gaps import (
-    ESTIMATED_NOTE, GAP_TITLE, clock, covered_until, insert_gaps, is_auto_gap, recompute_gaps,
+    ESTIMATED_NOTE, GAP_TITLE, clock, covered_until, gap_key, insert_gaps, is_auto_gap, recompute_gaps,
 )
 from tracklister.inputs.importer import import_source
 from tracklister.inputs.tabular import RawTable, read_table
@@ -168,6 +169,18 @@ def test_auto_gap_uids_are_stable_and_inputs_are_never_modified():
     assert len(survivors) == 6 and all(r.uid == uids[r.ts_end] for r in survivors)   # same neighbours
     again = recompute_gaps(res.rows)
     assert not again.changed and again.rows is res.rows
+
+
+def test_a_gap_the_user_deleted_does_not_come_back():
+    rows = import_source(SETAOC).rows                                      # 9 gaps (End-based)
+    i = next(i for i, r in enumerate(rows) if is_auto_gap(r) and r.ts_start == 3880)    # after Blind Spot
+    key = gap_key(rows, i)
+    assert key == (rows[i - 1].uid, rows[i + 1].uid)
+    rows = renumber([r for j, r in enumerate(rows) if j != i])            # the user deleted it
+    res = recompute_gaps(_with_home_durations(rows), dismissed={key})
+    assert not any(is_auto_gap(r) and r.ts_end == 4851 for r in res.rows) and res.added == 0
+    back = recompute_gaps(_with_home_durations(rows))                      # without the list it is added
+    assert any(is_auto_gap(r) and r.ts_end == 4851 for r in back.rows) and back.added == 1
 
 
 def test_tables_without_trackid_rows_are_a_no_op():
