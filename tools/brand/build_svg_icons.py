@@ -90,9 +90,12 @@ def path_d(contours) -> str:
 
 def icons() -> dict[str, list[list[Pt]]]:
     check = [(6.2, 12.4), (8.3, 10.3), (10.5, 12.5), (15.6, 7.4), (17.7, 9.5), (10.5, 16.7)]
+    # 1.0.1 "Verificado · revisar calidad": an open check mark over a small wave (the spectrum)
+    wave = [(3.5 + 17.0 * i / 16, 19.2 - 1.7 * math.sin(2 * math.pi * 1.5 * i / 16)) for i in range(17)]
     return {
         # ---- states ---------------------------------------------------------------------
         "state-verificado": [rect(3, 3, 21, 21), poly(check, hole=True)],
+        "state-revisar_calidad": stroke([(3.5, 8.5), (8.0, 13.0), (18.5, 2.5)], 2.6) + stroke(wave, 2.0),
         "state-dudoso": [poly([(12, 2), (23, 21.5), (1, 21.5)]),
                          rect(11, 8.5, 13, 15, hole=True), rect(11, 16.5, 13, 18.5, hole=True)],
         "state-no_encontrado": [circle(10, 10, 7.5), circle(10, 10, 5.5, hole=True),

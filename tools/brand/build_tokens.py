@@ -20,10 +20,11 @@ import sys
 
 from common import ASSETS, FONT_SRC, contrast, solve_lightness, write_json
 
-STATE_ORDER = ["pendiente", "en_curso", "verificado", "dudoso", "no_encontrado",
+STATE_ORDER = ["pendiente", "en_curso", "verificado", "revisar_calidad", "dudoso", "no_encontrado",
                "no_cumple_formato", "fallida", "ya_en_biblioteca", "omitida"]
 STATE_LABELS = {
-    "verificado": "Verificado", "dudoso": "Dudoso", "no_encontrado": "No encontrado",
+    "verificado": "Verificado", "revisar_calidad": "Verificado \u00b7 revisar calidad", "dudoso": "Dudoso",
+    "no_encontrado": "No encontrado",
     "ya_en_biblioteca": "Ya en biblioteca", "en_curso": "En curso", "pendiente": "Pendiente",
     "no_cumple_formato": "No cumple formato", "fallida": "Fallida", "omitida": "Omitida",
 }
@@ -32,6 +33,7 @@ STATE_HUES = {
     "pendiente": (0, 0.0),
     "en_curso": (199, 0.34),          # accent hue
     "verificado": (140, 0.24),        # sage
+    "revisar_calidad": (88, 0.30),    # olive: verified (sage) but with a quality mark (towards ochre)
     "dudoso": (40, 0.42),             # ochre
     "no_encontrado": (14, 0.30),      # brick
     "no_cumple_formato": (318, 0.18), # plum
@@ -167,8 +169,8 @@ def main() -> int:
         "radius_px": 0, "border_px": 1, "border_strong_px": 2,
         "themes": themes,
         "states": {st: {"label_es": STATE_LABELS[st], "icon": f"icons/state-{st}.svg"}
-                   for st in ["verificado", "dudoso", "no_encontrado", "ya_en_biblioteca", "en_curso",
-                              "pendiente", "no_cumple_formato", "fallida", "omitida"]},
+                   for st in ["verificado", "revisar_calidad", "dudoso", "no_encontrado", "ya_en_biblioteca",
+                              "en_curso", "pendiente", "no_cumple_formato", "fallida", "omitida"]},
         "ui_icons": {n: f"icons/ui-{n}.svg" for n in
                      ["abrir", "copiar", "reintentar", "ajustes", "pegar", "enlace", "carpeta",
                       "deshacer", "diagnostico"]},

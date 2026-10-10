@@ -17,7 +17,10 @@ from enum import StrEnum
 from typing import Any
 
 SET_SCHEMA = "tracklister.set/1"
-LIBRARY_SCHEMA = "tracklister.library/1"
+# 1.0.1: library keys sort the version groups (core.textnorm.version_key). A /1 file (written by 1.0.0)
+# is still read and re-keyed on load from each set's set.json (library.index.LibraryIndex.load).
+LIBRARY_SCHEMA = "tracklister.library/2"
+LIBRARY_SCHEMA_V1 = "tracklister.library/1"
 JOURNAL_SCHEMA = "tracklister.journal/1"
 SETTINGS_SCHEMA = "tracklister.settings/1"
 
@@ -37,7 +40,9 @@ class ResultState(StrEnum):
     PENDIENTE = "pendiente"
     EN_CURSO = "en_curso"
     VERIFICADO = "verificado"
-    DUDOSO = "dudoso"                      # see RowResult.doubt for where the file is
+    REVISAR_CALIDAD = "revisar_calidad"    # 1.0.1: identity verified, but the spectrum says "probable MP3
+    #   convertido" (a quality mark, not an identity doubt): stays in the set with its number, doubt=None
+    DUDOSO = "dudoso"                      # identity doubts; see RowResult.doubt for where the file is
     NO_ENCONTRADO = "no_encontrado"
     NO_CUMPLE_FORMATO = "no_cumple_formato"  # downloaded but fails the preset (e.g. MP3 < 320)
     FALLIDA = "fallida"                    # engine error, peer timeout, ban, cancelled
@@ -49,7 +54,8 @@ class DoubtKind(StrEnum):
     IDENTIDAD = "identidad"   # other song / artist          -> file goes to _dudosos\
     VERSION = "version"       # other version (remix vs original, radio edit) -> _dudosos\
     DURACION = "duracion"     # duration off by > review tolerance             -> _dudosos\
-    ESPECTRO = "espectro"     # possible fake lossless only -> stays in the set folder, marked
+    ESPECTRO = "espectro"     # LEGACY (1.0.0 data only): possible fake lossless, stayed in the set folder.
+    #   1.0.1 never produces it: a quality mark is ResultState.REVISAR_CALIDAD with doubt=None
     REVISAR = "revisar"       # score 50-79 without identity failure -> stays in the set, marked
 
 
@@ -174,6 +180,8 @@ class RowResult:
     updated_at: str | None = None          # ISO-8601 local time
     rejected_peers: list[str] = field(default_factory=list)   # peers whose file went to _dudosos (LOCAL
     #   ONLY): "Reintentar fallos" passes them to the engine as --banned-users
+    spectral_cutoff_hz: float | None = None   # 1.0.1: sharp spectral cut of the placed file (verify.spectral),
+    #   None = none found or not analysed (optional: set.json files without it still load)
 
     def to_dict(self) -> dict[str, Any]:
         d = dataclasses.asdict(self)
@@ -196,7 +204,7 @@ class RowResult:
 class SourceRef:
     kind: str                              # InputKind value, see tracklister.inputs.detect
     ref: str                               # file name (no directories), URL or "texto"
-    detail: str | None = None              # "youtube_comment:@travo1001 (22 pistas)"
+    detail: str | None = None              # "youtube_comment:@ejemplo (22 pistas)"
     imported_at: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -240,6 +248,8 @@ class SetDoc:
     duplicate_choices: dict[str, str] = field(default_factory=dict)  # uid -> DuplicateChoice value
     lossy_asked: list[str] = field(default_factory=list)          # uids already shown in the MP3 question
     #   (asked once per SET, not once per run; optional: set.json files without it still load)
+    migrations: list[str] = field(default_factory=list)          # one-time upgrades already applied to this
+    #   set, e.g. "1.0.1-reverificar" (optional: set.json files written by 1.0.0 have none)
     preset_snapshot: dict[str, Any] = field(default_factory=dict)
     created_at: str | None = None
     updated_at: str | None = None
@@ -259,6 +269,7 @@ class SetDoc:
             "lossy_approved": list(self.lossy_approved),
             "duplicate_choices": dict(self.duplicate_choices),
             "lossy_asked": list(self.lossy_asked),
+            "migrations": list(self.migrations),
         }
 
     @classmethod
@@ -274,6 +285,7 @@ class SetDoc:
             lossy_approved=list(d.get("lossy_approved") or []),
             duplicate_choices=dict(d.get("duplicate_choices") or {}),
             lossy_asked=list(d.get("lossy_asked") or []),
+            migrations=list(d.get("migrations") or []),
             preset_snapshot=dict(d.get("preset_snapshot") or {}),
             created_at=d.get("created_at"), updated_at=d.get("updated_at"),
             app_version=d.get("app_version"),

@@ -122,6 +122,64 @@ def test_old_library_file_without_flags_still_loads(tmp_path):
     assert len(lib.entries) == 1 and lib.entries[0].flags == [] and lib.entries[0].set_name == "Viejo"
 
 
+def _v1_entry(path, key, set_id, pos=1, flags=None):
+    return {"key": key, "artist_norm": key.split("|")[0], "title_norm": key.split("|")[1],
+            "version_kind": "remix", "path": str(path), "set_id": set_id, "set_name": "Viejo", "pos": pos,
+            "duration_s": None, "format": "flac", "size": 1, "added_at": "2026-10-09T10:00:00",
+            "flags": list(flags or [])}
+
+
+def test_v101_a_1_0_0_library_is_re_keyed_from_its_sets_and_saved_as_v2(tmp_path):
+    """R8: library.json /1 (1.0.0) keyed a version by its groups in written order. On load each set's
+    entries are rebuilt from its own set.json with the 1.0.1 keys, so duplicates are still found."""
+    from tracklister.core.jsonio import read_json
+    d = tmp_path / "lib" / "Set V1"
+    d.mkdir(parents=True)
+    r1 = _row(1, "Fjaak", "Spirit", "Radio Edit - Kai Remix")
+    r2 = _row(2, "Border One", "Spectral Tension")
+    f1, f2 = "01 - Fjaak - Spirit (Radio Edit - Kai Remix).flac", "02 - Border One - Spectral Tension.flac"
+    (d / f1).write_bytes(b"1")
+    (d / f2).write_bytes(b"2")
+    doc = SetDoc(set_id="v1v1", name="Set V1", preset_id="lossless", rows=[r1, r2], results={
+        r1.uid: RowResult(r1.uid, 1, ResultState.VERIFICADO, file=f1),
+        r2.uid: RowResult(r2.uid, 2, ResultState.DUDOSO, DoubtKind.ESPECTRO, file=f2,
+                          flags=["posible_falso_lossless"])})
+    write_json(set_doc_path(d), doc.to_dict())
+    orphan = tmp_path / "suelto" / "x.flac"                      # its folder has no set.json any more
+    orphan.parent.mkdir()
+    orphan.write_bytes(b"3")
+    write_json(tmp_path / "library.json", {"schema": "tracklister.library/1", "updated_at": None, "entries": [
+        _v1_entry(d / f1, "fjaak|spirit|radio edit kai remix", "v1v1"),
+        _v1_entry(d / f2, "border one|spectral tension|original", "v1v1", 2, ["posible_falso_lossless"]),
+        _v1_entry(orphan, "x|y|original", "gone")]})
+    lib = LibraryIndex(tmp_path / "library.json")
+    lib.load()
+    keys = sorted(e.key for e in lib.entries)
+    assert keys == ["border one|spectral tension|original", "fjaak|spirit|kai remix radio edit", "x|y|original"]
+    assert [e.pos for e in lib.find(_row(7, "Fjaak", "Spirit", "Kai Remix - Radio Edit"))] == [1]
+    assert [e.pos for e in lib.find(_row(7, "Fjaak", "Spirit", "(Radio Edit) (Kai Remix)"))] == [1]
+    assert next(e for e in lib.entries if e.pos == 2).flags == ["posible_falso_lossless"]
+    assert read_json(tmp_path / "library.json")["schema"] == "tracklister.library/1"   # load() writes nothing
+    lib.save()
+    assert read_json(tmp_path / "library.json")["schema"] == "tracklister.library/2"
+    again = LibraryIndex(tmp_path / "library.json")
+    again.load()
+    assert sorted(e.key for e in again.entries) == keys
+
+
+def test_v101_a_quality_marked_file_enters_the_library_with_its_mark(tmp_path):
+    d = tmp_path / "lib" / "Set Q"
+    d.mkdir(parents=True)
+    r = _row(1, "Border One", "Spectral Tension")
+    (d / "01 - Border One - Spectral Tension.flac").write_bytes(b"1")
+    doc = SetDoc(set_id="qqqq", name="Set Q", preset_id="lossless", rows=[r], results={
+        r.uid: RowResult(r.uid, 1, ResultState.REVISAR_CALIDAD, file="01 - Border One - Spectral Tension.flac",
+                         flags=["probable_mp3_convertido", "sin_tags"])})
+    lib = LibraryIndex(tmp_path / "library.json")
+    assert lib.add_from_set(d, doc) == 1
+    assert lib.entries[0].flags == ["probable_mp3_convertido"]
+
+
 def test_corrupt_library_file_starts_empty(tmp_path):
     p = tmp_path / "library.json"
     p.write_text("{broken", encoding="utf-8")

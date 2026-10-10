@@ -136,6 +136,17 @@ def version_is_original(version: str | None) -> bool:
     return not _kept_groups(version)
 
 
+def version_key(version: str | None) -> str:
+    """THE comparison key of a version (1.0.1): 'original' for the original/extended track, otherwise the
+    kept groups (merge_versions without original/extended), each normalised, SORTED and joined by spaces.
+    So '(Kai Remix) (Radio Edit)' and '(Radio Edit) (Kai Remix)' are one key, 'kai remix radio edit'
+    (audit r4-3 N1), while 'Kai Remix', 'Radio Edit' and 'Kai Remix - Radio Edit' stay three keys. For a
+    single group it is the same text the 1.0.0 library keys had."""
+    if version_is_original(version):
+        return "original"
+    return " ".join(sorted(norm_key(g, drop_original=False) for g in _kept_groups(version)))
+
+
 def split_title_version(title: str | None) -> tuple[str, str | None]:
     """'Higher Things (FJAAK Remix) [Label]' -> ('Higher Things', 'FJAAK Remix').
 
