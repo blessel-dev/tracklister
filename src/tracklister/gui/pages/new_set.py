@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QHBoxLayout, QHeade
                                QPlainTextEdit, QStackedWidget, QTableView, QVBoxLayout, QWidget)
 
 from tracklister import config
+from tracklister.core import osplatform
 from tracklister.core.layout import set_doc_path
 from tracklister.core.model import SourceRef, TrackRow
 from tracklister.gui.models import ENRICH_ES, TrackTableModel
@@ -238,6 +239,10 @@ class NewSetPage(QWidget):
         lay.addWidget(self.stack, 1)
         QShortcut(QKeySequence(QKeySequence.StandardKey.Delete), self.table, self._remove,
                   context=Qt.ShortcutContext.WidgetShortcut)
+        if osplatform.is_macos():
+            # the key a Mac keyboard labels «delete» is Backspace (StandardKey.Delete is fn+delete there)
+            QShortcut(QKeySequence(Qt.Key.Key_Backspace), self.table, self._remove,
+                      context=Qt.ShortcutContext.WidgetShortcut)
         QShortcut(QKeySequence(QKeySequence.StandardKey.Open), self, self.open_file)
 
         # Footer

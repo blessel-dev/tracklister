@@ -25,6 +25,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from tracklister import config
 from tracklister.assets import asset_path, load_tokens
+from tracklister.core import osplatform
 from tracklister.core.paths import app_paths
 from tracklister.gui import gcguard
 from tracklister.gui.theme import ThemeManager, register_fonts
@@ -40,7 +41,9 @@ def prepare_app(app: QApplication) -> QApplication:
     app.setApplicationVersion(config.APP_VERSION)
     app.setStyle("Fusion")
     register_fonts()
-    app.setWindowIcon(QIcon(str(asset_path(load_tokens()["app_icon"]))))
+    if not osplatform.is_macos():
+        # on macOS the Dock shows the bundle's .icns; an application icon set here would replace it
+        app.setWindowIcon(QIcon(str(asset_path(load_tokens()["app_icon"]))))
     gcguard.install(app)            # cyclic GC only in the GUI thread (see gcguard.py)
     return app
 

@@ -1,8 +1,9 @@
-"""The user's own Soulseek account, kept in Windows Credential Manager through keyring.
+"""The user's own Soulseek account, kept in the system's credential store through keyring.
 
 Owner: ENGINE branch.
 SPDX-License-Identifier: GPL-3.0-or-later
 
+Windows Credential Manager on Windows; the macOS Keychain on a Mac (keyring picks the backend itself).
 Never written to settings.json, logs or reports. The username is stored as the password of the
 fixed account `config.KEYRING_ACCOUNT_KEY`; the password is stored under the username.
 """
@@ -14,10 +15,20 @@ import keyring
 import keyring.errors
 
 from tracklister import config
+from tracklister.core import osplatform
+
+STORE_NAME_WINDOWS_ES = "Administrador de credenciales de Windows"
+STORE_NAME_MACOS_ES = "Llavero de macOS"
+
+
+def store_name_es() -> str:
+    """Where the account is kept, as the user knows it: «Administrador de credenciales de Windows» or
+    «Llavero de macOS» (it follows «el»: «en el Llavero de macOS»)."""
+    return STORE_NAME_MACOS_ES if osplatform.is_macos() else STORE_NAME_WINDOWS_ES
 
 
 class CredentialError(Exception):
-    """Credential Manager is unavailable or refused the operation. `msg_es` is user-facing."""
+    """The credential store is unavailable or refused the operation. `msg_es` is user-facing."""
 
     def __init__(self, msg_es: str):
         super().__init__(msg_es)
@@ -46,8 +57,8 @@ class CredentialStore:
                 return None
             password = keyring.get_password(self.service, user)
         except keyring.errors.KeyringError as e:
-            raise CredentialError("No se pudo leer la cuenta del Administrador de credenciales "
-                                  f"de Windows ({type(e).__name__}).") from None
+            raise CredentialError(f"No se pudo leer la cuenta del {store_name_es()} "
+                                  f"({type(e).__name__}).") from None
         if not password:
             return None
         return Credentials(user, password)
@@ -65,8 +76,8 @@ class CredentialStore:
                 except keyring.errors.PasswordDeleteError:
                     pass
         except keyring.errors.KeyringError as e:
-            raise CredentialError("No se pudo guardar la cuenta en el Administrador de credenciales "
-                                  f"de Windows ({type(e).__name__}).") from None
+            raise CredentialError(f"No se pudo guardar la cuenta en el {store_name_es()} "
+                                  f"({type(e).__name__}).") from None
 
     def clear(self) -> None:
         try:
@@ -77,5 +88,5 @@ class CredentialStore:
                 except keyring.errors.PasswordDeleteError:
                     pass
         except keyring.errors.KeyringError as e:
-            raise CredentialError("No se pudo borrar la cuenta del Administrador de credenciales "
-                                  f"de Windows ({type(e).__name__}).") from None
+            raise CredentialError(f"No se pudo borrar la cuenta del {store_name_es()} "
+                                  f"({type(e).__name__}).") from None

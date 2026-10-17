@@ -18,6 +18,8 @@ Deviation from the plan: 2.6.0 has no win-x64 asset. The API lists `sldl_win-x86
 (framework-dependent) and `sldl_win-x86_self-contained.zip`; the self-contained x86 build is pinned
 (runs on x64 Windows, no .NET install).
 
+macOS (1.1, Apple Silicon only) has its own pin table with Sockseek alone; see section 9.
+
 ## Command line (both dialects; validated by the mock runs, `mock-run/*/argv.txt`)
 
 | Topic | 3.0.5 | 2.6.0 |
@@ -266,3 +268,32 @@ What the app reads instead:
 - Nothing new is written to disk and the progress events carry no peer name. The golden command lines
   do not change (`--no-progress` stays). The fake engine's `"write_s"` network key writes its files in
   steps where the real engines do (and adds the size to its 2.x `Initialize:` display, as the real one).
+
+## 9. macOS (1.1, Apple Silicon only)
+
+Facts from the GitHub Releases API of v3.0.5 and v2.6.0 and from a static reading of the downloaded
+binaries (Mach-O headers, code signature, .NET bundle header); no macOS binary was ever run, on this
+laptop or anywhere else (investigation report `02-informe-portabilidad.md`, 3.3; the archive listing and
+headers were read again for 1.1, without extracting anything to disk).
+
+| id | asset | bytes | SHA-256 (GitHub API `digest`, verified) | contents |
+|---|---|---|---|---|
+| sockseek-3.0.5 (macOS pin) | `sockseek_3.0.5_osx-arm64.tar.gz` | 46,570,010 | `6a18078b78f98a9797d723925574996a7bf87f6cc3012aee9efa1e9977a0edd0` | `LICENSE` (0644, 34,523 bytes) and `sockseek` (0755, 121,780,265 bytes, sha256 `d17bbd28d22c45c586b76826c9db6f9bb141f3a27dff975fa35e162dccf93163`), both at the archive's top level |
+| sldl-2.6.0 (not shipped) | `sldl_osx-arm64.zip` | 10,675,172 | `3bf73d3063475df23c970c5be789445a8ced8d0874978fe27561945502fb1b32` | `sldl`, `sldl.pdb`, `LICENSE` |
+
+- **sockseek**: a thin arm64 Mach-O (magic `cffaedfe`, cputype `0x0100000C`), minimum macOS 12.0, built
+  with SDK 15.5. A .NET 10.0.9 single-file, self-contained bundle (342 entries, no separate native
+  libraries, so it extracts nothing when it starts). Signed ad hoc by its author: CodeDirectory 0x20400,
+  no Team ID, no hardened runtime; all 29,501 page hashes checked. The packager marks only `sockseek`
+  executable (`Sockseek.Packager/Program.cs:14-17,63-65`).
+- **How Tracklister uses it**: the .tar.gz travels unchanged in `Tracklister.app/Contents/Resources/engines/`.
+  The app checks its size and SHA-256, extracts it with Python's `tarfile` and the `data` filter (no
+  absolute paths, no `..`, no links out of the folder), sets 0755 on `sockseek` and runs only that copy,
+  in `~/Library/Application Support/Tracklister/tools/engines/sockseek-3.0.5/` (`engine/spec.py`).
+  Python never marks that copy with `com.apple.quarantine`, so Gatekeeper does not ask about it again.
+- **Why sldl 2.6.0 stays out on macOS**: its Mac build has no code signature at all (no
+  `LC_CODE_SIGNATURE`), and Apple Silicon kills unsigned arm64 code; its zip carries no executable bit
+  (made on DOS, no Unix modes); and it runs on .NET 6, out of support since 12 Nov 2024. On macOS the
+  engine selector shows only Sockseek, and a Windows `settings.json` that names sldl falls back to it.
+- **Network**: as on Windows, there is no UPnP or NAT-PMP code in Sockseek (grep), so it sends no
+  multicast to the local network.

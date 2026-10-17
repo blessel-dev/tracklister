@@ -92,6 +92,21 @@ PATTERNS: tuple[Pattern, ...] = (
 )
 
 
+def computer_names() -> set[str]:
+    """This computer's name: COMPUTERNAME on Windows. Where it is not set (macOS has no COMPUTERNAME),
+    the host name from socket.gethostname(), and also its part before the first dot
+    ("mac-de-x.local" -> "mac-de-x")."""
+    host = os.environ.get("COMPUTERNAME", "")
+    if host:
+        return {host}
+    import socket
+    try:
+        name = socket.gethostname()
+    except OSError:
+        return set()
+    return {name, name.split(".", 1)[0]}
+
+
 def local_identity_patterns() -> tuple[Pattern, ...]:
     """This laptop's Windows account and computer name (values never printed)."""
     out = []
@@ -99,8 +114,7 @@ def local_identity_patterns() -> tuple[Pattern, ...]:
     for n in sorted(x for x in names if len(x) >= 3):
         out.append(_p("windows_account", "nombre de la cuenta de Windows de este PC",
                       r"(?<![A-Za-z0-9])" + re.escape(n) + r"(?![A-Za-z0-9])", flags=re.IGNORECASE))
-    host = os.environ.get("COMPUTERNAME", "")
-    if len(host) >= 3:
+    for host in sorted(x for x in computer_names() if len(x) >= 3):
         out.append(_p("computer_name", "nombre de este PC",
                       r"(?<![A-Za-z0-9])" + re.escape(host) + r"(?![A-Za-z0-9])", flags=re.IGNORECASE))
     return tuple(out)

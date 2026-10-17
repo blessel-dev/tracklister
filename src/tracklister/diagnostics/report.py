@@ -14,9 +14,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from tracklister.core import osplatform
 from tracklister.diagnostics.redact import Redactor, assert_no_secrets
 from tracklister.diagnostics.run import NO_RESULTS_ES, DiagRow, mb_text as _mb, mmss_text as _mmss
-from tracklister.engine.spec import DEFAULT_ENGINE_ID, ENGINE_PINS
+from tracklister.engine.spec import DEFAULT_ENGINE_ID, engine_pins
 from tracklister.pipeline.report import row_label
 
 SELF_CHECK = ("Comprobación: este informe no contiene tu usuario, tu contraseña ni direcciones IP; "
@@ -32,14 +33,28 @@ def _spellings(labels: list[str]) -> str:
 
 
 def engine_exe(engine_id: str) -> str:
-    """The program that listens on the port, so the one the Windows Firewall asks about: the engine
-    (sockseek.exe, or sldl.exe for the fallback), not Tracklister.exe."""
-    pin = ENGINE_PINS.get(engine_id.removeprefix("fake:")) or ENGINE_PINS[DEFAULT_ENGINE_ID]
+    """The program that listens on the port, so the one the firewall asks about: the engine (sockseek.exe,
+    or sldl.exe for the fallback, on Windows; sockseek on macOS), not Tracklister."""
+    pins = engine_pins()
+    pin = pins.get(engine_id.removeprefix("fake:")) or pins[DEFAULT_ENGINE_ID]
     return pin.exe_name
+
+
+def _network_advice(listen_port: int, engine_id: str) -> list[str]:
+    """Lines 1 and 2 of «Qué puedes probar»: the router and the firewall of this platform."""
+    if osplatform.is_macos():
+        return [f"  1. Abre el puerto TCP {listen_port} en el router hacia la IP local de este Mac.",
+                "  2. Si tienes activado el firewall de macOS, permite las conexiones entrantes de "
+                f"«{engine_exe(engine_id)}» (el motor de descarga de Tracklister) en Ajustes del Sistema > Red > "
+                "Firewall > Opciones. Está en ~/Library/Application Support/Tracklister/tools/engines."]
+    return [f"  1. Abre el puerto TCP {listen_port} en el router hacia la IP local de este PC.",
+            f"  2. Permite «{engine_exe(engine_id)}» (el motor de descarga de Tracklister) en el Firewall "
+            "de Windows, en redes privadas. Está en %LOCALAPPDATA%\\Tracklister\\tools\\engines."]
 
 
 def build_report(diag: list[DiagRow], *, app_version: str, engine_id: str, windows_version: str,
                  listen_port: int, redactor: Redactor) -> str:
+    """`windows_version` is the OS line of any platform (osplatform.os_version(); the name stays from 1.0)."""
     lines = ["Diagnóstico de Tracklister", "",
              f"Fecha: {datetime.now():%Y-%m-%d %H:%M}",
              f"Tracklister {app_version}  |  Motor {engine_id}  |  {windows_version}",
@@ -76,9 +91,7 @@ def build_report(diag: list[DiagRow], *, app_version: str, engine_id: str, windo
         lines.append("")
     if searched and with_cands == 0:
         lines += ["No ha llegado ningún resultado. Qué puedes probar:",
-                  f"  1. Abre el puerto TCP {listen_port} en el router hacia la IP local de este PC.",
-                  f"  2. Permite «{engine_exe(engine_id)}» (el motor de descarga de Tracklister) en el Firewall "
-                  "de Windows, en redes privadas. Está en %LOCALAPPDATA%\\Tracklister\\tools\\engines.",
+                  *_network_advice(listen_port, engine_id),
                   "  3. Si tu operador usa CGNAT no podrás abrir el puerto: pide una IP pública.",
                   "  4. Si otro amigo usa Tracklister en tu misma red, usad puertos distintos (Ajustes).",
                   "  5. Comprueba tu usuario y contraseña de Soulseek en Ajustes.", ""]

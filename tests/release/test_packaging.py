@@ -1,9 +1,10 @@
-"""Packaging contract: the PyInstaller spec, the release workflow, the licences and .gitignore.
+"""Packaging contract: the PyInstaller spec, the licences and .gitignore (the release workflow: test_workflows.py).
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
 Static checks only (no PyInstaller run, no network). The real build is checked by
-packaging/build.py (bundle contents) and packaging/smoke_test.py (the exe starts without Python).
+packaging/build.py (bundle contents), packaging/smoke_test.py (the exe starts without Python) and
+packaging/smoke_test_macos.py (the .app, on the macOS runner).
 """
 from __future__ import annotations
 
@@ -14,12 +15,10 @@ import subprocess
 from pathlib import Path
 
 from tests.release.helpers import REPO, load
-from tracklister import config
-from tracklister.engine.spec import ENGINE_PINS, SOURCE_ARCHIVES, asset_name
-from tracklister.net.update_check import owner_configured
+from tracklister.core.bundled import ytdlp_pin
+from tracklister.engine.spec import SOURCE_ARCHIVES, asset_name, engine_pins
 
 SPEC = REPO / "packaging" / "tracklister.spec"
-WORKFLOW = REPO / ".github" / "workflows" / "release.yml"
 NOTICES = REPO / "third_party" / "NOTICES.md"
 ICON = REPO / "src" / "tracklister" / "assets" / "icon" / "tracklister.ico"
 
@@ -97,52 +96,84 @@ def test_packaging_folder_never_shadows_the_packaging_library():
     assert "site-packages" in Path(packaging.version.__file__).parts
 
 
-# ---- GitHub Actions release workflow ----------------------------------------------------------------------------
-def _workflow() -> str:
-    return WORKFLOW.read_text(encoding="utf-8")
+# ---- PyInstaller spec, macOS (1.1) -------------------------------------------------------------------------------
+INFO_PLIST = {
+    "CFBundleName": "Tracklister",
+    "CFBundleDisplayName": "Tracklister",
+    "LSMinimumSystemVersion": "14.0",
+    "LSApplicationCategoryType": "public.app-category.music",
+    "CFBundleDevelopmentRegion": "es",
+    "NSHighResolutionCapable": True,
+    "NSHumanReadableCopyright": "Copyright (C) 2026 Tracklister contributors. GPL-3.0-or-later",
+    "NSDownloadsFolderUsageDescription":
+        "Tracklister vigila tu carpeta Descargas para avisarte cuando llega un CSV de trackid.net.",
+    "NSRemovableVolumesUsageDescription":
+        "Tracklister lee y guarda tus sets en la memoria USB o el disco externo que elijas.",
+    "NSNetworkVolumesUsageDescription": "Tracklister lee y guarda tus sets en la carpeta de red (NAS) que elijas.",
+    "NSLocalNetworkUsageDescription":
+        "Tracklister descarga música de otros usuarios de Soulseek, y alguno puede estar en tu misma red.",
+}
 
 
-def test_workflow_runs_on_a_version_tag_on_windows():
-    wf = _workflow()
-    assert re.search(r'^on:\n  push:\n    tags:\n      - "v\*"\n', wf, re.MULTILINE)
-    assert "pull_request" not in wf and "schedule:" not in wf and "workflow_dispatch" not in wf
-    assert re.search(r"^    runs-on: windows-\d{4}$", wf, re.MULTILINE)
+def _guarded(tree: ast.Module, condition: str) -> list[ast.stmt]:
+    """The statements inside the top-level `if <condition>:` blocks of the spec."""
+    return [s for n in tree.body if isinstance(n, ast.If) and ast.unparse(n.test) == condition for s in n.body]
 
 
-def test_workflow_actions_are_pinned_by_commit():
-    uses = re.findall(r"uses:\s*([^\s#]+)", _workflow())
-    assert uses and all(re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", u) for u in uses), uses
+def test_spec_imports_the_windows_version_resource_only_on_windows():
+    tree = _spec_tree()
+    text = SPEC.read_text(encoding="utf-8")
+    assert 'IS_WINDOWS = sys.platform == "win32"' in text and 'IS_MAC = sys.platform == "darwin"' in text
+    top_imports = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
+    assert not any("win32" in ast.unparse(n) for n in top_imports)            # pefile does not exist on macOS
+    windows_only = _guarded(tree, "IS_WINDOWS")
+    imports = [n for n in windows_only if isinstance(n, ast.ImportFrom)]
+    assert [n.module for n in imports] == ["PyInstaller.utils.win32.versioninfo"]
+    assert [n.name for n in windows_only if isinstance(n, ast.FunctionDef)] == ["version_resource"]
+    assert not [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "version_resource"]
 
 
-def test_workflow_tests_builds_smoke_tests_then_publishes_with_checksums():
-    wf = _workflow()
-    order = ["packaging\\ci_prepare.py", "requirements-dev.lock.txt", "tools\\fetch_engine.py",
-             "packaging\\fetch_ytdlp.py", "-m pytest", "packaging\\build.py --zip", "packaging\\smoke_test.py",
-             "gh release create"]
-    positions = [wf.find(s) for s in order]
-    assert -1 not in positions and positions == sorted(positions), dict(zip(order, positions))
-    assert "Get-ChildItem dist\\release -File" in wf              # every release file, SHA256SUMS.txt included
-    build = load("build")
-    assert build.SUMS_NAME == "SHA256SUMS.txt" and build.ZIP_NAME == f"Tracklister-{config.APP_VERSION}-win64.zip"
+def test_spec_exe_differs_only_by_platform_switches():
+    exe = _spec_call("EXE")
+    assert ast.unparse(exe["target_arch"]) == "'arm64' if IS_MAC else None"
+    assert ast.unparse(exe["icon"]) == "[str(ICNS if IS_MAC else ICON)]"
+    assert ast.unparse(exe["version"]) == "version_resource(VERSION) if IS_WINDOWS else None"
+    for key in ("codesign_identity", "entitlements_file"):                    # ad hoc, no hardened runtime
+        assert ast.literal_eval(exe[key]) is None
+    assert ast.literal_eval(exe["argv_emulation"]) is False
+    text = SPEC.read_text(encoding="utf-8")
+    assert "--options" not in text and "entitlements_file=None" in text and "codesign_identity=None" in text
 
 
-def test_workflow_permissions_and_token():
-    wf = _workflow()
-    assert re.search(r"^permissions:\n  contents: read$", wf, re.MULTILINE)
-    assert re.search(r"^    permissions:\n      contents: write ", wf, re.MULTILINE)
-    assert "secrets." not in wf and "${{ github.token }}" in wf
-    assert "persist-credentials: false" in wf
+def test_spec_bundles_the_mac_app_with_its_info_plist():
+    tree = _spec_tree()
+    mac_only = _guarded(tree, "IS_MAC")
+    calls = [n.value for n in mac_only if isinstance(n, ast.Assign) and isinstance(n.value, ast.Call)]
+    assert [ast.unparse(c.func) for c in calls] == ["BUNDLE"]
+    bundle = {kw.arg: ast.unparse(kw.value) for kw in calls[0].keywords}
+    assert [ast.unparse(a) for a in calls[0].args] == ["coll"]
+    assert bundle == {"name": "f'{APP_NAME}.app'", "icon": "str(ICNS)", "bundle_identifier": "BUNDLE_ID",
+                      "version": "MAC_VERSION",
+                      "info_plist": "{**INFO_PLIST, 'CFBundleShortVersionString': MAC_VERSION, "
+                                    "'CFBundleVersion': MAC_VERSION}"}
+    assert _spec_constant("BUNDLE_ID") == "io.github.blessel-dev.tracklister"
+    assert _spec_constant("INFO_PLIST") == INFO_PLIST
+    assert 'ICNS = ASSETS / "icon" / "tracklister.icns"' in SPEC.read_text(encoding="utf-8")
+    assert "yaml" in _spec_constant("EXCLUDES")
 
 
-def test_workflow_owner_is_the_placeholder_constant(monkeypatch):
-    wf = _workflow()
-    ci = load("ci_prepare")
-    m = re.search(r"^  OWNER_PLACEHOLDER: (\S+)", wf, re.MULTILINE)
-    assert m and m.group(1) == ci.PLACEHOLDER == "OWNER_PLACEHOLDER"
-    assert '--placeholder "$env:OWNER_PLACEHOLDER"' in wf and '--owner "$env:GITHUB_REPOSITORY_OWNER"' in wf
-    assert not re.search(r"github\.com/(?!OWNER_PLACEHOLDER)[\w-]+/tracklister", wf)   # no real owner written in
-    monkeypatch.setattr(config, "GITHUB_OWNER", ci.PLACEHOLDER)
-    assert not owner_configured()                                   # the app also treats it as "not published"
+def test_spec_ships_the_icns_only_in_the_mac_app():
+    node = next(n for n in _spec_tree().body if isinstance(n, ast.FunctionDef) and n.name == "asset_datas")
+    src = REPO / "src"
+    for is_mac in (False, True):
+        ns = {"ASSETS": src / "tracklister" / "assets", "SRC": src, "IS_MAC": is_mac}
+        exec(compile(ast.Module(body=[node], type_ignores=[]), "tracklister.spec", "exec"), ns)  # noqa: S102
+        names = {Path(p).name for p, _ in ns["asset_datas"]()}
+        assert ("tracklister.icns" in names) is is_mac
+        assert {"tracklister.ico", "tokens.json", "manifest.json", "Inter-Bold.ttf"} <= names
+
+
+# The release workflow (three jobs since 1.1) is checked in tests/release/test_workflows.py.
 
 
 # ---- licences -----------------------------------------------------------------------------------------------------
@@ -163,20 +194,27 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
-def _lock(path: Path) -> list[tuple[str, str]]:
+def _lock(path: Path, platform: str | None = None) -> list[tuple[str, str]]:
+    """(name, version) of the pins of a lock file; with `platform`, only those whose marker applies."""
+    from packaging.requirements import Requirement
     out = []
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.split("#", 1)[0].strip()
         if line and not line.startswith("-"):
-            name, _, version = line.partition("==")
-            out.append((name, version))
+            req = Requirement(line)
+            if platform and req.marker is not None and not req.marker.evaluate({"sys_platform": platform}):
+                continue
+            (spec,) = req.specifier
+            out.append((req.name, spec.version))
     return out
 
 
 def test_notices_list_every_bundled_python_package():
+    """Both zips: every runtime pin of Windows or macOS (pywin32-ctypes is Windows only)."""
     rows = [ln for ln in NOTICES.read_text(encoding="utf-8").splitlines() if ln.startswith("|")]
-    pins = _lock(REPO / "requirements.lock.txt")
-    assert len(pins) >= 20
+    runtime = REPO / "requirements.lock.txt"
+    pins = sorted(set(_lock(runtime, "win32")) | set(_lock(runtime, "darwin")))
+    assert len(pins) >= 20 and ("pywin32-ctypes", "0.2.3") in set(_lock(runtime, "win32")) - set(_lock(runtime, "darwin"))
     dev = dict(_lock(REPO / "requirements-dev.lock.txt"))
     for name, version in pins + [("PyInstaller", dev["pyinstaller"])]:
         assert any(_norm(name) in _norm(r) and f"| {version} |" in r for r in rows), f"{name} {version}"
@@ -188,17 +226,25 @@ def test_notices_cover_fonts_engines_and_ytdlp():
     assert re.search(r"\| JetBrains Mono \| 2\.304 \| OFL-1\.1 \|", notices)
     fonts = REPO / "src" / "tracklister" / "assets" / "fonts"
     assert (fonts / "OFL-Inter.txt").is_file() and (fonts / "OFL-JetBrainsMono.txt").is_file()
-    for engine_id, pin in ENGINE_PINS.items():
-        for needle in (pin.version, pin.asset_sha256, asset_name(pin), pin.source_url, SOURCE_ARCHIVES[engine_id][0],
-                       f"{engine_id}-source.zip"):
-            assert needle in notices, (engine_id, needle)
-        for name in ("LICENSE", "SOURCE.md"):
-            assert (REPO / "third_party" / "engines" / engine_id / name).is_file()
+    for platform in ("win32", "darwin"):                        # both zips: the Windows and the Mac binaries
+        for engine_id, pin in engine_pins(platform).items():
+            for needle in (pin.version, pin.asset_sha256, asset_name(pin), pin.source_url,
+                           SOURCE_ARCHIVES[engine_id][0], f"{engine_id}-source.zip"):
+                assert needle in notices, (platform, engine_id, needle)
+            for name in ("LICENSE", "SOURCE.md"):
+                assert (REPO / "third_party" / "engines" / engine_id / name).is_file()
+        yp = ytdlp_pin(platform)
+        assert yp.version in notices and yp.sha256 in notices and f"`{yp.asset_name}`" in notices, platform
+    assert f"{engine_pins('darwin')['sockseek-3.0.5'].asset_size:,} bytes" in notices
+    assert f"{ytdlp_pin('darwin').size:,} bytes" in notices
+    assert "sldl is not shipped on macOS" in notices and "libssl.3.dylib" in notices and "libssl-3.dll" in notices
     assert "| AGPL-3.0 |" in notices and "| GPL-3.0 |" in notices
     y = load("fetch_ytdlp")
     assert y.VERSION in notices and y.EXE_SHA256 in notices and "THIRD_PARTY_LICENSES.txt" in notices
     source = (y.THIRD_PARTY / "SOURCE.md").read_text(encoding="utf-8")
-    assert y.VERSION in source and y.EXE_SHA256 in source
+    assert y.VERSION in source and ytdlp_pin("win32").sha256 in source and ytdlp_pin("darwin").sha256 in source
+    engine_source = (REPO / "third_party" / "engines" / "sockseek-3.0.5" / "SOURCE.md").read_text(encoding="utf-8")
+    assert all(engine_pins(p)["sockseek-3.0.5"].asset_sha256 in engine_source for p in ("win32", "darwin"))
     assert (y.THIRD_PARTY / "LICENSE").read_text(encoding="utf-8").startswith(
         "This is free and unencumbered software released into the public domain.")
     assert "THIRD-PARTY LICENSES" in (y.THIRD_PARTY / "THIRD_PARTY_LICENSES.txt").read_text(encoding="utf-8")
@@ -208,7 +254,9 @@ def test_notices_cover_fonts_engines_and_ytdlp():
 IGNORED = [".tmp/x.txt", ".tmp/capturas-1/shot.png", "dist/Tracklister/Tracklister.exe", "dist/release/x.zip",
            "build/pyinstaller/x.toc", "entrega/Tracklister-1.0.0-win64.zip", ".venv/Scripts/python.exe",
            "third_party/engines/bin/sockseek_3.0.5_win-x64.zip", "third_party/yt-dlp/bin/yt-dlp.exe",
-           "third_party/yt-dlp/bin/yt-dlp.exe.part", "settings.json", "sldl.conf", "credentials.json"]
+           "third_party/yt-dlp/bin/yt-dlp.exe.part", "settings.json", "sldl.conf", "credentials.json",
+           ".agents/x.md", ".agents/tasks/plan-mac.md", "dist/Tracklister.app/Contents/Info.plist",
+           "third_party/engines/bin/sockseek_3.0.5_osx-arm64.tar.gz", "third_party/yt-dlp/bin/yt-dlp_macos"]
 KEPT = ["packaging/build.py", "packaging/tracklister.spec", "packaging/release-notes.md",
         ".github/workflows/release.yml", "third_party/NOTICES.md", "third_party/yt-dlp/THIRD_PARTY_LICENSES.txt",
         "third_party/yt-dlp/SOURCE.md", "third_party/licenses/LGPL-3.0.txt", "src/tracklister/engine/credentials.py"]

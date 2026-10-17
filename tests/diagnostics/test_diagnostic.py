@@ -61,7 +61,31 @@ def test_search_only_candidates_and_report(tmp_path):
     assert re.search(r"01\. Fjaak - Spirit", text) and "Puerto de escucha: 49998" in text
 
 
-def test_no_results_explains_the_network(tmp_path):
+def _no_results(tmp_path):
+    rows, net = build_scenario("sin_resultados", tmp_path / "net")
+    paths = app_paths().ensure()
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    return run_diagnostic(rows, runner, CREDS, paths=paths)
+
+
+def test_mac_no_results_explains_the_mac_firewall(as_macos, tmp_path):
+    """1.1: on macOS the advice names this Mac, the macOS firewall and the engine's copy in Application Support."""
+    diag = _no_results(tmp_path)
+    for engine_id in ("fake", "sockseek-3.0.5", "sldl-2.6.0"):
+        text = build_report(diag, app_version="1.1.0", engine_id=engine_id, windows_version="macOS 15.6 (arm64)",
+                            listen_port=50000, redactor=Redactor(secrets=[CREDS.username]))
+        assert "  |  macOS 15.6 (arm64)\n" in text
+        assert "  1. Abre el puerto TCP 50000 en el router hacia la IP local de este Mac.\n" in text
+        assert ("  2. Si tienes activado el firewall de macOS, permite las conexiones entrantes de «sockseek» (el motor "
+                "de descarga de Tracklister) en Ajustes del Sistema > Red > Firewall > Opciones. Está en "
+                "~/Library/Application Support/Tracklister/tools/engines.\n") in text
+        assert "  3. Si tu operador usa CGNAT" in text and "  5. Comprueba tu usuario" in text
+        for windows_only in (".exe", "Firewall de Windows", "%LOCALAPPDATA%", "este PC", "redes privadas"):
+            assert windows_only not in text, windows_only
+
+
+def test_no_results_explains_the_network(as_windows, tmp_path):
     rows, net = build_scenario("sin_resultados", tmp_path / "net")
     paths = app_paths().ensure()
     runner = EngineRunner(fake_engine_spec(), SearchBudget(paths.search_budget_file),
@@ -74,6 +98,10 @@ def test_no_results_explains_the_network(tmp_path):
     # the program that listens, and that the Windows Firewall asks about, is the engine
     assert "Permite «sockseek.exe» (el motor de descarga de Tracklister)" in text
     assert "Permite Tracklister" not in text
+    # 1.1: the Windows lines are exactly those of 1.0.1
+    assert "  1. Abre el puerto TCP 50000 en el router hacia la IP local de este PC.\n" in text
+    assert ("  2. Permite «sockseek.exe» (el motor de descarga de Tracklister) en el Firewall de Windows, en redes "
+            "privadas. Está en %LOCALAPPDATA%\\Tracklister\\tools\\engines.\n") in text
     text = build_report(diag, app_version="1.0.0", engine_id="sldl-2.6.0", windows_version="W", listen_port=50000,
                         redactor=Redactor(secrets=[CREDS.username]))
     assert "Permite «sldl.exe»" in text

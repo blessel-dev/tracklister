@@ -36,7 +36,8 @@ from tracklister.organize.naming import safe_component, win_long
 from tracklister.organize.reorder import apply_reorder, propose_reorder
 from tracklister.pipeline.session import SetSession
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow,
+              pytest.mark.skipif(os.name != "nt", reason="Windows MAX_PATH and the \\\\?\\ prefix (report 3.1.1)")]
 
 CREDS = Credentials("usuario-prueba", "clave-prueba")
 SET_NAME = ("Ñandú & Café: Sesión <Larga> de Prueba, en directo desde el Club de Medianoche de Valencia "

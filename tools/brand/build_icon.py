@@ -8,6 +8,11 @@ logo's flat grey. Alternative (icon/alt/tracklister-alt.ico): vertical grooves, 
 wall of his cover, ink on grey. Both are drawn as integer rectangles per size, so every edge
 lands on the pixel grid; nothing is ever downscaled from a bigger image.
 The .ico stores PNG-compressed 32-bit frames (supported by Windows Vista and later).
+
+macOS (1.1, icon/tracklister.icns): the same 'T' on Apple's app icon template, a rounded plate with
+a transparent margin, because macOS 26 frames icons without that shape in a grey square. Each frame
+(16 to 1024 px) is drawn at its own size too: the plate's edge gets the exact area of each pixel that
+it covers (an integral, never a downscale), the 'T' stays whole pixels. Flat: no shadow or gradient.
 """
 from __future__ import annotations
 
@@ -22,6 +27,16 @@ import qtext
 from common import ASSETS, hex_to_rgb, load_tokens
 
 SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256]
+
+# macOS app icon grid (macOS 11 and later): on a 1024 px canvas the plate is an 824 px rounded square,
+# centred (100 px margins), with a 185.4 px corner radius; the rest of the canvas is transparent.
+MAC_SIZES = [16, 32, 64, 128, 256, 512, 1024]
+MAC_PLATE = 824 / 1024
+MAC_RADIUS = 185.4 / 1024
+# .icns entries (OSType, side in px), every payload a PNG (macOS 10.7 and later). ic11-ic14 are the
+# @2x (Retina) versions of 16, 32, 128 and 256 pt.
+ICNS_TYPES = [("icp4", 16), ("icp5", 32), ("icp6", 64), ("ic07", 128), ("ic08", 256), ("ic09", 512),
+              ("ic10", 1024), ("ic11", 32), ("ic12", 64), ("ic13", 256), ("ic14", 512)]
 
 
 def t_proportions() -> dict:
@@ -62,6 +77,102 @@ def draw_t(n: int, prop: dict, bg: str, ink: str) -> Image.Image:
     a[top:top + bar_h, left:left + bar_w, :3] = ink_rgb
     a[top:top + cap, sl:sl + stem, :3] = ink_rgb
     return Image.fromarray(a, "RGBA")
+
+
+def _quarter_disc_area(x: np.ndarray, y: np.ndarray, r: float) -> np.ndarray:
+    """Area of {0 <= u <= x, 0 <= v <= y, u^2 + v^2 <= r^2} for x, y >= 0, exactly."""
+    x = np.minimum(x, r)
+    y = np.minimum(y, r)
+    xc = np.sqrt(np.maximum(r * r - y * y, 0.0))      # where the arc crosses v = y
+
+    def prim(u):                                      # integral of sqrt(r^2 - u^2) from 0 to u
+        return 0.5 * (u * np.sqrt(np.maximum(r * r - u * u, 0.0)) + r * r * np.arcsin(np.clip(u / r, -1.0, 1.0)))
+
+    return np.where(x <= xc, x * y, y * xc + prim(x) - prim(xc))
+
+
+def _disc_box_area(x0, x1, y0, y1, r: float) -> np.ndarray:
+    """Area of the disc of radius r centred at the origin inside the box [x0, x1] x [y0, y1]."""
+    def h(x, y):                                      # oriented area from the origin to (x, y)
+        return np.sign(x) * np.sign(y) * _quarter_disc_area(np.abs(x), np.abs(y), r)
+
+    return h(x1, y1) - h(x0, y1) - h(x1, y0) + h(x0, y0)
+
+
+def rounded_square_coverage(n: int, side: float, radius: float) -> np.ndarray:
+    """Fraction (0..1) of each pixel of an n x n canvas covered by a centred rounded square of `side` px
+    with corner radius `radius` px: the exact area of the pixel inside the shape (pixel (i, j) is the
+    unit square [j, j+1] x [i, i+1])."""
+    lo, hi = (n - side) / 2.0, (n + side) / 2.0
+    p0 = np.arange(n, dtype=np.float64)
+    p1 = p0 + 1.0
+
+    def overlap(a, b):                                # 1-D overlap of every pixel with [a, b]
+        return np.clip(np.minimum(p1, b) - np.maximum(p0, a), 0.0, 1.0)
+
+    cover = np.outer(overlap(lo, hi), overlap(lo, hi))
+    for cx, bx in ((lo + radius, (lo, lo + radius)), (hi - radius, (hi - radius, hi))):
+        for cy, by in ((lo + radius, (lo, lo + radius)), (hi - radius, (hi - radius, hi))):
+            # the corner box minus its quarter disc is outside the shape
+            box = np.outer(overlap(*by), overlap(*bx))
+            gx0, gx1 = np.maximum(p0, bx[0]), np.minimum(p1, bx[1])
+            gy0, gy1 = np.maximum(p0, by[0]), np.minimum(p1, by[1])
+            X0, Y0 = np.meshgrid(gx0 - cx, gy0 - cy)
+            X1, Y1 = np.meshgrid(gx1 - cx, gy1 - cy)
+            inside = (X1 > X0) & (Y1 > Y0)
+            disc = np.where(inside, _disc_box_area(X0, X1, Y0, Y1, radius), 0.0)
+            cover -= np.clip(box - disc, 0.0, None)
+    return np.clip(cover, 0.0, 1.0)
+
+
+def draw_t_macos(n: int, prop: dict, bg: str, ink: str) -> Image.Image:
+    """The 'T' of draw_t on Apple's rounded plate (MAC_PLATE, MAC_RADIUS), with a transparent margin.
+    The 'T' keeps its proportions, scaled to the plate, and whole pixels, centred like on Windows."""
+    plate = n * MAC_PLATE
+    alpha = rounded_square_coverage(n, plate, n * MAC_RADIUS)
+    a = np.zeros((n, n, 4), np.uint8)
+    a[..., :3] = hex_to_rgb(bg)
+    a[..., 3] = np.round(alpha * 255.0).astype(np.uint8)
+    cap = max(6, round(plate * 0.625))
+    bar_w = _parity(cap * prop["bar_w"], n, 5)
+    stem = _parity(max(2.0, cap * prop["stem_w"]), bar_w, 2)
+    bar_h = max(2, round(cap * prop["bar_h"]))
+    top = (n - cap) // 2 + ((n - cap) % 2)  # optical: odd remainder goes to the top margin
+    left = (n - bar_w) // 2
+    sl = left + (bar_w - stem) // 2
+    ink_rgb = hex_to_rgb(ink)
+    a[top:top + bar_h, left:left + bar_w, :3] = ink_rgb
+    a[top:top + cap, sl:sl + stem, :3] = ink_rgb
+    a[top:top + bar_h, left:left + bar_w, 3] = 255
+    a[top:top + cap, sl:sl + stem, 3] = 255
+    return Image.fromarray(a, "RGBA")
+
+
+def write_icns(path, frames: list[Image.Image]) -> None:
+    """Apple icon family: b'icns', the total length, then one (OSType, length, PNG) entry per
+    ICNS_TYPES; `frames` are the MAC_SIZES renders (a @2x entry reuses the frame of its pixel size)."""
+    pngs = {}
+    for im in frames:
+        b = io.BytesIO()
+        im.save(b, "PNG", optimize=True)
+        pngs[im.size[0]] = b.getvalue()
+    body = b"".join(t.encode("ascii") + struct.pack(">I", 8 + len(pngs[n])) + pngs[n] for t, n in ICNS_TYPES)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"icns" + struct.pack(">I", 8 + len(body)) + body)
+
+
+def read_icns(path) -> list[tuple[str, int, int]]:
+    """Read back the entries: [(OSType, width, height)], decoding each PNG to check it."""
+    data = path.read_bytes()
+    assert data[:4] == b"icns" and struct.unpack(">I", data[4:8])[0] == len(data)
+    out, off = [], 8
+    while off < len(data):
+        typ = data[off:off + 4].decode("ascii")
+        length = struct.unpack(">I", data[off + 4:off + 8])[0]
+        im = Image.open(io.BytesIO(data[off + 8:off + length]))
+        out.append((typ, *im.size))
+        off += length
+    return out
 
 
 def draw_grooves(n: int, bg: str, ink: str) -> Image.Image:
@@ -138,6 +249,12 @@ def main() -> int:
         print(p.name, sizes)
         if [s[0] for s in sizes] != SIZES:
             return 1
+    icns = ASSETS / "icon" / "tracklister.icns"
+    write_icns(icns, [draw_t_macos(n, prop, bg, ink) for n in MAC_SIZES])
+    entries = read_icns(icns)
+    print(icns.name, entries)
+    if entries != [(t, n, n) for t, n in ICNS_TYPES]:
+        return 1
     return 0
 
 

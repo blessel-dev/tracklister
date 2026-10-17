@@ -1,4 +1,5 @@
-# Runtime dependencies of Tracklister 1.0.0, exact pins (Python 3.13, win-amd64).
+# Runtime dependencies of Tracklister, exact pins (Python 3.13; win-amd64 and macOS arm64, with
+# environment markers: a line ending in `; sys_platform == "..."` is only installed on that platform).
 # Install: .venv\Scripts\python.exe -m pip install -r requirements.lock.txt
 # No pandas, no scipy at runtime: openpyxl + csv for tables, numpy for the spectral check.
 PySide6_Essentials==6.12.0
@@ -16,7 +17,7 @@ jaraco.classes==3.4.0
 jaraco.context==6.1.2
 jaraco.functools==4.6.0
 more-itertools==11.1.0
-pywin32-ctypes==0.2.3
+pywin32-ctypes==0.2.3 ; sys_platform == "win32"
 packaging==26.3
 requests==2.34.2
 certifi==2026.7.22

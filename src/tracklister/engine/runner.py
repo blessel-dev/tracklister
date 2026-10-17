@@ -3,11 +3,13 @@
 Owner: ENGINE branch.
 SPDX-License-Identifier: GPL-3.0-or-later
 
-- subprocess.Popen(argv list, shell=False, CREATE_NO_WINDOW); stdout+stderr merged, UTF-8.
+- subprocess.Popen(argv list, shell=False, CREATE_NO_WINDOW); stdout+stderr merged, UTF-8. On POSIX
+  (macOS) the engine also starts its own session (start_new_session), so it leads its own process group.
 - Every line goes through a Redactor (own username/password) before it reaches on_event or
   stdout.txt; engine.log (which the engines write themselves, including the login username) is
   rewritten redacted when the process ends. The unredacted argv is never stored or logged.
-- Cancel kills the whole process tree.
+- Cancel kills the whole process tree: taskkill /T on Windows; on POSIX SIGTERM to the engine's process
+  group, then SIGKILL if it is still there after KILL_GRACE_S.
 - Search budget: one search per item, DESPERATE_SEARCHES_PER_ITEM per item with --desperate (1.0.1, R4).
 - --print json-all (Diagnóstico): the JSON array is also read from the RAW line, in memory only
   (EngineRunResult.json_all), before the line is redacted for stdout.txt. Redacting first broke the JSON
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -37,6 +40,8 @@ from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.spec import EngineSpec
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
+KILL_GRACE_S = 3.0                              # POSIX cancel: SIGTERM, then SIGKILL after this long
+SIGKILL = getattr(signal, "SIGKILL", 9)         # Windows' signal module has no SIGKILL (never sent there)
 
 # --desperate: when an item's searches find nothing, both engines search again (3.x Sockseek.Core/Search/
 # Searcher.cs:596-648, 2.x Services/Searcher.cs:739-811): artist + album, artist + title without the length
@@ -71,12 +76,33 @@ class EngineRunResult:
     json_all: list | None = None     # --print json-all: the last JSON array, parsed before redaction (memory only)
 
 
+def _kill_group(proc, killpg: Callable[[int, int], None]) -> None:
+    """POSIX: the engine leads its own process group (start_new_session), so the group is the engine and
+    anything it started. SIGTERM first; SIGKILL if the engine is still running after KILL_GRACE_S. A group
+    that is already gone, or not ours to signal, is left alone."""
+    try:
+        killpg(proc.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        return
+    try:
+        proc.wait(timeout=KILL_GRACE_S)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        killpg(proc.pid, SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def _kill_tree(proc: subprocess.Popen) -> None:
     if proc.poll() is not None:
         return
     if sys.platform == "win32":
         subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True,
                        creationflags=CREATE_NO_WINDOW, check=False)
+    elif hasattr(os, "killpg"):
+        _kill_group(proc, os.killpg)
     try:
         proc.kill()
     except OSError:
@@ -130,10 +156,13 @@ class EngineRunner:
 
         env = dict(os.environ)
         env.update(self.env)
+        # POSIX: its own session and process group, so cancelling reaches everything it started (_kill_group)
+        own_group = {"start_new_session": True} if os.name == "posix" else {}
         try:
             proc = subprocess.Popen(argv, shell=False, cwd=str(work), env=env, stdin=subprocess.DEVNULL,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                    encoding="utf-8", errors="replace", creationflags=CREATE_NO_WINDOW)
+                                    encoding="utf-8", errors="replace", creationflags=CREATE_NO_WINDOW,
+                                    **own_group)
         except OSError as e:
             raise EngineError(f"No se pudo arrancar el motor ({type(e).__name__}). "
                               "Revisa Ajustes > Motor o reinstala Tracklister.") from None

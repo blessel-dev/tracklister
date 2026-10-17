@@ -171,6 +171,40 @@ def test_move_and_remove_keep_row_index_numbering(window):
     assert m.rowCount() == 3 and [r.pos for r in m.rows()] == [1, 2, 3]
 
 
+def _shortcut_keys(page) -> list[str]:
+    from PySide6.QtGui import QKeySequence, QShortcut
+    return [s.key().toString(QKeySequence.SequenceFormat.PortableText) for s in page.table.findChildren(QShortcut)]
+
+
+def _press_on_the_table(qtbot, window, key):
+    page = window.new_set
+    window.activateWindow()
+    page.table.setFocus()
+    qtbot.waitUntil(lambda: page.table.hasFocus(), timeout=5000)
+    qtbot.keyClick(page.table, key)
+
+
+def test_mac_backspace_removes_the_selected_row(as_macos, window, qtbot):
+    """On a Mac keyboard the «delete» key is Backspace (report 3.1 point 18)."""
+    page = window.new_set
+    page.set_rows(sample_rows(), name="X")
+    assert "Backspace" in _shortcut_keys(page)
+    gone = page.model.row_at(1).uid
+    page.table.selectRow(1)
+    _press_on_the_table(qtbot, window, Qt.Key.Key_Backspace)
+    assert page.model.rowCount() == 3 and gone not in [r.uid for r in page.model.rows()]
+    assert [r.pos for r in page.model.rows()] == [1, 2, 3]
+
+
+def test_windows_backspace_removes_nothing(as_windows, window, qtbot):
+    page = window.new_set
+    page.set_rows(sample_rows(), name="X")
+    assert "Backspace" not in _shortcut_keys(page)
+    page.table.selectRow(1)
+    _press_on_the_table(qtbot, window, Qt.Key.Key_Backspace)
+    assert page.model.rowCount() == 4                     # unchanged: Supr (Delete) is the key on Windows
+
+
 def test_second_import_replace_or_merge(window, qtbot, prompter, ready_services):
     page = window.new_set
     page.import_source("a")

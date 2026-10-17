@@ -37,6 +37,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Sequence
 
+from tracklister.core import osplatform
 from tracklister.core.textnorm import norm_key
 from tracklister.engine.csvwriter import ManifestItem
 from tracklister.engine.outputs import INCOMPLETE_SUFFIXES, STAGING_DIRS, EngineEvent, _info_mb, _long
@@ -55,6 +56,9 @@ ACTIVE = (PHASE_DOWNLOADING, PHASE_ANOTHER_COPY)
 
 _QUEUED_STATUS = ("queued (r)", "queued (l)", "initialising")
 _INVALID = re.compile(r'[<>:"/\\|?*]')
+# macOS: Sockseek replaces only '/' and NUL in a name (Sockseek.Core/Common/Utils.cs:337-347,
+# Files/FileManager.cs:418-421), so ':' or '?' stay on disk
+_INVALID_MAC = re.compile(r"[/\x00]")
 _INFO = re.compile(r"\s+\[[^\]]*\]\s*$")
 
 
@@ -68,8 +72,10 @@ def _size_now(path: str) -> int:
 
 
 def _name_key(name: str) -> str:
-    """A file name as both engines write it to disk (Windows-invalid characters become spaces)."""
-    return _INVALID.sub(" ", name).strip(" .").casefold()
+    """A file name as the engine writes it to disk: on Windows both engines turn the Windows-invalid characters
+    into spaces; on macOS Sockseek changes only '/' and NUL."""
+    invalid = _INVALID_MAC if osplatform.is_macos() else _INVALID
+    return invalid.sub(" ", name).strip(" .").casefold()
 
 
 def remote_name(display: str) -> str | None:

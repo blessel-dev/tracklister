@@ -81,10 +81,49 @@ def test_r2_n8_updates_are_checked_once_the_first_run_is_done(fresh_window, qtbo
     qtbot.waitUntil(lambda: services.update_calls == [False], timeout=5000)   # but this session checks too
 
 
-def test_port_help_names_the_engine_the_firewall_asks_about():
-    from tracklister.gui.pages.first_run import PORT_HELP
+def test_port_help_names_the_engine_the_firewall_asks_about(as_windows):
+    from tracklister.gui.pages.first_run import PORT_HELP, port_help
     assert "«sockseek.exe»" in PORT_HELP and "«sldl.exe»" in PORT_HELP and "Firewall de Windows" in PORT_HELP
     assert "permite Tracklister" not in PORT_HELP
+    assert port_help() is PORT_HELP
+
+
+def test_mac_port_help_names_sockseek_and_the_macos_firewall(as_macos):
+    from tracklister.gui.pages.first_run import PORT_HELP_MAC, port_help
+    assert port_help() is PORT_HELP_MAC
+    assert PORT_HELP_MAC == (
+        "Si las descargas no arrancan, abre este puerto TCP en el router hacia este Mac y, si tienes activado el "
+        "firewall de macOS, permite las conexiones entrantes de «sockseek», el motor de descarga de Tracklister "
+        "(Ajustes del Sistema > Red > Firewall > Opciones). Si un amigo usa Tracklister en tu misma red, usad "
+        "puertos distintos.")
+    assert "«sockseek»" in PORT_HELP_MAC and "firewall de macOS" in PORT_HELP_MAC
+    assert ".exe" not in PORT_HELP_MAC and "sldl" not in PORT_HELP_MAC and "Windows" not in PORT_HELP_MAC
+
+
+def _labels(widget) -> list[str]:
+    from PySide6.QtWidgets import QLabel
+    return [lb.text() for lb in widget.findChildren(QLabel)]
+
+
+def test_windows_first_run_texts_are_those_of_1_0(as_windows, fresh_window):
+    from tracklister.gui.pages.first_run import PORT_HELP
+    texts = _labels(fresh_window.first_run)
+    assert ("De una tracklist a una carpeta ordenada de música verificada. Tres datos y listo: todo se guarda solo "
+            "en este PC.") in texts
+    assert any(t.startswith("Se guarda en el Administrador de credenciales de Windows, nunca en un archivo. Si aún "
+                            "no tienes cuenta,") for t in texts)
+    assert PORT_HELP in texts
+
+
+def test_mac_first_run_texts(as_macos, fresh_window):
+    from tracklister.gui.pages.first_run import PORT_HELP_MAC
+    texts = _labels(fresh_window.first_run)
+    assert ("De una tracklist a una carpeta ordenada de música verificada. Tres datos y listo: todo se guarda solo "
+            "en este Mac.") in texts
+    assert any(t.startswith("Se guarda en el Llavero de macOS, nunca en un archivo. Si aún no tienes cuenta,")
+               for t in texts)
+    assert PORT_HELP_MAC in texts
+    assert not any("Windows" in t or "este PC" in t or ".exe" in t for t in texts)
 
 
 @pytest.mark.parametrize("tid", ["hormigon", "noche"])

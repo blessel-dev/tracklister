@@ -5,6 +5,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
 import pytest
+from PySide6.QtWidgets import QLabel
 
 from tests.gui.conftest import TEST_PASS
 from tests.gui.fakes import FakeUpdate
@@ -86,7 +87,7 @@ def test_presets_and_custom_options(window):
     assert "Personalizado" in window.new_set.preset_label.text()
 
 
-def test_port_engine_and_checks(window, tmp_path):
+def test_port_engine_and_checks(as_windows, window, tmp_path):
     window.go("settings")
     sp = window.settings_page
     sp.port.setText("50001")
@@ -163,6 +164,62 @@ def test_update_notice_with_link(window, qtbot, ready_services):
     assert ready_services.opened_urls[-1].endswith("/v1.0.1")
     window.update_banner.close_btn.click()
     assert not window.update_holder.isVisible()
+
+
+def _labels(widget) -> list[str]:
+    return [lb.text() for lb in widget.findChildren(QLabel)]
+
+
+@pytest.fixture
+def sldl_saved(ready_services):
+    """A settings.json that says sldl 2.6.0, as one copied from a PC would."""
+    ready_services.settings.engine_id = "sldl-2.6.0"
+    ready_services.save_settings()
+    return ready_services
+
+
+def test_windows_engine_selector_lists_both_engines(as_windows, sldl_saved, window):
+    window.go("settings")
+    sp = window.settings_page
+    assert [sp.engine.itemData(i) for i in range(sp.engine.count())] == ["sockseek-3.0.5", "sldl-2.6.0"]
+    assert [sp.engine.itemText(i) for i in range(sp.engine.count())] == ["Sockseek 3.0.5 (recomendado)",
+                                                                         "sldl 2.6.0 (alternativa)"]
+    assert sp.engine.currentData() == "sldl-2.6.0"
+
+
+def test_mac_engine_selector_shows_only_sockseek(as_macos, sldl_saved, window):
+    """sldl is not shipped on macOS (DECISIONES Y): one engine, and the effective one is selected."""
+    window.go("settings")
+    sp = window.settings_page
+    assert [sp.engine.itemData(i) for i in range(sp.engine.count())] == ["sockseek-3.0.5"]
+    assert sp.engine.currentData() == "sockseek-3.0.5"
+    assert _saved().engine_id == "sldl-2.6.0"                 # nothing is rewritten until the user changes it
+
+
+def test_windows_account_and_port_texts_are_those_of_1_0(as_windows, window):
+    from tracklister.gui.pages.first_run import PORT_HELP
+    window.go("settings")
+    sp = window.settings_page
+    texts = _labels(sp)
+    assert "En el Administrador de credenciales de Windows, nunca en un archivo." in texts
+    assert PORT_HELP in texts
+    sp.user.setText("otra-cuenta")
+    sp.password.setText("otra-clave")
+    sp.save_account()
+    assert sp.banner.message() == "Cuenta guardada en el Administrador de credenciales de Windows."
+
+
+def test_mac_account_and_port_texts(as_macos, window):
+    from tracklister.gui.pages.first_run import PORT_HELP_MAC
+    window.go("settings")
+    sp = window.settings_page
+    texts = _labels(sp)
+    assert "En el Llavero de macOS, nunca en un archivo." in texts and PORT_HELP_MAC in texts
+    assert not any("Windows" in t or ".exe" in t for t in texts), [t for t in texts if "Windows" in t or ".exe" in t]
+    sp.user.setText("otra-cuenta")
+    sp.password.setText("otra-clave")
+    sp.save_account()
+    assert sp.banner.message() == "Cuenta guardada en el Llavero de macOS."
 
 
 @pytest.mark.parametrize("tid", ["hormigon", "noche"])

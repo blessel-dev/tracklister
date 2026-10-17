@@ -4,8 +4,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+import os
+import signal
+import subprocess
 import threading
 import time
+
+import pytest
 
 from tests.fakes.scenarios import build_scenario
 from tracklister.engine.cli import EngineJob
@@ -92,6 +97,80 @@ def test_fatal_patterns_ignore_track_names():
     assert fatal_reason_es("  Login Failed - Address Already In Use (30s)") is None
     assert fatal_reason_es("[soulseek] Soulseek login failed: x") is not None
     assert "puerto" in fatal_reason_es("Only one usage of each socket address is normally permitted")
+
+
+class _Proc:
+    """Just enough of a Popen for _kill_group: a pid, and a wait() that returns or times out."""
+
+    def __init__(self, exits: bool):
+        self.pid, self.exits, self.waited = 4242, exits, []
+
+    def wait(self, timeout=None):
+        self.waited.append(timeout)
+        if not self.exits:
+            raise subprocess.TimeoutExpired("engine", timeout)
+        return 0
+
+
+def test_kill_group_sends_sigterm_and_waits():
+    from tracklister.engine import runner as runner_mod
+    sent = []
+    proc = _Proc(exits=True)
+    runner_mod._kill_group(proc, lambda pid, sig: sent.append((pid, sig)))
+    assert sent == [(4242, signal.SIGTERM)] and proc.waited == [runner_mod.KILL_GRACE_S] == [3.0]
+
+
+def test_kill_group_sends_sigkill_when_the_engine_does_not_stop():
+    from tracklister.engine import runner as runner_mod
+    sent = []
+    runner_mod._kill_group(_Proc(exits=False), lambda pid, sig: sent.append((pid, sig)))
+    assert sent == [(4242, signal.SIGTERM), (4242, runner_mod.SIGKILL)]
+    assert runner_mod.SIGKILL == getattr(signal, "SIGKILL", 9)
+
+
+@pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+def test_kill_group_leaves_a_group_that_is_gone_or_not_ours(error):
+    from tracklister.engine import runner as runner_mod
+    sent = []
+
+    def killpg(pid, sig):
+        sent.append(sig)
+        raise error()
+    proc = _Proc(exits=False)
+    runner_mod._kill_group(proc, killpg)                    # never raises
+    assert sent == [signal.SIGTERM] and proc.waited == []
+    sent.clear()
+
+    def term_ok_kill_fails(pid, sig):
+        sent.append(sig)
+        if sig != signal.SIGTERM:
+            raise error()
+    runner_mod._kill_group(_Proc(exits=False), term_ok_kill_fails)
+    assert sent == [signal.SIGTERM, runner_mod.SIGKILL]
+
+
+def test_popen_gives_the_engine_its_own_session_on_posix_only(tmp_path, monkeypatch):
+    """Windows keeps exactly the Popen call of 1.0 (CREATE_NO_WINDOW); POSIX adds start_new_session."""
+    from tracklister.engine import runner as runner_mod
+    from tracklister.engine.runner import EngineError
+    seen = {}
+
+    def fake_popen(argv, **kw):
+        seen.update(kw)
+        raise OSError("no engine here")
+    rows, net = build_scenario("correcto", tmp_path / "net")
+    work = tmp_path / "w"
+    manifest = write_engine_csv(rows, work / "input.csv")
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(tmp_path / "b.json"))
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    with pytest.raises(EngineError):
+        runner.run(EngineJob(work, build_preset("lossless").passes[0], True, 49998), manifest, CREDS,
+                   lambda e: None, threading.Event())
+    assert seen["creationflags"] == runner_mod.CREATE_NO_WINDOW and seen["shell"] is False
+    if os.name == "posix":
+        assert seen["start_new_session"] is True
+    else:
+        assert "start_new_session" not in seen
 
 
 def test_runner_cancel_kills_the_process(tmp_path):

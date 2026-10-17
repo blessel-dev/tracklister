@@ -109,6 +109,10 @@
       "bytes": 193,
       "sha256": "e94bc9c7dafcdf469f67dcb6bca3cb2666bf3767c3ced8fe87ed42b36ed319ce"
     },
+    "icon/tracklister.icns": {
+      "bytes": 26988,
+      "sha256": "6fd20d63d63867418170aeeebb680571a29c01231344749be6ba41ec06489a79"
+    },
     "icon/tracklister.ico": {
       "bytes": 2163,
       "sha256": "a8642feadfe1cc50313e38dc1595739522f70462fcd4f518bd635d5f210d3d41"

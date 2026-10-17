@@ -347,6 +347,59 @@ def test_v101_1r_b1r_reorder_never_proposes_a_title_word_glued_to_the_artist(tmp
         assert by[pos].status == "match" and by[pos].src.name == name, (pos, by[pos])
 
 
+APPLEDOUBLE = b"\x00\x05\x16\x07" + b"\x00\x02\x00\x00" + b"Mac OS X        " + bytes(4096 - 24)
+
+
+def _usb_folder(tmp_path):
+    """An old folder on an exFAT stick a Mac wrote to: each track has its 4 KB AppleDouble '._' twin, whose name
+    reads exactly like a track."""
+    folder = tmp_path / "usb"
+    _make(folder, ["Phara - Grey Ribbon.flac", "Klint - Gunslingers.wav"])
+    for n in ("._Phara - Grey Ribbon.flac", "._Klint - Gunslingers.wav", "._01 - A - B.flac"):
+        (folder / n).write_bytes(APPLEDOUBLE)
+    return folder, [_row(1, "Phara", "Grey Ribbon"), _row(2, "Klint", "Gunslingers")]
+
+
+@pytest.mark.parametrize("plat", ["as_macos", "as_windows"])
+def test_appledouble_files_are_never_proposed_nor_renamed(plat, request, tmp_path):
+    """Report 3.1 point 24 (prioritised), and brief mac-1 Addendum 2: a '._' file could have been proposed as a
+    track by «Reordenar». Skipped on every platform: on Windows too, an intentional fix (the stick a Mac wrote
+    to is then read on a PC)."""
+    request.getfixturevalue(plat)
+    folder, rows = _usb_folder(tmp_path)
+    props = propose_reorder(folder, rows)
+    assert all(not (p.src and p.src.name.startswith("._")) for p in props), props
+    by = _by_pos(props)
+    assert by[1].status == "match" and by[1].src.name == "Phara - Grey Ribbon.flac"
+    assert by[2].status == "match" and by[2].src.name == "Klint - Gunslingers.wav"
+    assert [p for p in props if p.status == "extra"] == []
+    apply_reorder(folder, props, Journal(folder))
+    assert sorted(p.name for p in folder.iterdir() if p.is_file()) == [
+        "._01 - A - B.flac", "._Klint - Gunslingers.wav", "._Phara - Grey Ribbon.flac",
+        "01 - Phara - Grey Ribbon.flac", "02 - Klint - Gunslingers.wav"]
+    for n in ("._01 - A - B.flac", "._Klint - Gunslingers.wav", "._Phara - Grey Ribbon.flac"):
+        assert (folder / n).read_bytes() == APPLEDOUBLE                      # untouched
+
+
+def test_windows_a_4kb_appledouble_twin_is_never_proposed_nor_touched(as_windows, tmp_path):
+    """Brief mac-1, Addendum 2, the Windows case: a 4 KB '._01 - A - B.flac' next to '01 - A - B.flac' is not a
+    stray, is not proposed (not even as an extra) and apply_reorder never touches it."""
+    from tracklister.core.model import ResultState, RowResult
+    from tracklister.organize.finalize import stray_audio_files
+    folder = tmp_path / "usb"
+    _make(folder, ["01 - A - B.flac"])
+    (folder / "._01 - A - B.flac").write_bytes(APPLEDOUBLE)
+    assert (folder / "._01 - A - B.flac").stat().st_size == 4096
+    res = [RowResult(uid="u", pos=1, state=ResultState.VERIFICADO, file="01 - A - B.flac")]
+    assert stray_audio_files(folder, res) == []
+    rows = [_row(1, "A", "B")]
+    props = propose_reorder(folder, rows)
+    assert [p.src.name for p in props if p.src is not None] == ["01 - A - B.flac"], props
+    apply_reorder(folder, props, Journal(folder))
+    assert (folder / "._01 - A - B.flac").read_bytes() == APPLEDOUBLE
+    assert sorted(p.name for p in folder.iterdir() if p.is_file()) == ["._01 - A - B.flac", "01 - A - B.flac"]
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])

@@ -3,9 +3,9 @@
 Owner: GUI step.
 SPDX-License-Identifier: GPL-3.0-or-later
 
-The account goes straight to Windows Credential Manager (engine.credentials); settings.json only
-gets the folder, the preset, the port and the 'done' flags. Nothing is tested against Soulseek
-here: the first download (or Diagnostico) shows a clear message if the login fails.
+The account goes straight to Windows Credential Manager, or the macOS Keychain (engine.credentials);
+settings.json only gets the folder, the preset, the port and the 'done' flags. Nothing is tested
+against Soulseek here: the first download (or Diagnostico) shows a clear message if the login fails.
 """
 from __future__ import annotations
 
@@ -15,7 +15,8 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QCheckBox, QFormLayout, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 
 from tracklister import config
-from tracklister.engine.credentials import CredentialError
+from tracklister.core import osplatform
+from tracklister.engine.credentials import CredentialError, store_name_es
 from tracklister.gui.pages.common import PresetChooser, default_library_root
 from tracklister.gui.widgets import IntField, button, card, label, repolish, scroll_page
 
@@ -28,6 +29,21 @@ PORT_HELP = ("Si las descargas no arrancan, abre este puerto TCP en el router ha
              "«sockseek.exe», el motor de descarga de Tracklister («sldl.exe» si usas el alternativo), en el "
              "Firewall de Windows, en redes privadas. Si un amigo usa Tracklister en tu misma "
              "red, usad puertos distintos.")
+# macOS (1.1): the program that asks the firewall is the engine's copy in Application Support (sockseek)
+PORT_HELP_MAC = ("Si las descargas no arrancan, abre este puerto TCP en el router hacia este Mac y, si tienes "
+                 "activado el firewall de macOS, permite las conexiones entrantes de «sockseek», el motor de "
+                 "descarga de Tracklister (Ajustes del Sistema > Red > Firewall > Opciones). Si un amigo usa "
+                 "Tracklister en tu misma red, usad puertos distintos.")
+
+
+def port_help() -> str:
+    """The port and firewall help of this platform (PORT_HELP on Windows)."""
+    return PORT_HELP_MAC if osplatform.is_macos() else PORT_HELP
+
+
+def this_computer_es() -> str:
+    """«este PC» / «este Mac»."""
+    return "este Mac" if osplatform.is_macos() else "este PC"
 
 
 class FirstRunPage(QWidget):
@@ -56,11 +72,11 @@ class FirstRunPage(QWidget):
 
         lay.addWidget(label("Bienvenido a Tracklister", "title"))
         lay.addWidget(label("De una tracklist a una carpeta ordenada de música verificada. Tres datos y "
-                            "listo: todo se guarda solo en este PC.", "muted", wrap=True))
+                            f"listo: todo se guarda solo en {this_computer_es()}.", "muted", wrap=True))
 
         # 1. Account
         c1, l1 = card("1. Tu cuenta de Soulseek",
-                      "Se guarda en el Administrador de credenciales de Windows, nunca en un archivo. Si aún no "
+                      f"Se guarda en el {store_name_es()}, nunca en un archivo. Si aún no "
                       "tienes cuenta, elige un usuario y una contraseña nuevos: Soulseek la crea la primera vez "
                       "que conectas. Usa tu propia cuenta: Tracklister no trae ninguna.")
         form = QFormLayout()
@@ -113,7 +129,7 @@ class FirstRunPage(QWidget):
         prow.addWidget(self.port)
         prow.addStretch(1)
         l4.addLayout(prow)
-        l4.addWidget(label(PORT_HELP, "small", wrap=True))
+        l4.addWidget(label(port_help(), "small", wrap=True))
         lay.addWidget(c4)
 
         # Notices

@@ -16,7 +16,8 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details.
 
-- Full licence text: `LICENSE` in the repo, `LICENSE.txt` next to `Tracklister.exe`.
+- Full licence text: `LICENSE` in the repo, `LICENSE.txt` next to `Tracklister.exe` (in the Mac app,
+  `Tracklister.app/Contents/Resources/LICENSE.txt`).
 - Source code: https://github.com/OWNER_PLACEHOLDER/tracklister (the owner is the single constant
   `GITHUB_OWNER` in `src/tracklister/config.py`, filled in when the repo is published).
 - Brand assets: the Blessel logo (`assets/logo/`, `assets/lockup/`) is the creator's signature and
@@ -32,7 +33,8 @@ General Public License for more details.
 | JetBrains Mono | 2.304 | OFL-1.1 | Copyright 2020 The JetBrains Mono Project Authors | https://github.com/JetBrains/JetBrainsMono |
 
 Licence texts: `src/tracklister/assets/fonts/OFL-Inter.txt` and `OFL-JetBrainsMono.txt`; in the
-app, `_internal\tracklister\assets\fonts\`.
+app, `_internal\tracklister\assets\fonts\` (in the Mac app,
+`Tracklister.app/Contents/Resources/tracklister/assets/fonts/`).
 
 ## Soulseek engines (separate programs, shipped unmodified)
 
@@ -43,14 +45,18 @@ command-line interface. Each one is the official release binary, verified by SHA
 |---|---|---|---|
 | Sockseek, by fiso64 (default) | 3.0.5 | AGPL-3.0 | `sockseek_3.0.5_win-x64.zip` (`1b5c1189dcfc24cc9fea22dc67a58b7a5f0a127d0367355cf2a8718100044802`) |
 | sldl (slsk-batchdl), by fiso64 (fallback) | 2.6.0 | GPL-3.0 | `sldl_win-x86_self-contained.zip` (`6e39232c8c22f9b4e5f6a635dae85fdc405e50bcc56392351001d8964cf29a63`) |
+| Sockseek, by fiso64 (Mac app, Apple Silicon) | 3.0.5 | AGPL-3.0 | `sockseek_3.0.5_osx-arm64.tar.gz` (`6a18078b78f98a9797d723925574996a7bf87f6cc3012aee9efa1e9977a0edd0`, 46,570,010 bytes) |
 
+- The Mac app ships only Sockseek, as its official osx-arm64 archive (`LICENSE` and the `sockseek`
+  program, ad-hoc signed by its author). sldl is not shipped on macOS: its Mac build is unsigned and
+  uses a .NET version without support.
 - Corresponding source, the exact tags:
   - https://github.com/fiso64/sockseek/tree/v3.0.5 (archive https://github.com/fiso64/sockseek/archive/refs/tags/v3.0.5.zip)
   - https://github.com/fiso64/sockseek/tree/v2.6.0 (archive https://github.com/fiso64/sockseek/archive/refs/tags/v2.6.0.zip)
   - Every Tracklister release on GitHub also attaches both archives as `sockseek-3.0.5-source.zip`
     and `sldl-2.6.0-source.zip`.
 - Licence texts: `third_party/engines/<engine>/LICENSE` (with `SOURCE.md`); in the app,
-  `engines\<engine>\LICENSE`.
+  `engines\<engine>\LICENSE` (in the Mac app, `Tracklister.app/Contents/Resources/engines/sockseek-3.0.5/`).
 - Libraries compiled into the engine binaries, as listed in the project files of those tags and
   with the licences their NuGet packages declare:
   - Soulseek.NET (GPL-3.0-only in 10.0.2 for Sockseek; GPL-3.0-or-later in 8.5.0 for sldl);
@@ -68,15 +74,17 @@ command-line interface. Each one is the official release binary, verified by SHA
 | Program | Version | Licence | Binary (SHA-256) |
 |---|---|---|---|
 | yt-dlp | 2026.08.19 | The Unlicense | `yt-dlp.exe` (`66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a`) |
+| yt-dlp (Mac app) | 2026.08.19 | The Unlicense | `yt-dlp_macos` (`0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202`, 37,146,048 bytes; universal2, ad-hoc signed upstream) |
 
 - Source: https://github.com/yt-dlp/yt-dlp/tree/2026.08.19
-- The official exe is a PyInstaller bundle that also contains Python and other components. Their
+- The official binaries are PyInstaller bundles that also contain Python and other components. Their
   licences are listed in `THIRD_PARTY_LICENSES.txt`, copied unchanged from the tag.
-- Licence texts: `third_party/yt-dlp/`; in the app, `tools\yt-dlp\`.
-- "Actualizar yt-dlp" in Ajustes replaces the copy in `%LOCALAPPDATA%\Tracklister\tools\` with
-  the newest official release (`yt-dlp -U`).
+- Licence texts: `third_party/yt-dlp/`; in the app, `tools\yt-dlp\` (in the Mac app,
+  `Tracklister.app/Contents/Resources/tools/yt-dlp/`).
+- "Actualizar yt-dlp" in Ajustes replaces the copy in `%LOCALAPPDATA%\Tracklister\tools\` (on macOS,
+  `~/Library/Application Support/Tracklister/tools/`) with the newest official release (`yt-dlp -U`).
 
-## Inside Tracklister.exe (PyInstaller bundle)
+## Inside Tracklister.exe and Tracklister.app (PyInstaller bundle)
 
 | Component | Version | Licence | Source |
 |---|---|---|---|
@@ -98,27 +106,30 @@ command-line interface. Each one is the official release binary, verified by SHA
 | jaraco.context | 6.1.2 | MIT | https://github.com/jaraco/jaraco.context |
 | jaraco.functools | 4.6.0 | MIT | https://github.com/jaraco/jaraco.functools |
 | more-itertools | 11.1.0 | MIT | https://github.com/more-itertools/more-itertools |
-| pywin32-ctypes | 0.2.3 | BSD-3-Clause | https://github.com/enthought/pywin32-ctypes |
+| pywin32-ctypes (Windows only) | 0.2.3 | BSD-3-Clause | https://github.com/enthought/pywin32-ctypes |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | https://github.com/pypa/packaging |
 | requests | 2.34.2 | Apache-2.0 | https://github.com/psf/requests |
 | certifi | 2026.7.22 | MPL-2.0 | https://github.com/certifi/python-certifi |
 | charset-normalizer | 3.5.2 | MIT | https://github.com/jawah/charset_normalizer |
 | idna | 3.20 | BSD-3-Clause | https://github.com/kjd/idna |
 | urllib3 | 2.8.0 | MIT | https://github.com/urllib3/urllib3 |
-| OpenSSL (libssl-3.dll, libcrypto-3.dll, from CPython) | 3.0 | Apache-2.0 | https://www.openssl.org/source/ |
-| Microsoft Visual C++ runtime (vcruntime140*.dll, msvcp140*.dll) | - | Microsoft Distributable Code | https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files |
+| OpenSSL (from CPython: libssl-3.dll and libcrypto-3.dll on Windows, libssl.3.dylib and libcrypto.3.dylib on macOS) | 3.0 | Apache-2.0 | https://www.openssl.org/source/ |
+| Microsoft Visual C++ runtime (vcruntime140*.dll, msvcp140*.dll; Windows only) | - | Microsoft Distributable Code | https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files |
 
 - Licence texts in the app folder, copied at build time from each package's metadata:
   `licenses\<package>-<version>\`, plus `licenses\python-<version>\LICENSE.txt`,
-  `licenses\pyinstaller-<version>\COPYING.txt` and `licenses\openssl-<version>\LICENSE.txt`.
+  `licenses\pyinstaller-<version>\COPYING.txt` and `licenses\openssl-<version>\LICENSE.txt` (in the
+  Mac app, the same folders under `Tracklister.app/Contents/Resources/licenses/`).
   PySide6 and shiboken6 get the LGPL-3.0 text (`third_party/licenses/LGPL-3.0.txt`); the GPL-3.0
   text it builds on is `LICENSE.txt`. libsndfile's LGPL-2.1 text is
-  `_internal\_soundfile_data\COPYING`.
+  `_internal\_soundfile_data\COPYING` (in the Mac app, `Contents/Resources/_soundfile_data/COPYING`).
 - CPython also incorporates other software (Expat, libmpdec, zlib, bzip2, liblzma, libffi,
   HACL\*...). Their licences: `licenses\python-<version>\LICENSE.txt` and
   https://docs.python.org/3.13/license.html#licenses-and-acknowledgements-for-incorporated-software.
 - Qt itself incorporates third-party code; see https://doc.qt.io/qt-6/licenses-used-in-qt.html.
-- Qt, PySide6, shiboken6 and libsndfile are separate DLLs in `_internal\`. As the LGPL allows,
-  you can replace them with your own compatible builds of the same versions.
+- Qt, PySide6, shiboken6 and libsndfile are separate DLLs in `_internal\` (separate frameworks and
+  dylibs in `Tracklister.app/Contents/Frameworks/` on macOS). As the LGPL allows, you can replace them
+  with your own compatible builds of the same versions; on macOS, sign the app again afterwards
+  (`codesign --force --deep --sign - Tracklister.app`).
 - The canonical texts in `third_party/licenses/` come from https://www.gnu.org/licenses/lgpl-3.0.txt
   and https://www.apache.org/licenses/LICENSE-2.0.txt.

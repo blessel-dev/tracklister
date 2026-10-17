@@ -6,6 +6,9 @@ Autouse for EVERY test:
 - A socket guard: any connection to a non-loopback address fails the test. Enrichment/update
   tests must use recorded fixtures (replay transport); engine tests use the FAKE engine.
   This laptop must never reach Soulseek (server.slsknet.org:2242) or any peer.
+
+On request (1.1): `as_macos` / `as_windows` simulate that platform's policy for one test, so the macOS
+branches run on Windows and the Windows ones on the macOS runner (tracklister.core.osplatform).
 """
 from __future__ import annotations
 
@@ -15,7 +18,24 @@ import keyring
 import keyring.backend
 import pytest
 
+from tracklister.core import osplatform
+
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+
+
+@pytest.fixture
+def as_macos():
+    """Simulate macOS's POLICY (tracklister.core.osplatform: paths, texts, pins, names, keys) for one test.
+    Request it BEFORE any fixture that builds widgets: def test_x(as_macos, window)."""
+    with osplatform.simulate(osplatform.MACOS):
+        yield
+
+
+@pytest.fixture
+def as_windows():
+    """The same for Windows, so a Windows text or table is also checked on the macOS runner."""
+    with osplatform.simulate(osplatform.WINDOWS):
+        yield
 
 
 class MemoryKeyring(keyring.backend.KeyringBackend):

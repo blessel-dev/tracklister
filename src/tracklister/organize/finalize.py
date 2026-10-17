@@ -13,7 +13,7 @@ from typing import Iterable
 from tracklister.core.layout import DUDOSOS, ORIGINALES
 from tracklister.core.model import QUARANTINE_DOUBTS, RowResult, TrackRow
 from tracklister.organize.journal import Journal, same_file_content
-from tracklister.organize.naming import pad_width, track_filename, win_long
+from tracklister.organize.naming import is_mac_metadata_file, pad_width, track_filename, win_long
 from tracklister.verify.verifier import Verdict
 
 AUDIO_EXTS = (".flac", ".wav", ".aiff", ".aif", ".mp3", ".m4a", ".ogg", ".opus")
@@ -125,7 +125,8 @@ def _nfc_key(rel: str) -> str:
 
 def stray_audio_files(set_dir: Path, results: Iterable[RowResult]) -> list[str]:
     """Audio files in the set folder, _dudosos and _originales that belong to no current result
-    (rows deleted from the table, earlier attempts). Relative paths; nothing is ever deleted."""
+    (rows deleted from the table, earlier attempts). Relative paths; nothing is ever deleted.
+    The AppleDouble '._*' files a Mac leaves on a USB stick are not audio (naming.is_mac_metadata_file)."""
     set_dir = Path(set_dir)
     used = {_nfc_key(p) for res in results for p in (res.file, res.original_file) if p}
     out: list[str] = []
@@ -133,7 +134,8 @@ def stray_audio_files(set_dir: Path, results: Iterable[RowResult]) -> list[str]:
         d = set_dir / sub if sub else set_dir
         try:
             with os.scandir(win_long(d)) as it:
-                names = [e.name for e in it if e.is_file() and Path(e.name).suffix.lower() in AUDIO_EXTS]
+                names = [e.name for e in it if e.is_file() and Path(e.name).suffix.lower() in AUDIO_EXTS
+                         and not is_mac_metadata_file(e.name)]
         except OSError:
             continue
         for name in names:

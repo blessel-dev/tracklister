@@ -63,6 +63,11 @@ KICKED = ("Soulseek server kicked this client, probably because the same account
           "elsewhere. Stopping this run.")
 
 
+# The characters the engines replace in a file name, on the OS this process runs on (a real-OS mechanism:
+# this runs in its own process, which a test's platform simulation does not reach)
+NAME_INVALID = re.compile(r'[<>:"/\\|?*]' if os.name == "nt" else r"[/\x00]")
+
+
 def lp(p) -> str:
     """Long-path form on Windows (the real engines are .NET and long-path aware)."""
     s = os.path.abspath(str(p))
@@ -483,8 +488,9 @@ def main(argv: list[str]) -> int:
         for f in cands:
             peer = peers.get(f["peer"], {})
             name = opts.get("--name-format", "{snum}/{slsk-filename}")
-            # like the real engines: Windows-invalid characters become spaces (--invalid-replace-str)
-            stem = re.sub(r'[<>:"/\\|?*]', " ", file_base(f["path"]).rsplit(".", 1)[0]).strip(" .")
+            # like the real engines: the characters the OS forbids become spaces (--invalid-replace-str), the
+            # Windows set on Windows, only '/' and NUL elsewhere (Sockseek Utils.cs:337-347, FileManager.cs:418-421)
+            stem = NAME_INVALID.sub(" ", file_base(f["path"]).rsplit(".", 1)[0]).strip(" .")
             ext = "." + file_ext(f["path"]) if file_ext(f["path"]) else ""
             # 1.0.1, R11 slow mode ("write_s" on the file or the network): the audio is made first and then
             # written into its incomplete file in steps, like a real transfer the app can watch grow; sldl 2.x

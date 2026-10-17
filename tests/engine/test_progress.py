@@ -12,6 +12,8 @@ import os
 import threading
 from pathlib import Path
 
+import pytest
+
 from tests.fakes.scenarios import file as mkfile, row
 from tracklister.engine.cli import EngineJob
 from tracklister.engine.credentials import Credentials
@@ -20,7 +22,7 @@ from tracklister.engine.outputs import parse_progress_line
 from tracklister.engine.presets import build_preset
 from tracklister.engine.progress import (
     PHASE_ANOTHER_COPY, PHASE_DOWNLOADED, PHASE_DOWNLOADING, PHASE_FAILED, PHASE_NOT_FOUND, PHASE_QUEUED,
-    PHASE_SEARCHING, POLL_S, ProgressTracker, remote_name,
+    PHASE_SEARCHING, POLL_S, ProgressTracker, _name_key, remote_name,
 )
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.runner import EngineRunner
@@ -87,6 +89,7 @@ def test_r11_bytes_come_from_the_growing_incomplete_file(tmp_path):
     assert tr.poll() == []                                   # nothing new: nothing sent
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows MAX_PATH and the \\\\?\\ prefix")
 def test_v101_1_n2_a_long_incomplete_path_is_measured_with_the_long_path_prefix(tmp_path, monkeypatch):
     """Audit v101-1 N2: the tracker listed and stat'ed in/<snum>/<name>.incomplete without the \\\\?\\ prefix.
     On a PC with LongPathsEnabled=0 a long remote name has no bar, and tests/integration/test_long_paths.py
@@ -141,6 +144,32 @@ def test_r11_sldl_initialize_line_gives_the_total_and_goes_to_its_row_by_title(t
     assert [(e.snum, e.phase, e.bytes_done) for e in ev] == [(2, PHASE_DOWNLOADED, int(41.0 * 1024 * 1024))]
     # a file whose name fits no searching row (or two of them) goes nowhere
     assert _feed(tr, D2, "Initialize: peerC\\..\\Otra Cosa.flac [10s/1.0MB]", None) == []
+
+
+def test_name_key_on_windows_turns_the_windows_invalid_characters_into_spaces(as_windows):
+    assert _name_key("AC: DC? <Live>.flac") == "ac  dc   live .flac"
+    assert _name_key("Spirit (Kai Remix) .flac") == "spirit (kai remix) .flac"
+    assert _name_key(" Trip. ") == "trip"
+
+
+def test_mac_name_key_keeps_colons_and_question_marks(as_macos):
+    """On macOS Sockseek changes only '/' and NUL in a name (report 3.1 point 23)."""
+    assert _name_key("AC: DC? <Live>.flac") == "ac: dc? <live>.flac"
+    assert _name_key("A/B\x00C.flac") == "a b c.flac"
+    assert _name_key(" Trip. ") == "trip"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a Windows file name cannot hold ':' or '?'")
+def test_mac_bytes_of_a_name_with_a_colon(as_macos, tmp_path):
+    """The engine keeps ':' and '?' on a Mac: the row's incomplete file is still found and measured."""
+    clock = Clock()
+    out = tmp_path / "in"
+    tr = ProgressTracker(D3, out, _manifest(), clock=clock)
+    _feed(tr, D3, "[003] SongJob: downloading: Fjaak - Spirit: peerA\\..\\a\\Fjaak - Spirit (Live 2:00)?.flac", 1)
+    stage = out / ".sockseek-staging" / "j1" / "Fjaak - Spirit (Live 2:00)?.flac.incomplete"
+    stage.parent.mkdir(parents=True)
+    stage.write_bytes(b"x" * 700)
+    assert [(e.snum, e.bytes_done) for e in tr.poll()] == [(1, 700)]
 
 
 def test_r11_remote_name():

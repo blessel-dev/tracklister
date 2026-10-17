@@ -141,6 +141,51 @@ def _frames(data: bytes):
         yield off, size
 
 
+# macOS 1.1: the .app icon (tools/brand/build_icon.py), OSType -> side in px; ic11-ic14 are the @2x entries
+ICNS_TYPES = {"icp4": 16, "icp5": 32, "icp6": 64, "ic07": 128, "ic08": 256, "ic09": 512, "ic10": 1024,
+              "ic11": 32, "ic12": 64, "ic13": 256, "ic14": 512}
+
+
+def _icns_entries(data: bytes) -> dict[str, bytes]:
+    assert data[:4] == b"icns" and struct.unpack(">I", data[4:8])[0] == len(data)
+    entries: dict[str, bytes] = {}
+    off = 8
+    while off < len(data):
+        typ = data[off:off + 4].decode("ascii")
+        length = struct.unpack(">I", data[off + 4:off + 8])[0]
+        assert length > 8 and off + length <= len(data), typ
+        assert typ not in entries, typ
+        entries[typ] = data[off + 8:off + length]
+        off += length
+    return entries
+
+
+def test_icns_frames_read_back():
+    entries = _icns_entries(asset_path("icon/tracklister.icns").read_bytes())
+    assert list(entries) == list(ICNS_TYPES)
+    for typ, n in ICNS_TYPES.items():
+        assert png_header(entries[typ]) == (n, n, 8, 6), typ           # a PNG of its own size, RGBA
+    # every pixel size is its own render (the @2x entries reuse the frame of the same pixel size)
+    by_size = {}
+    for typ, n in ICNS_TYPES.items():
+        by_size.setdefault(n, set()).add(entries[typ])
+    assert all(len(v) == 1 for v in by_size.values()) and len({next(iter(v)) for v in by_size.values()}) == 7
+
+
+@pytest.mark.gui
+def test_icns_1024_frame_is_the_rounded_plate(qapp):
+    from PySide6.QtGui import QImage
+
+    img = QImage.fromData(_icns_entries(asset_path("icon/tracklister.icns").read_bytes())["ic10"])
+    assert (img.width(), img.height()) == (1024, 1024) and img.hasAlphaChannel()
+    for x, y in ((0, 0), (1023, 0), (0, 1023), (1023, 1023), (100, 100), (923, 923)):
+        assert img.pixelColor(x, y).alpha() == 0, (x, y)                # transparent margin, rounded corners
+    for x, y in ((512, 512), (512, 101), (101, 512), (300, 700)):
+        assert img.pixelColor(x, y).alpha() == 255, (x, y)              # the plate is opaque
+    assert img.pixelColor(512, 512).name() == load_tokens()["themes"]["hormigon"]["colors"]["ink"]   # the T stem
+    assert img.pixelColor(300, 700).name() == load_tokens()["themes"]["hormigon"]["colors"]["bg"]
+
+
 def test_png_assets_have_alpha():
     rels = [p.relative_to(assets_dir()).as_posix() for p in assets_dir().rglob("*.png")]
     assert any(r.startswith("logo/") for r in rels)

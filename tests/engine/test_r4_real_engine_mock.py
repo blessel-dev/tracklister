@@ -30,9 +30,11 @@ from tracklister.engine.cli import EngineJob, build_command, redact_argv
 from tracklister.engine.credentials import Credentials
 from tracklister.engine.csvwriter import write_engine_csv
 from tracklister.engine.presets import build_preset, relaxed
-from tracklister.engine.spec import ENGINE_PINS, EngineDialect, EngineSpec, fake_engine_spec
+from tracklister.engine.spec import EngineDialect, EngineSpec, engine_pins, fake_engine_spec
 
 FIX = Path(__file__).parents[1] / "fixtures" / "engine"
+# the recorded runs are of both Windows engines; on POSIX the C:\ paths become C:/, so '\' -> '/' on both sides
+PINS = engine_pins("win32")
 _spec = importlib.util.spec_from_file_location("probe_r4_variants", FIX / "mock_probe" / "probe_r4_variants.py")
 probe = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(probe)
@@ -54,7 +56,7 @@ def _job(work: Path, run: str) -> EngineJob:
                      concurrent=2, desperate=desperate)
 
 
-@pytest.mark.parametrize("eid", list(ENGINE_PINS))
+@pytest.mark.parametrize("eid", list(PINS))
 @pytest.mark.parametrize("run", list(EXPECTED))
 def test_real_engine_outcomes_in_mock_mode(eid, run):
     d = FIX / "mock-run-r4" / eid / run
@@ -63,10 +65,10 @@ def test_real_engine_outcomes_in_mock_mode(eid, run):
     # the argv the real binary ran is exactly the adapter's (plus the mock-mode options)
     lines = d.joinpath("argv.txt").read_text(encoding="utf-8").splitlines()
     ran = lines[:lines.index("--mock-files-dir")]
-    pin = ENGINE_PINS[eid]
+    pin = PINS[eid]
     mine = redact_argv(build_command(EngineSpec(eid, pin.dialect, ("x.exe",)),
                                      _job(Path(PureWindowsPath(rf"C:\T\w\{run}")), run), CREDS)[1:])
-    assert [t.replace("<TMP>", r"C:\T") for t in ran] == mine
+    assert [t.replace("<TMP>", r"C:\T").replace("\\", "/") for t in ran] == [t.replace("\\", "/") for t in mine]
     assert ("--desperate" in ran) is (run == "4-desesperado")
     out = d.joinpath("stdout.txt").read_text(encoding="utf-8")
     assert "Unknown argument" not in out and "Input error" not in out

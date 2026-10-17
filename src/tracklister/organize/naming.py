@@ -76,6 +76,14 @@ def win_long(path: Path | str) -> str:
     return "\\\\?\\" + p
 
 
+def is_mac_metadata_file(name: str) -> bool:
+    """An AppleDouble file ('._01 - A - B.flac'): about 4 KB of Finder metadata that macOS writes next to
+    each file it puts on an exFAT/FAT USB stick or an SMB share. Never audio, so the set folder listings
+    skip it on EVERY platform: DJ sticks move between Macs and PCs, and Windows sees those files too
+    (brief mac-1, Addendum 2; DECISIONES Y). Never a stray, never proposed, moved or deleted."""
+    return name.startswith("._")
+
+
 def unique_path(dst: Path) -> Path:
     """dst, or 'name (2).ext', 'name (3).ext'... whichever does not exist yet."""
     dst = Path(dst)

@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import re
 import struct
+import sys
 import zipfile
 import zlib
 from pathlib import Path
@@ -17,7 +18,8 @@ import pytest
 
 from tests.release.helpers import REPO, load
 from tracklister import __version__
-from tracklister.engine.spec import ENGINE_PINS, asset_name
+from tracklister.core.bundled import ytdlp_pin
+from tracklister.engine.spec import asset_name, engine_pins
 
 build = load("build")
 ci = load("ci_prepare")
@@ -39,6 +41,55 @@ def test_runtime_pins_refuse_an_unpinned_line(tmp_path):
     lock.write_text("# comment\nnumpy==2.5.3\nrequests\n", encoding="utf-8")
     with pytest.raises(build.BuildError, match="requests"):
         build.runtime_pins(lock)
+
+
+@pytest.mark.parametrize("line", ["requests>=2.0", "requests==2.*", "requests==2.0,!=2.1", "no es ; un pin =="])
+def test_runtime_pins_refuse_anything_but_one_exact_version(tmp_path, line):
+    lock = tmp_path / "lock.txt"
+    lock.write_text(f"numpy==2.5.3\n{line}\n", encoding="utf-8")
+    with pytest.raises(build.BuildError, match=r"lock\.txt"):
+        build.runtime_pins(lock, platform="darwin")
+
+
+def test_runtime_pins_follow_the_platform_markers(tmp_path):
+    """macOS 1.1: one lock with environment markers; pywin32-ctypes is a Windows-only pin."""
+    win, mac = dict(build.runtime_pins(platform="win32")), dict(build.runtime_pins(platform="darwin"))
+    assert win["pywin32-ctypes"] == "0.2.3" and "pywin32-ctypes" not in mac
+    assert {k: v for k, v in win.items() if k != "pywin32-ctypes"} == mac
+    assert build.runtime_pins() == build.runtime_pins(platform=sys.platform)
+    lock = tmp_path / "lock.txt"
+    lock.write_text('numpy==2.5.3\nsolo-mac==1.0 ; sys_platform == "darwin"  # comentario\n'
+                    "solo-win==2.0; sys_platform == 'win32'\n", encoding="utf-8")
+    assert build.runtime_pins(lock, platform="darwin") == [("numpy", "2.5.3"), ("solo-mac", "1.0")]
+    assert build.runtime_pins(lock, platform="win32") == [("numpy", "2.5.3"), ("solo-win", "2.0")]
+
+
+def test_check_lock_warns_about_unpinned_different_and_missing(tmp_path, monkeypatch, capsys):
+    check = load("check_lock")
+    (tmp_path / "base.txt").write_text('numpy==2.5.3\nsolo-win==1.0 ; sys_platform == "win32"\n', encoding="utf-8")
+    dev = tmp_path / "dev.txt"
+    dev.write_text("# dev\n-r base.txt\npytest==9.1.1\nPyYAML==6.0.3\nfalta==3.0\n", encoding="utf-8")
+    assert check.lock_pins(dev, "darwin") == {"numpy": "2.5.3", "pytest": "9.1.1", "pyyaml": "6.0.3", "falta": "3.0"}
+    assert check.lock_pins(dev, "win32")["solo-win"] == "1.0"
+    have = {"numpy": "2.5.3", "pytest": "9.0.0", "pyyaml": "6.0.3", "pip": "26.0", "macholib": "1.16.4"}
+    monkeypatch.setattr(check, "installed", lambda: have)
+    assert check.main(["--lock", str(dev), "--platform", "darwin"]) == 0
+    warnings = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("::warning")]
+    assert len(warnings) == 3, warnings                                 # pip is never reported
+    assert any("macholib 1.16.4" in w and "no lo fija" in w for w in warnings)
+    assert any("pytest instalado 9.0.0" in w and "9.1.1" in w for w in warnings)
+    assert any("falta 3.0" in w and "no está instalado" in w for w in warnings)
+    assert check.main(["--lock", str(tmp_path / "no-existe.txt")]) == 0     # never stops the job
+    assert "::warning" in capsys.readouterr().out
+
+
+def test_check_lock_reads_the_real_locks():
+    check = load("check_lock")
+    pins = check.lock_pins(check.DEFAULT_LOCK, "darwin")
+    assert pins["macholib"] == "1.16.4" and pins["pyyaml"] == "6.0.3" and pins["pyside6-essentials"] == "6.12.0"
+    assert not {"pywin32-ctypes", "pefile", "colorama"} & set(pins)
+    assert {"pywin32-ctypes", "pefile", "colorama"} <= set(check.lock_pins(check.DEFAULT_LOCK, "win32"))
+    assert "macholib" not in check.lock_pins(check.DEFAULT_LOCK, "win32")
 
 
 def test_every_runtime_pin_ships_a_licence_text():
@@ -73,7 +124,7 @@ def test_zip_has_a_single_tracklister_folder(tmp_path):
     (app / "Tracklister.exe").write_bytes(b"MZ")
     (app / "_internal" / "x" / "a.txt").write_text("hola", encoding="utf-8")
     out = tmp_path / "out" / "t.zip"
-    build.write_zip(app, out)
+    build.write_zip(app, out, platform="win32")
     with zipfile.ZipFile(out) as z:
         assert sorted(z.namelist()) == ["Tracklister/Tracklister.exe", "Tracklister/_internal/x/a.txt"]
         assert z.read("Tracklister/_internal/x/a.txt") == b"hola"
@@ -104,20 +155,20 @@ def test_check_bundle_refuses_scratch_dev_modules_and_user_files(tmp_path):
     _touch(app / "settings.json")
     _touch(app / "engine.log")
     _touch(app / "sldl.conf")
-    problems = build.check_bundle(app, identity_scan=False)
-    text = "\n".join(problems)
+    problems = build.check_bundle(app, identity_scan=False, platform="win32")
+    text = "\n".join(problems).replace("\\", "/")
     for needle in (".tmp", "scipy", "fake_engine.py", "settings.json", "engine.log", "sldl.conf"):
         assert needle in text, needle
     assert "falta en el paquete: Tracklister.exe" in text
-    assert "falta en el paquete: _internal\\tracklister\\assets\\tokens.json" in text
+    assert "falta en el paquete: _internal/tracklister/assets/tokens.json" in text
 
 
 def test_check_bundle_detects_a_tampered_engine_or_ytdlp(tmp_path):
     app = tmp_path / "Tracklister"
-    pin = ENGINE_PINS["sockseek-3.0.5"]
+    pin = engine_pins("win32")["sockseek-3.0.5"]
     _touch(app / "engines" / asset_name(pin), b"not the pinned zip")
     _touch(app / "tools" / "yt-dlp.exe", b"MZ not the pinned exe")
-    problems = build.check_bundle(app, identity_scan=False)
+    problems = build.check_bundle(app, identity_scan=False, platform="win32")
     assert f"SHA-256 del motor no coincide: {asset_name(pin)}" in problems
     assert "SHA-256 de yt-dlp.exe no coincide" in problems
 
@@ -165,7 +216,9 @@ def _spec_function(name: str):
 
 def test_r2_n10_the_spec_accepts_pre_release_versions():
     version_numbers = _spec_function("version_numbers")
-    assert version_numbers(__version__) == tuple(int(x) for x in __version__.split(".")) + (0,)
+    release = re.match(r"(\d+)\.(\d+)\.(\d+)", __version__).groups()
+    assert version_numbers(__version__) == tuple(int(x) for x in release) + (0,)
+    assert version_numbers("1.1.0.dev1") == (1, 1, 0, 0)                   # the macOS test builds (1.1)
     assert version_numbers("1.0.1rc1") == (1, 0, 1, 0)
     assert version_numbers("1.1.0-beta.2") == (1, 1, 0, 0)
     assert version_numbers("2.0.0.dev3") == (2, 0, 0, 0) and version_numbers("3") == (3, 0, 0, 0)
@@ -239,6 +292,28 @@ def test_r12_ci_keeps_the_owner_and_warns_in_a_fork(tmp_path, monkeypatch):
     assert after == original and 'GITHUB_OWNER = "blessel-dev"' in after   # the update notice keeps our repo
 
 
+def test_mac_a_branch_push_is_a_test_build_without_a_tag(tmp_path, monkeypatch, capsys):
+    """1.1: a push to branch mac checks the versions and the owner, but there is no tag to match."""
+    copy = tmp_path / "config.py"
+    copy.write_text((REPO / "src" / "tracklister" / "config.py").read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(ci, "CONFIG", copy)
+    assert ci.main(["--tag", "mac", "--ref-type", "branch", "--owner", "blessel-dev", "--repo", "tracklister"]) == 0
+    out = capsys.readouterr().out
+    assert (f"OK: rama mac, build de prueba (no publica ni crea etiquetas), versión {__version__}, "
+            "propietario blessel-dev") in out and "::" not in out
+    assert ci.main(["--tag", "mac", "--owner", "blessel-dev"]) == 1         # the default is still a tag
+    assert "::error::" in capsys.readouterr().out
+    assert ci.main(["--tag", f"v{__version__}", "--ref-type", "tag", "--owner", "blessel-dev"]) == 0
+    assert f"OK: etiqueta v{__version__}" in capsys.readouterr().out
+    other = tmp_path / "pyproject.toml"                                     # versions must still agree
+    other.write_text('[project]\nname = "tracklister"\nversion = "9.9.9"\n', encoding="utf-8")
+    monkeypatch.setattr(ci, "PYPROJECT", other)
+    assert ci.main(["--tag", "mac", "--ref-type", "branch", "--owner", "blessel-dev"]) == 1
+    assert "::error::" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        ci.main(["--tag", "mac", "--ref-type", "", "--owner", "blessel-dev"])  # an empty GITHUB_REF_TYPE
+
+
 def test_r12_ci_still_injects_into_a_placeholder_tree(tmp_path, monkeypatch):
     monkeypatch.setattr(ci, "CONFIG", tmp_path / "config.py")
     ci.CONFIG.write_text(CONFIG, encoding="utf-8", newline="\n")
@@ -248,24 +323,88 @@ def test_r12_ci_still_injects_into_a_placeholder_tree(tmp_path, monkeypatch):
 
 # ---- fetch_ytdlp.py ---------------------------------------------------------------------------------------------
 def test_ytdlp_pin_is_consistent():
-    assert re.fullmatch(r"[0-9a-f]{64}", ytdlp.EXE_SHA256)
-    assert f"/download/{ytdlp.VERSION}/yt-dlp.exe" in ytdlp.EXE_URL and ytdlp.VERSION in ytdlp.SUMS_URL
+    """The pins live in tracklister.core.bundled (the app reads the same ones); the module constants are
+    this platform's (Windows: yt-dlp.exe, as before 1.1)."""
+    bin_dir = REPO / "third_party" / "yt-dlp" / "bin"
+    for platform, name in (("win32", "yt-dlp.exe"), ("darwin", "yt-dlp_macos")):
+        pin = ytdlp_pin(platform)
+        assert pin.asset_name == name and re.fullmatch(r"[0-9a-f]{64}", pin.sha256) and pin.size > 10_000_000
+        assert ytdlp.asset_url(pin) == f"https://github.com/yt-dlp/yt-dlp/releases/download/{pin.version}/{name}"
+        assert ytdlp.sums_url(pin).endswith(f"/download/{pin.version}/SHA2-256SUMS")
+        assert ytdlp.exe_path(platform) == bin_dir / name
+    here = ytdlp_pin(ytdlp.default_platform())
+    assert (ytdlp.VERSION, ytdlp.EXE_NAME, ytdlp.EXE_SHA256, ytdlp.EXE_SIZE) == (
+        here.version, here.asset_name, here.sha256, here.size)
+    assert ytdlp.EXE_URL == ytdlp.asset_url(here) and ytdlp.VERSION in ytdlp.SUMS_URL
     assert all(f"/{ytdlp.VERSION}/" in url for url in ytdlp.LICENCE_FILES.values())
-    assert ytdlp.exe_path() == REPO / "third_party" / "yt-dlp" / "bin" / "yt-dlp.exe"
+    assert ytdlp.default_platform() == ("darwin" if sys.platform == "darwin" else "win32")
 
 
 def test_sums_entry_reads_the_release_checksums():
-    text = f"{'a' * 64}  yt-dlp.exe\n{'b' * 64}  yt-dlp_x86.exe\n{'c' * 64} *otro.exe\n"
-    assert ytdlp.sums_entry(text) == "a" * 64
+    text = f"{'a' * 64}  yt-dlp.exe\n{'b' * 64}  yt-dlp_x86.exe\n{'c' * 64} *otro.exe\n{'d' * 64}  yt-dlp_macos\n"
+    assert ytdlp.sums_entry(text, "yt-dlp.exe") == "a" * 64
     assert ytdlp.sums_entry(text, "otro.exe") == "c" * 64
+    assert ytdlp.sums_entry(text, "yt-dlp_macos") == "d" * 64
     assert ytdlp.sums_entry(text, "falta.exe") is None
 
 
 def test_verify_local_reports_missing_and_tampered(tmp_path, monkeypatch):
     monkeypatch.setattr(ytdlp, "BIN_DIR", tmp_path)
-    assert ytdlp.verify_local()[0].startswith("FALTA")
+    assert ytdlp.verify_local("win32")[0].startswith("FALTA")
     (tmp_path / "yt-dlp.exe").write_bytes(b"MZ")
-    assert ytdlp.verify_local()[0].startswith("ERROR SHA-256")
+    assert ytdlp.verify_local("win32")[0].startswith("ERROR SHA-256 yt-dlp.exe")
+    assert ytdlp.verify_local("darwin")[0].startswith("FALTA")               # each platform its own file
+    (tmp_path / "yt-dlp_macos").write_bytes(b"\xca\xfe\xba\xbe not the pinned binary")
+    assert ytdlp.verify_local("darwin")[0].startswith("ERROR SHA-256 yt-dlp_macos")
+
+
+def test_verify_local_checks_the_size_of_the_macos_binary(tmp_path, monkeypatch):
+    import dataclasses
+    data = b"\xca\xfe\xba\xbe fake universal2"
+    monkeypatch.setattr(ytdlp, "BIN_DIR", tmp_path)
+    (tmp_path / "yt-dlp_macos").write_bytes(data)
+    real = ytdlp_pin("darwin")
+    good = dataclasses.replace(real, sha256=hashlib.sha256(data).hexdigest(), size=len(data))
+    monkeypatch.setattr(ytdlp, "ytdlp_pin", lambda platform=None: good)
+    assert ytdlp.verify_local("darwin") == []
+    assert ytdlp.main(["--verify-only", "--platform", "darwin"]) == 0
+    monkeypatch.setattr(ytdlp, "ytdlp_pin", lambda platform=None: dataclasses.replace(good, size=len(data) + 1))
+    assert ytdlp.verify_local("darwin") == [f"ERROR tamaño yt-dlp_macos: esperado {len(data) + 1} bytes, "
+                                            f"obtenido {len(data)}"]
+
+
+def _fetch_engine():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("tracklister_tools_fetch_engine", REPO / "tools" / "fetch_engine.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_fetch_engine_checks_each_platform_with_its_own_pins(tmp_path, monkeypatch, capsys):
+    """--verify-only, no network: Windows looks for its two zips, macOS for the Sockseek tar.gz, also by size."""
+    import dataclasses
+    from tracklister.engine import spec
+    fe = _fetch_engine()
+    monkeypatch.setattr(fe, "dev_bin_dir", lambda: tmp_path)
+    assert fe.verify(fetch=False, platform="win32") == 1
+    out = capsys.readouterr().out
+    assert "FALTA sockseek_3.0.5_win-x64.zip" in out and "FALTA sldl_win-x86_self-contained.zip" in out
+    data = b"\x1f\x8b fake tar.gz"
+    (tmp_path / "sockseek_3.0.5_osx-arm64.tar.gz").write_bytes(data)
+    pin = spec.engine_pins("darwin")["sockseek-3.0.5"]
+    assert pin.asset_size == 46570010
+    monkeypatch.setitem(spec.engine_pins("darwin"), "sockseek-3.0.5",
+                        dataclasses.replace(pin, asset_sha256=hashlib.sha256(data).hexdigest(), asset_size=len(data)))
+    assert fe.verify(fetch=False, platform="darwin") == 0
+    out = capsys.readouterr().out
+    assert f"OK sockseek_3.0.5_osx-arm64.tar.gz sha256={hashlib.sha256(data).hexdigest()} ({len(data)} bytes)" in out
+    assert "sldl" not in out                                               # no sldl and no sldl source on macOS
+    monkeypatch.setitem(spec.engine_pins("darwin"), "sockseek-3.0.5",
+                        dataclasses.replace(pin, asset_sha256=hashlib.sha256(data).hexdigest(), asset_size=1))
+    assert fe.verify(fetch=False, platform="darwin") == 1
+    assert "ERROR tamaño sockseek_3.0.5_osx-arm64.tar.gz: esperado 1 bytes" in capsys.readouterr().out
 
 
 # ---- smoke_test.py ----------------------------------------------------------------------------------------------

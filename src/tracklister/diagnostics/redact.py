@@ -8,7 +8,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   user's own IPs -> "[censurado]". IPv4 has its own pass first, so "1.2.3.4:2242", "IP:1.2.3.4"
   and "1.2.3.4." are caught too (the port stays).
 - Peer names registered with peer() -> "peer-1", "peer-2"... (stable per Redactor).
-- The Windows user profile path -> "%USERPROFILE%" (it contains the Windows account name).
+- The user's home folder (it contains the account name) -> "%USERPROFILE%" on Windows, "~" on macOS.
 
 redact(text, peers=False) skips the peer names (1.0.1, R7): the Diagnóstico puts the pseudonym in the
 peer column itself, and a peer called "50", "6" or "?" must never turn «título distinto (50%)» into
@@ -22,7 +22,16 @@ import re
 from pathlib import Path
 from typing import Iterable
 
+from tracklister.core import osplatform
+
 CENSORED = "[censurado]"
+HOME_LABEL_WINDOWS = "%USERPROFILE%"
+HOME_LABEL_MACOS = "~"
+
+
+def home_label() -> str:
+    """What the user's home folder becomes in a redacted text: %USERPROFILE% on Windows, ~ on macOS."""
+    return HOME_LABEL_MACOS if osplatform.is_macos() else HOME_LABEL_WINDOWS
 # Dedicated IPv4 pass (audit round 3, B2), before the generic one: also an endpoint 'ip:port' (how .NET
 # prints it), 'IP:1.2.3.4' and an address at the end of a sentence ('...1.2.3.4.'). Four dotted numbers,
 # not part of a longer dotted number; ipaddress.IPv4Address decides. '3.0.5', '01:02:03' never match.
@@ -64,6 +73,7 @@ class Redactor:
         self._peers: dict[str, str] = {}
         profile = os.environ.get("USERPROFILE") or str(Path.home())
         self._profiles = sorted({p for p in (profile, str(Path.home())) if p and len(p) > 3}, key=len, reverse=True)
+        self._home_label = home_label()
 
     def add_secret(self, s: str | None) -> None:
         if s and s not in self._secrets:
@@ -92,7 +102,7 @@ class Redactor:
             out = re.sub(secret_pattern(s), lambda _m: CENSORED, out, flags=re.IGNORECASE)
         for p in self._profiles:
             for variant in (p, p.replace("\\", "/"), p.replace("\\", "\\\\")):
-                out = self._sub_ci(out, variant, "%USERPROFILE%")
+                out = self._sub_ci(out, variant, self._home_label)
         for ip in self._own_ips:
             out = out.replace(ip, CENSORED)
         out = _IPV4_CANDIDATE.sub(_ipv4_or_same, out)

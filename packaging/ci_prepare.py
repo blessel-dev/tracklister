@@ -3,10 +3,14 @@
 SPDX-License-Identifier: GPL-3.0-or-later
 
     python packaging/ci_prepare.py --tag v1.0.1 --owner <repository owner> [--repo tracklister]
+    python packaging/ci_prepare.py --tag mac --ref-type branch --owner <repository owner>   # test build
 
 - The tag must be exactly "v" + tracklister.__version__, and pyproject.toml must say the same
   version. Otherwise the job stops: an exe that reports another version would make the in-app
   update notice wrong forever. Pre-releases ("v1.0.1rc1") follow the same rule.
+- A push to a branch (--ref-type branch, `--tag` is then the branch name) is a test build: it
+  publishes nothing and creates no tag, so there is no tag to check. pyproject.toml and the app
+  must still say the same version, and the owner is handled exactly as for a tag.
 - GITHUB_OWNER (src/tracklister/config.py) is the single constant that points the update check
   and the MusicBrainz User-Agent at the published repo. If it is still the placeholder, this
   script fills it in with the repository owner for THIS build only (the runner's checkout; nothing
@@ -93,13 +97,18 @@ def check_repo_name(config_text: str, repo_name: str | None) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--tag", required=True, help="the pushed tag, e.g. v1.0.1 (GITHUB_REF_NAME)")
+    ap.add_argument("--tag", required=True,
+                    help="the pushed tag, e.g. v1.0.1, or the branch name of a test build (GITHUB_REF_NAME)")
+    ap.add_argument("--ref-type", choices=("tag", "branch"), default="tag",
+                    help="what was pushed (GITHUB_REF_TYPE); a branch is a test build that publishes nothing")
     ap.add_argument("--owner", required=True, help="the repository owner (github.repository_owner)")
     ap.add_argument("--repo", default=None, help="the repository name (github.event.repository.name)")
     ap.add_argument("--placeholder", default=PLACEHOLDER, help="the placeholder value of GITHUB_OWNER")
     a = ap.parse_args(argv)
     try:
-        error = check_versions(app_version(), pyproject_version()) or check_tag(a.tag, app_version())
+        error = check_versions(app_version(), pyproject_version())
+        if not error and a.ref_type == "tag":
+            error = check_tag(a.tag, app_version())
     except ValueError as e:
         error = str(e)
     if error:
@@ -116,7 +125,11 @@ def main(argv: list[str] | None = None) -> int:
         CONFIG.write_text(new, encoding="utf-8", newline="\n")
     for w in warnings:
         print(f"::warning::{w}")
-    print(f"OK: etiqueta {a.tag}, versión {app_version()}, propietario {a.owner}")
+    if a.ref_type == "branch":
+        print(f"OK: rama {a.tag}, build de prueba (no publica ni crea etiquetas), versión {app_version()}, "
+              f"propietario {a.owner}")
+    else:
+        print(f"OK: etiqueta {a.tag}, versión {app_version()}, propietario {a.owner}")
     return 0
 
 

@@ -38,6 +38,29 @@ def test_python_m_tracklister_opens_the_first_run_screen(tmp_path):
     assert not log.exists() or "uncaught" not in log.read_text(encoding="utf-8")
 
 
+@pytest.fixture
+def window_icons(monkeypatch):
+    """Every QApplication.setWindowIcon call prepare_app makes."""
+    from PySide6.QtWidgets import QApplication
+    calls = []
+    monkeypatch.setattr(QApplication, "setWindowIcon", lambda *args: calls.append(args[-1]))
+    return calls
+
+
+def test_prepare_app_sets_the_window_icon_on_windows(as_windows, app, window_icons):
+    from tracklister.gui.app import prepare_app
+    assert prepare_app(app) is app
+    assert len(window_icons) == 1 and not window_icons[0].isNull()
+
+
+def test_prepare_app_leaves_the_dock_icon_to_the_bundle_on_macos(as_macos, app, window_icons):
+    """Report 3.1 point 22: on macOS the Dock shows the .icns of the bundle; the .ico must not replace it."""
+    from tracklister.gui.app import prepare_app
+    assert prepare_app(app) is app
+    assert window_icons == []
+    assert app.applicationName() == "Tracklister"                 # the rest of the setup still runs
+
+
 def test_flags_and_quit_after(tmp_path):
     import tracklister.__main__ as entry
     assert callable(entry.main)

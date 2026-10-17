@@ -7,6 +7,8 @@ from __future__ import annotations
 import os
 import unicodedata
 
+import pytest
+
 from tracklister.core.model import TrackRow
 from tracklister.organize.naming import pad_width, safe_component, track_filename, unique_path, win_long
 
@@ -47,6 +49,7 @@ def test_long_title_truncated_first():
     assert len(name) <= 180 and name.startswith("04 - Larga - Titulo") and name.endswith("(Some Remix).flac")
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows MAX_PATH and the \\\\?\\ prefix")
 def test_long_paths_over_260_chars(tmp_path):
     deep = tmp_path
     for i in range(6):

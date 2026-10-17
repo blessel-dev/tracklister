@@ -1,14 +1,18 @@
 """Per-user locations. Owner: core (frozen during the parallel phase).
 
-Real app: config in %APPDATA%\\Tracklister, data/cache/work in %LOCALAPPDATA%\\Tracklister.
-Tests and screenshot tools set TRACKLISTER_HOME to a temp dir; then everything lives under it.
+Real app on Windows: config in %APPDATA%\\Tracklister, data/cache/work in %LOCALAPPDATA%\\Tracklister.
 The engine work dir is deliberately SHORT (LOCALAPPDATA) to stay far from MAX_PATH.
+Real app on macOS (1.1): config and data both in ~/Library/Application Support/Tracklister; their files
+never collide (settings/library/update.json next to the cache, work, tools and logs folders).
+Tests and screenshot tools set TRACKLISTER_HOME to a temp dir; then everything lives under it, on both.
 """
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+from tracklister.core import osplatform
 
 ENV_HOME = "TRACKLISTER_HOME"
 
@@ -49,7 +53,7 @@ class AppPaths:
 
     @property
     def tools_dir(self) -> Path:
-        """Unpacked engine (engines/<engine_id>/) and the updatable yt-dlp.exe."""
+        """Unpacked engine (engines/<engine_id>/) and the updatable yt-dlp (yt-dlp.exe; yt-dlp on macOS)."""
         return self.data_dir / "tools"
 
     @property
@@ -72,6 +76,9 @@ def app_paths() -> AppPaths:
     if home:
         h = Path(home)
         return AppPaths(config_dir=h / "config", data_dir=h / "data")
+    if osplatform.is_macos():
+        support = Path.home() / "Library" / "Application Support" / "Tracklister"
+        return AppPaths(config_dir=support, data_dir=support)
     appdata = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
     local = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     return AppPaths(config_dir=appdata / "Tracklister", data_dir=local / "Tracklister")

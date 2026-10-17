@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 import threading
 from pathlib import Path
@@ -34,7 +35,10 @@ def _counts_only(res) -> dict[str, int]:
 def test_publishable_repo_has_zero_credentials():
     files = ss.publishable_files(REPO)
     assert len(files) > 300                                    # really the whole tree, not an empty list
-    res = ss.scan(files, ss.PATTERNS + ss.local_identity_patterns(), root=REPO)
+    # A GitHub runner has no personal identity (build.py --no-identity-scan says the same): its account
+    # is a generic word, and on macOS it is "runner", which the code itself uses (engine.runner).
+    identity = () if os.environ.get("GITHUB_ACTIONS") == "true" else ss.local_identity_patterns()
+    res = ss.scan(files, ss.PATTERNS + identity, root=REPO)
     assert res.files_scanned >= len(files) - 1
     assert _counts_only(res) == {}, ss.report_lines(res)       # counts and file names only
 
@@ -92,3 +96,19 @@ def test_dummies_and_placeholders_are_not_counted(value):
 
 def test_real_looking_values_are_counted():
     assert not ss.is_dummy("Zq8kWpT3") and not ss.is_dummy("dj-blessel-2026")
+
+
+def test_the_computer_name_comes_from_the_host_name_where_computername_is_unset(monkeypatch, tmp_path):
+    """macOS has no COMPUTERNAME: the scan still looks for this computer's name (invented values)."""
+    import socket
+    monkeypatch.delenv("COMPUTERNAME", raising=False)
+    monkeypatch.setattr(socket, "gethostname", lambda: "Mac-de-Prueba.local")
+    assert ss.computer_names() == {"Mac-de-Prueba.local", "Mac-de-Prueba"}
+    (tmp_path / "nota.txt").write_text("hecho en mac-de-prueba, ver Mac-de-Prueba.local\n", encoding="utf-8")
+    hosts = [p for p in ss.local_identity_patterns() if p.key == "computer_name"]
+    assert len(hosts) == 2
+    res = ss.scan([tmp_path / "nota.txt"], hosts, root=tmp_path)
+    assert res.counts["computer_name"] == 3                    # the short name twice, the full name once
+    monkeypatch.setenv("COMPUTERNAME", "PC-PRUEBA")            # Windows: COMPUTERNAME only, as before
+    assert ss.computer_names() == {"PC-PRUEBA"}
+    assert [p.key for p in ss.local_identity_patterns()].count("computer_name") == 1

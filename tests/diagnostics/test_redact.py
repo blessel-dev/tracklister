@@ -32,13 +32,37 @@ def test_peers_are_stable_pseudonyms():
     assert r.redact("dj_mike\\Music and anna and dj_mike2") == "peer-1\\Music and peer-2 and dj_mike2"
 
 
-def test_user_profile_path(monkeypatch, tmp_path):
+def test_user_profile_path(as_windows, monkeypatch, tmp_path):
     prof = r"C:\Users\Juanito"
     monkeypatch.setenv("USERPROFILE", prof)
     r = Redactor()
     assert r.redact(r"C:\Users\Juanito\Music\x.flac") == r"%USERPROFILE%\Music\x.flac"
     assert r.redact("C:/Users/Juanito/Music") == "%USERPROFILE%/Music"
     assert "Juanito" not in r.redact(r'{"p":"C:\\Users\\Juanito\\Music"}')
+
+
+def test_mac_home_folder_becomes_a_tilde(as_macos, monkeypatch):
+    """1.1: a Mac has no USERPROFILE; the home folder (/Users/<name>) becomes '~' (point 15 of the report)."""
+    from pathlib import Path, PurePosixPath
+
+    from tracklister.diagnostics.redact import home_label
+    monkeypatch.delenv("USERPROFILE", raising=False)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: PurePosixPath("/Users/juanito")))
+    r = Redactor()
+    assert home_label() == "~"
+    assert r.redact("/Users/juanito/Music/Tracklister/x.flac") == "~/Music/Tracklister/x.flac"
+    assert r.redact("Log: /Users/Juanito/Library/Application Support/Tracklister/logs") == \
+        "Log: ~/Library/Application Support/Tracklister/logs"
+    assert "juanito" not in r.redact('{"p":"/Users/juanito/Music"}').lower()
+
+
+def test_home_label_per_platform():
+    from tracklister.core import osplatform
+    from tracklister.diagnostics.redact import home_label
+    with osplatform.simulate(osplatform.WINDOWS):
+        assert home_label() == "%USERPROFILE%"
+    with osplatform.simulate(osplatform.MACOS):
+        assert home_label() == "~"
 
 
 def test_assert_no_secrets():
@@ -72,7 +96,7 @@ def test_r3_b2_versions_times_durations_and_bitrates_are_kept(text):
     assert Redactor().redact(text) == text
 
 
-def test_r7_peers_false_leaves_peer_names_in_free_text_but_still_censors_the_rest(monkeypatch):
+def test_r7_peers_false_leaves_peer_names_in_free_text_but_still_censors_the_rest(as_windows, monkeypatch):
     """1.0.1, R7 (audit r4-3 N8): with peers=False a registered peer name is never searched for in the
     text; the own account, IPs and the profile path still go."""
     monkeypatch.setenv("USERPROFILE", r"C:\Users\Juanito")

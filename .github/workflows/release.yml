@@ -1,7 +1,8 @@
-# Build Tracklister.exe on Windows and publish a GitHub Release when a version tag is pushed.
+# Build Tracklister on Windows and on macOS, test both, and publish ONE GitHub Release when a version
+# tag is pushed.
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Publish from the home PC:   git tag v1.0.1   then   git push origin v1.0.1
+# Publish from the home PC:   git tag v1.1.0   then   git push origin v1.1.0
 # - The tag must be "v" + __version__ (src/tracklister/__init__.py); otherwise the job stops.
 # - The GitHub owner lives in ONE place: GITHUB_OWNER in src/tracklister/config.py. When it names
 #   this repository's owner the check is silent. A fork keeps it, with a warning; an old tree that
@@ -9,12 +10,29 @@
 #   committed), also with a warning.
 # - Everything is offline-tested first (fake engine, no network); the real engines and yt-dlp are
 #   only downloaded and checked against their pinned SHA-256, never run.
+#
+# Three jobs:
+# - windows (windows-2025): the same steps as in 1.0.x; its zip and the engines' sources go to the
+#   artifact "windows-release" instead of being published here.
+# - macos (macos-15, Apple Silicon): the same checks for Tracklister.app (signed ad hoc, zipped with
+#   ditto, smoke-tested); its zip is uploaded as it is (archive: false), because re-zipping it would
+#   lose the app's symlinks and permissions. If a step fails, the last step turns the failing tests
+#   and log lines into annotations, which the public API shows without logging in.
+# - publish (ubuntu, after both): ONE SHA256SUMS.txt and ONE set of notes for both zips, then a single
+#   `gh release create`. It is the only job that may write, and only a v* tag publishes.
+#
+# A push to branch "mac" is a TEST build: both builds and all their tests run, and publish is a dry
+# run (it downloads both artifacts and prints SHA256SUMS.txt and the notes). It creates no Release
+# and no tag, and pages.yml does not run (it only follows main). The macOS zip of a test build is
+# downloaded from the run's Artifacts while logged in to GitHub.
 name: release
 
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - mac
 
 permissions:
   contents: read
@@ -29,12 +47,12 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 jobs:
-  release:
-    name: Build, test and publish (Windows x64)
+  windows:
+    name: Build and test (Windows x64)
     runs-on: windows-2025
     timeout-minutes: 60
     permissions:
-      contents: write                     # create the Release and upload its files
+      contents: read
     defaults:
       run:
         shell: pwsh
@@ -52,7 +70,7 @@ jobs:
       - name: Check the tag and the GitHub owner
         env:
           REPO_NAME: ${{ github.event.repository.name }}
-        run: python packaging\ci_prepare.py --tag "$env:GITHUB_REF_NAME" --owner "$env:GITHUB_REPOSITORY_OWNER" --repo "$env:REPO_NAME" --placeholder "$env:OWNER_PLACEHOLDER"
+        run: python packaging\ci_prepare.py --tag "$env:GITHUB_REF_NAME" --ref-type "$env:GITHUB_REF_TYPE" --owner "$env:GITHUB_REPOSITORY_OWNER" --repo "$env:REPO_NAME" --placeholder "$env:OWNER_PLACEHOLDER"
 
       - name: Create the venv from the exact pins
         run: |
@@ -77,18 +95,142 @@ jobs:
       - name: Smoke-test the exe without Python on PATH
         run: .\.venv\Scripts\python.exe packaging\smoke_test.py --offscreen --screenshot dist\smoke\first-run.png
 
+      - name: Keep the Windows zip and the engines' sources for the publish job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-release
+          path: |
+            dist/release/Tracklister-*-win64.zip
+            dist/release/*-source.zip
+          if-no-files-found: error
+
+  macos:
+    name: Build and test (macOS arm64)
+    runs-on: macos-15
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Show the runner
+        run: |
+          sw_vers
+          uname -m
+          python -VV
+
+      - name: Check the tag and the GitHub owner
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: python packaging/ci_prepare.py --tag "$GITHUB_REF_NAME" --ref-type "$GITHUB_REF_TYPE" --owner "$GITHUB_REPOSITORY_OWNER" --repo "$REPO_NAME" --placeholder "$OWNER_PLACEHOLDER"
+
+      - name: Create the venv from the exact pins (wheels only)
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --no-input --only-binary=:all: -r requirements-dev.lock.txt
+          .venv/bin/python packaging/check_lock.py
+
+      - name: Fetch the pinned engine (SHA-256 verified)
+        run: .venv/bin/python tools/fetch_engine.py
+
+      - name: Fetch the pinned yt-dlp (SHA-256 verified)
+        run: .venv/bin/python packaging/fetch_ytdlp.py
+
+      - name: Run the tests (offline, fake engine)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -o pipefail
+          mkdir -p dist/ci
+          .venv/bin/python -m pytest -q --junitxml=dist/ci/pytest.xml 2>&1 | tee dist/ci/pytest.log
+
+      - name: Build, sign and zip the app
+        run: |
+          set -o pipefail
+          mkdir -p dist/ci
+          .venv/bin/python packaging/build.py --zip --no-identity-scan 2>&1 | tee dist/ci/build.log
+
+      - name: Smoke-test the app
+        run: .venv/bin/python packaging/smoke_test_macos.py --offscreen --screenshot dist/smoke/first-run.png --json dist/ci/smoke.json
+
+      - name: Keep the macOS zip as it is (the artifact is the zip itself)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: dist/release/Tracklister-*-macos-arm64.zip
+          archive: false
+          if-no-files-found: error
+
+      - name: Explain the failure (annotations)
+        if: failure()
+        run: python packaging/ci_annotate.py --title-prefix macOS --junit dist/ci/pytest.xml --log dist/ci/pytest.log dist/ci/build.log build/pyinstaller.log --smoke dist/ci/smoke.json --max 10
+
+  publish:
+    name: Publish the Release (only a v* tag; a dry run on branch mac)
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write                     # create the Release and upload its files (tags only)
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Download the Windows files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-release
+          path: dist/publish/in
+
+      - name: Download the macOS zip as it was uploaded
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: "Tracklister-*-macos-arm64.zip"
+          skip-decompress: true
+          merge-multiple: true
+          path: dist/publish/in
+
+      - name: Gather the files, one SHA256SUMS.txt and the notes
+        env:
+          MODE: ${{ github.ref_type == 'tag' && 'publish' || 'dry-run' }}
+        run: python packaging/publish_release.py --files dist/publish/in --out dist/publish/out --notes dist/publish/release-notes.md --mode "$MODE"
+
       - name: Publish the GitHub Release (files + SHA256SUMS.txt)
+        if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          $files = @(Get-ChildItem dist\release -File | ForEach-Object { $_.FullName })
-          if ($files.Count -lt 4) { Write-Output "::error::dist\release is incomplete"; exit 1 }
-          gh release view $env:TAG --repo $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:TAG @files --repo $env:GITHUB_REPOSITORY --clobber
-          } else {
-            gh release create $env:TAG @files --repo $env:GITHUB_REPOSITORY --verify-tag `
-              --title "Tracklister $($env:TAG.TrimStart('v'))" --notes-file dist\release-notes.md
-          }
-          exit $LASTEXITCODE
+          if [ "$GITHUB_REF_TYPE" != "tag" ] || [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::Only a v* tag publishes a Release (this run is $GITHUB_REF)"
+            exit 1
+          fi
+          shopt -s nullglob
+          files=(dist/publish/out/*)
+          if [ "${#files[@]}" -lt 5 ]; then echo "::error::dist/publish/out is incomplete"; exit 1; fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Tracklister ${TAG#v}" --notes-file dist/publish/release-notes.md
+          fi

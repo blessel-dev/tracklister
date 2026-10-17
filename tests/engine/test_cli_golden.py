@@ -16,21 +16,28 @@ from tracklister.core.settings import CustomPreset
 from tracklister.engine.cli import EngineJob, build_command, redact_argv
 from tracklister.engine.credentials import Credentials
 from tracklister.engine.presets import build_preset, relaxed
-from tracklister.engine.spec import ENGINE_PINS, EngineSpec, fake_engine_spec
+from tracklister.engine.spec import EngineSpec, engine_pins, fake_engine_spec
 
 GOLDEN = Path(__file__).parent / "golden"
+# On POSIX this Windows path becomes 'C:/tl/work/...': the comparisons turn '\' into '/' on both sides (report
+# 3.1.1), so the goldens of BOTH engines (the Windows table) also run on the macOS runner
 WORK = Path(PureWindowsPath(r"C:\tl\work\abcd1234\p01"))
 CREDS = Credentials("usuario-prueba", "clave-prueba")
 PRESETS = ("lossless", "cdj_antiguos", "solo_mp3_320", "personalizado")
+PINS = engine_pins("win32")
+
+
+def _slashes(text: str) -> str:
+    return text.replace("\\", "/")
 
 
 def _spec(engine_id: str) -> EngineSpec:
-    pin = ENGINE_PINS[engine_id]
+    pin = PINS[engine_id]
     return EngineSpec(engine_id, pin.dialect, (rf"C:\engines\{engine_id}\{pin.exe_name}",))
 
 
 def _cases():
-    for eid in ENGINE_PINS:
+    for eid in PINS:
         for pid in PRESETS:
             custom = CustomPreset(formats=["flac", "aiff", "mp3"], min_mp3_kbps=320,
                                   max_samplerate=96000) if pid == "personalizado" else None
@@ -62,9 +69,11 @@ def test_golden_argv(name, eid, job):
     got = "\n".join(redact_argv(argv[len(spec.argv_prefix):])) + "\n"
     path = GOLDEN / f"{name}.txt"
     if os.environ.get("TRACKLISTER_UPDATE_GOLDEN") == "1":
+        if os.name != "nt":
+            pytest.fail("regenerate the goldens on Windows: they keep its separators")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(got, encoding="utf-8", newline="\n")
-    assert path.read_text(encoding="utf-8") == got
+    assert _slashes(path.read_text(encoding="utf-8")) == _slashes(got)
 
 
 def test_golden_files_have_no_secrets_and_no_forbidden_flags():
@@ -89,6 +98,7 @@ def test_dialect_differences_are_exactly_the_three_documented():
     a2 = build_command(_spec("sldl-2.6.0"), job, CREDS)[1:]
     assert a3[a3.index("--output-dir") + 1] == str(WORK / "in")
     assert a2[a2.index("-p") + 1] == str(WORK / "in")
+    assert _slashes(str(WORK / "in")) == "C:/tl/work/abcd1234/p01/in"
     swap = {"--output-dir": "-p", "--concurrent-jobs": "--concurrent-downloads"}
     assert [swap.get(t, t) for t in a3] == a2
 
@@ -112,7 +122,7 @@ def test_banned_users_same_place_in_both_dialects_and_never_the_own_account():
     assert "--banned-users" not in build_command(_spec("sldl-2.6.0"), EngineJob(WORK, p, True, 49998), CREDS)
 
 
-@pytest.mark.parametrize("eid", list(ENGINE_PINS))
+@pytest.mark.parametrize("eid", list(PINS))
 @pytest.mark.parametrize("banned", [(), ("peerA",)])
 def test_r4_desperate_is_one_long_flag_right_after_the_filters_and_bans(eid, banned):
     """1.0.1, R4: the same long flag in both engines (3.x ConfigManager.cs:742-743, 2.x Config.cs:1304-1306).
@@ -153,7 +163,7 @@ def test_fake_spec_prefix_is_python_plus_script():
     assert argv[0] == spec.argv_prefix[0] and argv[1].endswith("fake_engine.py")
 
 
-@pytest.mark.parametrize("eid", list(ENGINE_PINS))
+@pytest.mark.parametrize("eid", list(PINS))
 def test_adapter_matches_argv_the_real_engine_accepted_in_mock_mode(eid):
     """tests/fixtures/engine/mock-run/<id>/argv.txt was accepted by the real binary (mock mode)."""
     real = (Path(__file__).parents[1] / "fixtures" / "engine" / "mock-run" / eid / "argv.txt")
@@ -163,4 +173,4 @@ def test_adapter_matches_argv_the_real_engine_accepted_in_mock_mode(eid):
     work = Path(PureWindowsPath(r"C:\T\w\p01"))
     p = build_preset("lossless").passes[0]
     mine = redact_argv(build_command(_spec(eid), EngineJob(work, p, True, 49998, concurrent=2), CREDS)[1:])
-    assert [t.replace("<TMP>", r"C:\T") for t in accepted] == mine
+    assert [_slashes(t.replace("<TMP>", r"C:\T")) for t in accepted] == [_slashes(t) for t in mine]

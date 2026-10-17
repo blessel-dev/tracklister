@@ -30,7 +30,7 @@ def user_agent() -> str:
     return f"{APP_NAME}/{APP_VERSION} ( {project_url()} )"
 
 
-KEYRING_SERVICE = "Tracklister/Soulseek"  # Windows Credential Manager target prefix
+KEYRING_SERVICE = "Tracklister/Soulseek"  # Windows Credential Manager target prefix; macOS Keychain service
 KEYRING_ACCOUNT_KEY = "__account__"       # entry whose password field stores the username
 
 TRACKID_URL = "https://trackid.net"

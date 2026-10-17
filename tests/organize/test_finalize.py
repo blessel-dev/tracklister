@@ -167,6 +167,34 @@ def test_r4_b4_a_file_really_open_in_another_program_leaves_the_folder_as_it_was
     assert sync_names(s, rows, res, j) == 3 and "01 - A - C.flac" in _folder(s)
 
 
+APPLEDOUBLE = b"\x00\x05\x16\x07" + b"\x00\x02\x00\x00" + b"Mac OS X        " + bytes(4096 - 24)
+
+
+def _mac_usb_set(tmp_path):
+    """A set folder on a USB stick a Mac has written to: every file has its 4 KB AppleDouble twin."""
+    s = tmp_path / "set"
+    _file(s / "01 - A - B.flac")
+    _file(s / "._01 - A - B.flac", APPLEDOUBLE)
+    _file(s / "_dudosos" / "02 - A - C.flac")
+    _file(s / "_dudosos" / "._02 - A - C.flac", APPLEDOUBLE)
+    res = [RowResult(uid="u", pos=1, state=ResultState.VERIFICADO, file="01 - A - B.flac"),
+           RowResult(uid="v", pos=2, state=ResultState.DUDOSO, file="_dudosos/02 - A - C.flac")]
+    return s, res
+
+
+@pytest.mark.parametrize("plat", ["as_macos", "as_windows"])
+def test_appledouble_files_are_never_strays(plat, request, tmp_path):
+    """Report 3.1 point 24, and brief mac-1 Addendum 2: the '._*' files a Mac leaves on an exFAT/FAT stick are
+    metadata, not audio, on every platform (the stick moves between Macs and PCs). An intentional Windows fix."""
+    request.getfixturevalue(plat)
+    s, res = _mac_usb_set(tmp_path)
+    assert stray_audio_files(s, res) == []
+    _file(s / "03 - A - Borrada.flac")
+    assert stray_audio_files(s, res) == ["03 - A - Borrada.flac"]       # a real stray is still listed
+    assert (s / "._01 - A - B.flac").read_bytes() == APPLEDOUBLE        # nothing touched
+    assert (s / "_dudosos" / "._02 - A - C.flac").read_bytes() == APPLEDOUBLE
+
+
 def test_stray_audio_files_lists_what_no_result_points_to(tmp_path):
     s = tmp_path / "set"
     _file(s / "01 - A - Uno.flac")

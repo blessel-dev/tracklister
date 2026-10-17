@@ -4,8 +4,8 @@ Owner: GUI step.
 SPDX-License-Identifier: GPL-3.0-or-later
 
 Every change is saved at once to settings.json (per user). The account is the exception: it is
-written to Windows Credential Manager only when 'Guardar cuenta' is pressed, and never shown back
-except for the user name.
+written to Windows Credential Manager (the macOS Keychain on a Mac) only when 'Guardar cuenta' is
+pressed, and never shown back except for the user name.
 """
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFormLayout, 
                                QRadioButton, QVBoxLayout, QWidget)
 
 from tracklister import config
-from tracklister.engine.credentials import CredentialError
-from tracklister.engine.spec import ENGINE_PINS
+from tracklister.engine.credentials import CredentialError, store_name_es
+from tracklister.engine.spec import engine_pins
 from tracklister.gui.pages.common import PresetChooser, default_library_root
-from tracklister.gui.pages.first_run import PORT_HELP, SHARE_NOTICE
+from tracklister.gui.pages.first_run import SHARE_NOTICE, port_help
 from tracklister.gui.theme import THEME_LABELS_ES, theme_ids
 from tracklister.gui.widgets import Banner, IntField, button, card, label, scroll_page
 
@@ -67,7 +67,7 @@ class SettingsPage(QWidget):
         grid.addWidget(c, 0, 0)
 
         # Account
-        c, cl = card("Cuenta de Soulseek", "En el Administrador de credenciales de Windows, nunca en un archivo.")
+        c, cl = card("Cuenta de Soulseek", f"En el {store_name_es()}, nunca en un archivo.")
         self.account = label("", wrap=True)
         cl.addWidget(self.account)
         form = QFormLayout()
@@ -175,14 +175,14 @@ class SettingsPage(QWidget):
         self.port.textChanged.connect(self._save_port)
         nform.addRow("Puerto de escucha", self.port)
         self.engine = QComboBox()
-        for eid in ENGINE_PINS:
+        for eid in engine_pins():                    # macOS ships only Sockseek (DECISIONES Y)
             self.engine.addItem(ENGINE_LABELS.get(eid, eid), eid)
-        self.engine.setCurrentIndex(max(0, self.engine.findData(s.engine_id)))
+        self.engine.setCurrentIndex(max(0, self.engine.findData(self.services.engine_id())))
         self.engine.currentIndexChanged.connect(self._save_engine)
         self.engine.setAccessibleName("Motor de descarga")
         nform.addRow("Motor", self.engine)
         cl.addLayout(nform)
-        cl.addWidget(label(PORT_HELP, "small", wrap=True))
+        cl.addWidget(label(port_help(), "small", wrap=True))
         cl.addWidget(label(SHARE_NOTICE, "small", wrap=True))
         cl.addStretch(1)
         grid.addWidget(c, 2, 0)
@@ -343,7 +343,7 @@ class SettingsPage(QWidget):
             return
         self.password.clear()
         self.user.clear()
-        self.banner.show_message("Cuenta guardada en el Administrador de credenciales de Windows.", "ok")
+        self.banner.show_message(f"Cuenta guardada en el {store_name_es()}.", "ok")
         self.refresh()
 
     def clear_account(self) -> None:
