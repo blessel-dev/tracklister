@@ -41,3 +41,5 @@ third_party/yt-dlp/bin/
 # Local scratch: never committed, and packaging/build.py refuses a bundle that contains it
 .tmp/
 *.tmp
+# Agent task folders (plans, notes, reports): never committed
+.agents/
