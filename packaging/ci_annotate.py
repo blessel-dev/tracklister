@@ -4,6 +4,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
     python packaging/ci_annotate.py --title-prefix macOS --junit dist/ci/pytest.xml
         --log dist/ci/pytest.log dist/ci/build.log build/pyinstaller.log --smoke dist/ci/smoke.json --max 10
+    python packaging/ci_annotate.py --title-prefix macOS --summary dist/ci/pytest.log --junit dist/ci/pytest.xml
 
 Annotations can be read through the public GitHub API without logging in; the full logs cannot. So when
 a step of the macOS job fails, this prints at most --max `::error title=...::...` lines, in this order:
@@ -11,8 +12,14 @@ a step of the macOS job fails, this prints at most --max `::error title=...::...
 2. the key lines of the logs: errors, BuildError, the exception line of each Python traceback, and
    codesign or ditto failures, each with the indented lines right after it;
 3. the failed checks of the macOS smoke test (its JSON), with their detail.
-If none of them says anything, the last line of each log. Missing files are skipped. Standard library
-only, and the exit code is always 0: it reports a failure, it never causes one.
+If none of them says anything, the last line of each log. On a branch the app is also built and smoke-tested
+after failed tests (brief mac-1b), so the failing tests leave room for up to half of the annotations of 2 and 3.
+
+--summary prints ONE `::notice` instead, with pytest's own summary line ('5 failed, 1531 passed, 6 skipped in
+386.35s'; from the JUnit counts when pytest wrote none), after every test run, passed or failed.
+
+Missing files are skipped. Standard library only, and the exit code is always 0: it reports a failure, it
+never causes one.
 """
 from __future__ import annotations
 
@@ -29,6 +36,10 @@ KEY_LINE = re.compile(
     r"\bnot signed at all\b|\bsealed resource\b|^\s*ditto:|\bditto\b.*\b(fail\w*|error)\b|^FAILED\b)")
 TRACEBACK = "Traceback (most recent call last)"
 PYTEST_SUMMARY = re.compile(r"^(FAILED|ERROR) \S+::")
+# pytest's last line: '5 failed, 1531 passed, 6 skipped in 386.35s (0:06:26)', '=' around it without -q
+SUMMARY_LINE = re.compile(r"^=*\s*(?P<counts>\d+ [a-z]+(?:, \d+ [a-z]+)*) in (?P<secs>\d+(?:\.\d+)?)s\b")
+COUNT_WORDS = {"failed", "passed", "skipped", "deselected", "xfailed", "xpassed", "warning", "warnings",
+               "error", "errors", "rerun"}
 
 
 def escape_data(text: str) -> str:
@@ -112,34 +123,86 @@ def smoke_failures(path: Path) -> list[str]:
     return [f"{name}: {details.get(name) or 'falló'}" for name, ok in (data.get("checks") or {}).items() if not ok]
 
 
+def _unique(found: list[tuple[str, str]], skip: set[str] | None = None) -> list[tuple[str, str]]:
+    """(title, shortened text) pairs, each text once, in order; texts in `skip` are left out."""
+    seen, out = set(skip or ()), []
+    for title, text in found:
+        text = _short(text)
+        if text not in seen:
+            seen.add(text)
+            out.append((title, text))
+    return out
+
+
 def annotations(prefix: str, junit: list[Path], logs: list[Path], smoke: Path | None,
                 limit: int) -> list[str]:
-    found: list[tuple[str, str]] = []
+    tests: list[tuple[str, str]] = []
     for path in junit:
-        found += [(f"{prefix} test", f"{test_id}: {msg}") for test_id, msg in junit_failures(path)]
-    tests_reported = bool(found)
+        tests += [(f"{prefix} test", f"{test_id}: {msg}") for test_id, msg in junit_failures(path)]
+    others: list[tuple[str, str]] = []
     for path in logs:
         for line in log_key_lines(path):
-            if tests_reported and PYTEST_SUMMARY.match(line):
+            if tests and PYTEST_SUMMARY.match(line):
                 continue                       # pytest's own "FAILED x::y - ..." line: the JUnit one says it
-            found.append((f"{prefix} {path.name}", line))
+            others.append((f"{prefix} {path.name}", line))
     if smoke is not None:
-        found += [(f"{prefix} smoke", line) for line in smoke_failures(smoke)]
-    if not found:
+        others += [(f"{prefix} smoke", line) for line in smoke_failures(smoke)]
+    if not tests and not others:
         for path in logs:
             line = last_line(path)
             if line:
-                found.append((f"{prefix} {path.name} (última línea)", line))
-    seen, out = set(), []
-    for title, text in found:
-        text = _short(text)
-        if text in seen:
+                others.append((f"{prefix} {path.name} (última línea)", line))
+    tests = _unique(tests)
+    others = _unique(others, {text for _, text in tests})
+    # a branch build also packages the app after failed tests: many failing tests must not hide why the build
+    # or the smoke test failed, so they leave room for up to half of the annotations
+    n_tests = min(len(tests), limit - min(len(others), limit // 2))
+    chosen = tests[:n_tests] + others[:limit - n_tests]
+    return [f"::error title={escape_property(title)}::{escape_data(text)}" for title, text in chosen]
+
+
+def pytest_summary(log: Path | None) -> str | None:
+    """pytest's own last summary line, without its '=' decoration and the (h:mm:ss) after the seconds."""
+    if log is None:
+        return None
+    try:
+        lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        m = SUMMARY_LINE.match(line.strip())
+        if m and all(part.split(" ", 1)[1] in COUNT_WORDS for part in m.group("counts").split(", ")):
+            return f"{m.group('counts')} in {m.group('secs')}s"
+    return None
+
+
+def junit_totals(paths: list[Path]) -> str | None:
+    """'1531 passed, 5 failed, 6 skipped' from the counts of the JUnit XML files (None without any)."""
+    passed = failed = skipped = errors = 0
+    seen = False
+    for path in paths:
+        try:
+            root = ET.parse(path).getroot()
+        except (OSError, ET.ParseError):
             continue
-        seen.add(text)
-        out.append(f"::error title={escape_property(title)}::{escape_data(text)}")
-        if len(out) >= limit:
-            break
-    return out
+        for suite in ([root] if root.tag == "testsuite" else list(root.iter("testsuite"))):
+            seen = True
+            tests, fails, errs, skips = (int(suite.get(k) or 0) for k in ("tests", "failures", "errors", "skipped"))
+            passed += tests - fails - errs - skips
+            failed, errors, skipped = failed + fails, errors + errs, skipped + skips
+    if not seen:
+        return None
+    return f"{passed} passed, {failed} failed, {skipped} skipped" + (f", {errors} errors" if errors else "")
+
+
+def summary_notice(prefix: str, log: Path | None, junit: list[Path]) -> str:
+    """The `::notice` with the test totals of the run."""
+    text = pytest_summary(log)
+    if text is None:
+        totals = junit_totals(junit)
+        text = (f"{totals} (del JUnit: pytest no escribió su resumen)" if totals
+                else "pytest no dejó resumen (¿se cortó antes de terminar?)")
+    return f"::notice title={escape_property(prefix + ' pytest')}::{escape_data(text)}"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -149,9 +212,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--log", type=Path, nargs="*", default=[])
     ap.add_argument("--smoke", type=Path, default=None)
     ap.add_argument("--max", type=int, default=10)
+    ap.add_argument("--summary", type=Path, default=None,
+                    help="pytest's log: print only the notice with the test totals (from --junit without a summary)")
     try:
         a = ap.parse_args(argv)
-        lines = annotations(a.title_prefix, a.junit, a.log, a.smoke, max(1, a.max))
+        if a.summary is not None:
+            lines = [summary_notice(a.title_prefix, a.summary, a.junit)]
+        else:
+            lines = annotations(a.title_prefix, a.junit, a.log, a.smoke, max(1, a.max))
     except (SystemExit, Exception) as e:  # noqa: BLE001 - reporting must never fail the job
         print(f"ci_annotate: {type(e).__name__}: {e}")
         return 0

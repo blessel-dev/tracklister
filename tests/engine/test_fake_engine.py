@@ -57,7 +57,7 @@ def test_fake_correcto_sockseek3(tmp_path):
     assert "Logging in as usuario-prueba.." in p.stdout       # the real engine prints the user too
     assert "clave-prueba" not in p.stdout + (work / "engine.log").read_text(encoding="utf-8")
     m3u = (work / "playlist.m3u").read_text(encoding="utf-8").splitlines()
-    assert m3u[0] == "in\\1\\Fjaak - Spirit.flac"
+    assert m3u[0] == os.path.join("in", "1", "Fjaak - Spirit.flac")      # the OS separator, like Sockseek
 
 
 def test_fake_sin_resultados_both_dialects(tmp_path):
@@ -77,7 +77,36 @@ def test_fake_sldl2_paths_and_lines(tmp_path):
     assert p.returncode == 0
     assert "Login usuario-prueba" in p.stdout and "Searching: Fjaak - Spirit (30s)" in p.stdout
     assert any(line.startswith("Succeeded:") for line in p.stdout.splitlines())
-    assert index_rows(work)[0]["filepath"] == "./in\\1\\Fjaak - Spirit.flac"
+    assert index_rows(work)[0]["filepath"] == "./" + os.path.join("in", "1", "Fjaak - Spirit.flac")   # like sldl
+
+
+# What the REAL engines write, captured on Windows (tests/fixtures/engine/mock-run), and what they write on Unix.
+# Sockseek 3.0.5, Sockseek.Core/Files/M3uEditor.cs: the index path is "./" + Path.GetRelativePath(...) with
+# every '\' replaced by '/' (WriteSockseekLine), the playlist line is Path.GetRelativePath(...) as it is
+# (SongToLine); sldl 2.6.0 writes both as they are (ENGINE-FACTS.md section 2). .NET's Path uses '\' on
+# Windows and '/' on Unix, so on macOS every one of them has '/'.
+MOCK = Path(__file__).parents[1] / "fixtures" / "engine" / "mock-run"
+
+
+def _captured(eid: str, name: str) -> str:
+    """The first line for 'in/1/Fjaak - Spirit.flac' that the real engine wrote on Windows."""
+    lines = (MOCK / eid / name).read_text(encoding="utf-8").splitlines()
+    return next(ln.split(",")[0] for ln in lines if "Fjaak - Spirit.flac" in ln)
+
+
+@pytest.mark.parametrize("dialect,eid", [(EngineDialect.SOCKSEEK3, "sockseek-3.0.5"),
+                                         (EngineDialect.SLDL2, "sldl-2.6.0")])
+def test_the_fake_writes_the_separators_the_real_engine_writes_on_this_os(tmp_path, dialect, eid):
+    on_windows = {"index": _captured(eid, "index.csv"), "playlist": _captured(eid, "playlist.m3u")}
+    assert on_windows == {"index": "./in/1/Fjaak - Spirit.flac" if dialect == EngineDialect.SOCKSEEK3
+                          else "./in\\1\\Fjaak - Spirit.flac", "playlist": "in\\1\\Fjaak - Spirit.flac"}
+    here = {k: v.replace("\\", os.sep) for k, v in on_windows.items()}     # what it writes on this OS
+    p, work, _ = run_fake(tmp_path, "correcto", dialect)
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert index_rows(work)[0]["filepath"] == here["index"]
+    assert (work / "playlist.m3u").read_text(encoding="utf-8").splitlines()[0] == here["playlist"]
+    if os.sep == "/":
+        assert "\\" not in here["index"] + here["playlist"]
 
 
 def test_fake_peer_timeout_and_ban(tmp_path):

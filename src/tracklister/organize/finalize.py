@@ -142,4 +142,6 @@ def stray_audio_files(set_dir: Path, results: Iterable[RowResult]) -> list[str]:
             rel = f"{sub}/{name}" if sub else name
             if _nfc_key(rel) not in used:
                 out.append(rel)
-    return sorted(out, key=_nfc_key)
+    # NFC + casefold, then the name itself: two names that fold alike (an NFC and an NFD spelling, or a case
+    # pair on a case-sensitive volume) never keep the listing's order, which APFS does not fix (brief mac-1b)
+    return sorted(out, key=lambda rel: (_nfc_key(rel), rel))

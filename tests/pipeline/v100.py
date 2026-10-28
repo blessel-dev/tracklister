@@ -2,8 +2,9 @@
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
-The JSON and text files are copied with {ROOT} turned into the temp folder; 'settings-1.0.0.json' and
-'library-1.0.0.json' get their real names (the repo's .gitignore hides those). The audio is written
+The JSON and text files are copied with {ROOT} turned into the temp folder (local_path: with this system's
+separator, 1.1b); 'settings-1.0.0.json' and 'library-1.0.0.json' get their real names (the repo's .gitignore
+hides those). The audio is written
 again with the very parameters the 1.0.0 fake engine used (tests/fakes/fake_engine.py of 9191dd6,
 write_audio), and its SHA-256 is compared with the one 1.0.0 recorded.
 """
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,9 +34,26 @@ class V100:
     keyring: dict            # the 1.0.0 keyring layout: service, account_key
 
 
+LONG_PREFIX = "\\\\?\\"
+
+
+def local_path(text: str, root: str, sep: str = os.sep) -> str:
+    """{ROOT} -> the temp folder, as THIS system writes paths. Tracklister 1.0.0 only ever ran on Windows, so its
+    files hold Windows paths: on Windows they are installed byte for byte as before. Anywhere else (the macOS
+    runner) a path that starts at {ROOT}, with or without the \\\\?\\ prefix 1.0.0 put on long paths, gets this
+    system's separator and no prefix, as if it had been written here (brief mac-1b). The Soulseek paths
+    ('@@x\\...', 'Musica Inventada\\...') never start at {ROOT}: they keep their backslashes everywhere."""
+    if sep == "\\" or "{ROOT}" not in text:
+        return text.replace("{ROOT}", root)
+    head, _, tail = text.partition("{ROOT}")
+    if head not in ("", LONG_PREFIX):
+        return text.replace("{ROOT}", root)
+    return root + tail.replace("\\", sep)
+
+
 def _subst(obj, root: str):
     if isinstance(obj, str):
-        return obj.replace("{ROOT}", root)
+        return local_path(obj, root)
     if isinstance(obj, list):
         return [_subst(x, root) for x in obj]
     if isinstance(obj, dict):

@@ -60,8 +60,11 @@ with the same Soulseek file name never collide). 3.0.5 downloads into
 
 Same CSV in both: header `filepath,artist,album,title,length,tracktype,state,failurereason`
 (3.0.5 `Sockseek.Core/Files/M3uEditor.cs:375`, 2.6.0 `Services/M3uEditor.cs:311`). `filepath` is
-relative to the index folder with a `./` prefix (3.0.5 `./in/1/x.flac`, 2.6.0 `./in\1\x.flac`), empty
-when nothing was downloaded; length `-1` = unknown; fields with `,` or `"` are quoted.
+relative to the index folder with a `./` prefix, empty when nothing was downloaded; length `-1` = unknown;
+fields with `,` or `"` are quoted. Its separator: 3.0.5 always writes `/` (`./in/1/x.flac`: its
+`WriteSockseekLine` replaces every `\`); 2.6.0 writes `"./" + Path.GetRelativePath(...)` as it is
+(`WriteSldlLine`), so `./in\1\x.flac` on Windows and `./in/1/x.flac` on macOS and Linux, where .NET paths
+use `/` (checked in the v2.6.0 and v3.0.5 sources, 1.1b). The app reads both (`engine/outputs.py`).
 
 | state | 3.0.5 `JobStateOld` (`Common/Enums.cs:83`) | 2.6.0 `TrackState` (`Enums.cs`) |
 |---|---|---|
@@ -85,8 +88,10 @@ when nothing was downloaded; length `-1` = unknown; fields with `,` or `"` are q
 | 9 | NoSearchResults | - |
 | 10 | NoMatchingResults | - |
 
-Playlist (`--write-playlist --playlist-path`): one relative path per downloaded row (backslashes)
-or `#FAIL: <Artist - Title> [<ReasonName>]` (3.0.5 `M3uEditor.cs:413`, 2.6.0 `M3uEditor.cs:346`).
+Playlist (`--write-playlist --playlist-path`): one relative path per downloaded row, with the system's
+separator in both engines (`Path.GetRelativePath`: `in\1\x.flac` on Windows, `in/1/x.flac` on macOS), or
+`#FAIL: <Artist - Title> [<ReasonName>]` (3.0.5 `M3uEditor.cs:413`, 2.6.0 `M3uEditor.cs:346`). The app only
+reads the `#FAIL` lines.
 
 ## 1. `--no-progress` stdout lines (stdout redirected = plain mode)
 

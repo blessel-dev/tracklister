@@ -4,6 +4,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
+import pytest
+
 from tracklister.core.jsonio import write_json
 from tracklister.core.layout import set_doc_path
 from tracklister.core.model import DoubtKind, LibraryEntry, ResultState, RowResult, SetDoc, TrackRow
@@ -178,6 +183,46 @@ def test_v101_a_quality_marked_file_enters_the_library_with_its_mark(tmp_path):
     lib = LibraryIndex(tmp_path / "library.json")
     assert lib.add_from_set(d, doc) == 1
     assert lib.entries[0].flags == ["probable_mp3_convertido"]
+
+
+def _foreign(real: Path) -> tuple[str, Path, Path]:
+    """`real` as the OTHER system writes it, and what the old lookups made of that here: (the foreign path, the
+    file it resolved to, the folder whose set.json the 1.0.0 re-key read). On a Mac a PC path ('C:\\...') is one
+    relative name, looked up in the current folder; on a PC a Mac path ('/Users/...') lands on the current drive."""
+    if os.sep == "/":
+        foreign = "C:" + str(real).replace("/", "\\")
+        return foreign, Path.cwd() / foreign, Path.cwd()
+    foreign = str(real)[2:].replace("\\", "/")
+    return foreign, real, real.parent
+
+
+@pytest.mark.parametrize("schema", ["tracklister.library/1", "tracklister.library/2"])
+def test_a_library_copied_from_the_other_system_offers_nothing_and_never_crashes(tmp_path, monkeypatch, schema):
+    """1.1b: a library.json written on the other system names files that are not on this one. Before, such a
+    path was looked up relative to the current folder (or drive): an unrelated set there re-keyed it, and a file
+    there was offered as «Ya en biblioteca». Now its entries keep their keys, are never offered, and the library
+    still loads and saves."""
+    monkeypatch.chdir(tmp_path)
+    foreign, resolves_to, rekey_dir = _foreign(tmp_path / "Set A" / "01 - Fjaak - Spirit.flac")
+    assert not os.path.isabs(foreign)
+    for f in (resolves_to, rekey_dir / "01 - Fjaak - Spirit.flac"):      # what the old lookups found
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(b"some other file")
+    r = _row(1, "Fjaak", "Spirit")
+    other = SetDoc(set_id="otro0001", name="Otro set", preset_id="lossless", rows=[r], results={
+        r.uid: RowResult(r.uid, 1, ResultState.VERIFICADO, file="01 - Fjaak - Spirit.flac")})
+    write_json(set_doc_path(rekey_dir), other.to_dict())
+    write_json(tmp_path / "library.json", {"schema": schema, "updated_at": None, "entries": [
+        _v1_entry(foreign, "fjaak|spirit|original", "pc000001")]})
+    lib = LibraryIndex(tmp_path / "library.json")
+    lib.load()
+    assert [(e.set_name, e.key, e.path) for e in lib.entries] == [("Viejo", "fjaak|spirit|original", foreign)]
+    assert lib.find(_row(5, "Fjaak", "Spirit")) == []
+    lib.save()
+    again = LibraryIndex(tmp_path / "library.json")
+    again.load()
+    assert [e.path for e in again.entries] == [foreign] and again.find(_row(5, "Fjaak", "Spirit")) == []
+    assert again.prune_missing() == 1 and again.entries == []
 
 
 def test_corrupt_library_file_starts_empty(tmp_path):

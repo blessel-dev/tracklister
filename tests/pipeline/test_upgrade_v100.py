@@ -10,21 +10,22 @@ _dudosos, a row not found). Fake engine only.
 from __future__ import annotations
 
 import json
+import os
 import threading
 
 import keyring
 import pytest
 
 from tests.fakes.scenarios import file
-from tests.pipeline.v100 import SET_NAME, install_v100
+from tests.pipeline.v100 import LONG_PREFIX, SET_NAME, install_v100, local_path
 from tracklister import config
 from tracklister.core.jsonio import read_json
-from tracklister.core.layout import set_doc_path
+from tracklister.core.layout import journal_path, set_doc_path
 from tracklister.core.model import (
     LIBRARY_SCHEMA, DoubtKind, ResultState, RowStatus, SetDoc, SourceRef, TrackRow, new_uid,
 )
 from tracklister.core.paths import app_paths
-from tracklister.core.settings import load_settings, load_settings_checked
+from tracklister.core.settings import load_settings, load_settings_checked, save_settings
 from tracklister.engine.credentials import CredentialStore, Credentials
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.runner import EngineRunner
@@ -110,6 +111,57 @@ def test_v100_library_is_re_keyed_and_duplicates_are_still_found(v, tmp_path):
     assert set(hits) == {1, 2} and all(h.entries[0].set_name == SET_NAME for h in hits.values())
     lib.save()
     assert read_json(app_paths().library_file)["schema"] == LIBRARY_SCHEMA
+
+
+def test_v100_fixture_paths_are_installed_as_this_system_writes_them():
+    """1.1b, CI run 3: the 1.0.0 files only ever existed on Windows. Installed elsewhere, a path that starts at
+    {ROOT} gets that system's separator; on Windows the bytes are the ones 1.0.0 wrote."""
+    lib = "{ROOT}\\biblioteca\\Set casa 1.0.0\\12 - Fjaak - Spirit (Radio Edit - Kai Remix).flac"
+    long = "\\\\?\\{ROOT}\\home\\data\\work\\eca75c21\\p01\\in\\2\\04-red_rooms-trip.flac"
+    soulseek = "Musica Inventada\\Fjaak - Spirit (Kai Remix) (Radio Edit).flac"
+    assert local_path(lib, r"C:\t\casa", "\\") == r"C:\t\casa\biblioteca\Set casa 1.0.0\12 - Fjaak - Spirit " \
+                                                    r"(Radio Edit - Kai Remix).flac"
+    assert local_path(long, r"C:\t\casa", "\\") == (r"\\?\C:\t\casa\home\data\work\eca75c21\p01\in\2"
+                                                    r"\04-red_rooms-trip.flac")
+    assert local_path(lib, "/private/var/t/casa", "/") == ("/private/var/t/casa/biblioteca/Set casa 1.0.0/12 - Fjaak - "
+                                                            "Spirit (Radio Edit - Kai Remix).flac")
+    assert local_path(long, "/private/var/t/casa", "/") == ("/private/var/t/casa/home/data/work/eca75c21/p01/in/2/"
+                                                             "04-red_rooms-trip.flac")
+    assert local_path(soulseek, "/r", "/") == soulseek == local_path(soulseek, r"C:\r", "\\")
+
+
+def _paths_written(v) -> tuple[list[str], list[str]]:
+    """(absolute, relative) paths in what the migration wrote: settings.json, library.json, set.json, journal.json."""
+    settings = read_json(app_paths().settings_file)
+    library = read_json(app_paths().library_file)
+    doc = read_json(set_doc_path(v.set_dir))
+    journal = read_json(journal_path(v.set_dir))
+    absolute = [settings["library_root"]] + [e["path"] for e in library["entries"]]
+    absolute += [p["work_dir"] for p in doc["passes"] if p.get("work_dir")]
+    absolute += [op[k] for b in journal["batches"] for op in b["ops"] for k in ("src", "dst")]
+    relative = [r[k] for r in doc["results"].values() for k in ("file", "original_file") if r.get(k)]
+    return absolute, relative
+
+
+def test_v100_the_migration_never_writes_a_mixed_separator_path(v):
+    """1.1b: every path the migration of 1.0.0 data writes is made with pathlib/os.path, so on macOS it holds no
+    Windows '\\' (and on Windows no '/'): the settings saved again, the re-keyed library, the upgraded set and its
+    journal. set.json's own paths are relative with '/' on every system (organize.finalize.rel_to_set)."""
+    settings, _ = load_settings_checked(app_paths().settings_file)
+    save_settings(app_paths().settings_file, settings)
+    lib = LibraryIndex(app_paths().library_file)
+    lib.load()
+    lib.save()
+    s = _session(v)
+    s.run(_runner(v.network), CREDS, lambda e: None, threading.Event(), lambda rows: set())
+    assert s.doc.migrations == [UPGRADE_MARKER]
+    s.finalize(LibraryIndex(app_paths().library_file))
+    absolute, relative = _paths_written(v)
+    assert len(absolute) > 20 and len(relative) >= 10
+    foreign = "/" if os.sep == "\\" else "\\"
+    assert [p for p in absolute if foreign in p or not os.path.isabs(p.removeprefix(LONG_PREFIX))] == []
+    assert [p for p in relative if "\\" in p or os.path.isabs(p)] == []
+    assert any(p.endswith(os.sep + "02 - Red Rooms - Trip.flac") for p in absolute)   # the upgrade's own move
 
 
 def test_v100_opening_the_set_writes_nothing(v):

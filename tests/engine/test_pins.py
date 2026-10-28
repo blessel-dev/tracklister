@@ -6,17 +6,21 @@ from __future__ import annotations
 
 import dataclasses
 import io
+import logging
 import os
 import re
 import stat
 import sys
 import tarfile
 import zipfile
+from pathlib import Path
 
 import pytest
 
-from tracklister.core import osplatform
+from tests.fakes.xattrs import FakeXattrs
+from tracklister.core import osplatform, quarantine
 from tracklister.core.paths import app_paths
+from tracklister.core.quarantine import QUARANTINE
 from tracklister.engine import spec as spec_mod
 from tracklister.engine.spec import (
     DEFAULT_ENGINE_ID, ENGINE_PINS, PLATFORM_ENGINE_PINS, SOURCE_ARCHIVES, EngineDialect, EngineMissing, EnginePin,
@@ -271,3 +275,66 @@ def test_mac_resolve_without_the_archive(as_macos, monkeypatch, tmp_path):
     with pytest.raises(EngineMissing) as e:
         resolve_engine("sockseek-3.0.5", app_paths(), bundled_dir=tmp_path / "Resources")
     assert e.value.msg_es.startswith("No se encuentra el motor sockseek-3.0.5 (sockseek_3.0.5_osx-arm64.tar.gz).")
+
+
+# ---- 1.1b, macOS: the engine the app runs never carries com.apple.quarantine ------------------------------
+
+@pytest.fixture
+def xattrs(monkeypatch):
+    fake = FakeXattrs()
+    monkeypatch.setattr(quarantine, "_xattrs", fake)
+    return fake
+
+
+def test_mac_a_quarantined_engine_copy_is_extracted_again(as_macos, monkeypatch, tmp_path, xattrs, caplog):
+    tar = _fake_tar(tmp_path)
+    _darwin_pin(monkeypatch, tmp_path, tar)
+    xattrs.set(tar, QUARANTINE)                           # the bundled archive of a downloaded .app
+    paths = app_paths()
+    exe = Path(resolve_engine("sockseek-3.0.5", paths, bundled_dir=tar.parent.parent).argv_prefix[0])
+    assert not quarantine.carries(exe) and xattrs.removed == []        # tarfile writes data only
+    first = os.stat(exe).st_ino
+    xattrs.set(exe, QUARANTINE)                           # however it got there, macOS would block it
+    with caplog.at_level(logging.WARNING, logger="tracklister.engine"):
+        again = resolve_engine("sockseek-3.0.5", paths, bundled_dir=tar.parent.parent)
+    assert Path(again.argv_prefix[0]) == exe and os.stat(exe).st_ino != first      # a fresh extraction
+    assert not quarantine.carries(exe) and exe.read_bytes() == b"\xcf\xfa\xed\xfe fake engine"
+    assert "the sockseek-3.0.5 copy carries com.apple.quarantine: extracting it again" in caplog.text
+    assert xattrs.removed == [] and quarantine.carries(tar)
+    xattrs.set(exe, QUARANTINE)
+    tar.unlink()                                          # nothing to extract it again from: used as before 1.1b
+    assert resolve_engine("sockseek-3.0.5", paths, bundled_dir=tar.parent.parent).argv_prefix == (str(exe),)
+    assert quarantine.carries(exe) and xattrs.removed == []           # never cleared without a fresh, checked copy
+
+
+def test_mac_if_macos_itself_marks_the_extracted_engine_only_that_attribute_is_removed(as_macos, monkeypatch,
+                                                                                     tmp_path, xattrs):
+    tar = _fake_tar(tmp_path)
+    _darwin_pin(monkeypatch, tmp_path, tar)
+    real_extract = spec_mod._safe_extract_tar
+
+    def macos_marks_it(tar_path, dest):
+        real_extract(tar_path, dest)
+        for name in ("sockseek", "LICENSE"):
+            xattrs.set(dest / name, QUARANTINE)
+        xattrs.set(dest / "sockseek", "com.apple.provenance", b"\x01")
+    monkeypatch.setattr(spec_mod, "_safe_extract_tar", macos_marks_it)
+    exe = Path(resolve_engine("sockseek-3.0.5", app_paths(), bundled_dir=tar.parent.parent).argv_prefix[0])
+    assert not quarantine.carries(exe) and quarantine.attribute_names(exe) == ["com.apple.provenance"]
+    assert xattrs.removed == [("sockseek", QUARANTINE)]                 # only the engine, never the LICENSE
+    assert quarantine.carries(exe.parent / "LICENSE")
+
+
+def test_windows_never_looks_at_extended_attributes(as_windows, monkeypatch, tmp_path):
+    z = tmp_path / "sockseek_3.0.5_win-x64.zip"
+    with zipfile.ZipFile(z, "w") as zf:
+        zf.writestr("sockseek.exe", b"MZ engine")
+    pin = WIN32["sockseek-3.0.5"]
+    monkeypatch.setitem(WIN32, "sockseek-3.0.5", dataclasses.replace(pin, asset_sha256=sha256_file(z)))
+    monkeypatch.setattr(spec_mod, "dev_bin_dir", lambda: tmp_path / "nowhere")
+
+    def must_not_run(*a, **k):
+        raise AssertionError("Windows has no quarantine attribute to look at")
+    monkeypatch.setattr(quarantine, "carries", must_not_run)
+    first = resolve_engine("sockseek-3.0.5", app_paths(), bundled_dir=tmp_path)
+    assert resolve_engine("sockseek-3.0.5", app_paths()).argv_prefix == first.argv_prefix

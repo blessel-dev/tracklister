@@ -16,8 +16,10 @@
 #   artifact "windows-release" instead of being published here.
 # - macos (macos-15, Apple Silicon): the same checks for Tracklister.app (signed ad hoc, zipped with
 #   ditto, smoke-tested); its zip is uploaded as it is (archive: false), because re-zipping it would
-#   lose the app's symlinks and permissions. If a step fails, the last step turns the failing tests
-#   and log lines into annotations, which the public API shows without logging in.
+#   lose the app's symlinks and permissions. The test totals become a notice; if a step fails, the last
+#   step turns the failing tests and log lines into at most 10 error annotations, which the public API
+#   shows without logging in. On a branch push, failed tests do not stop the build and the smoke test
+#   (one run reports on both), but the job stays red and uploads nothing; a v* tag stays strict.
 # - publish (ubuntu, after both): ONE SHA256SUMS.txt and ONE set of notes for both zips, then a single
 #   `gh release create`. It is the only job that may write, and only a v* tag publishes.
 #
@@ -148,6 +150,7 @@ jobs:
         run: .venv/bin/python packaging/fetch_ytdlp.py
 
       - name: Run the tests (offline, fake engine)
+        id: tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
@@ -155,16 +158,27 @@ jobs:
           mkdir -p dist/ci
           .venv/bin/python -m pytest -q --junitxml=dist/ci/pytest.xml 2>&1 | tee dist/ci/pytest.log
 
+      - name: Report the test totals (annotation)
+        if: ${{ !cancelled() && (steps.tests.outcome == 'success' || steps.tests.outcome == 'failure') }}
+        run: python packaging/ci_annotate.py --title-prefix macOS --summary dist/ci/pytest.log --junit dist/ci/pytest.xml
+
+      # On a branch push the app is still built and smoke-tested when only the tests failed, so one run reports
+      # on both (the job stays red and nothing is uploaded). A v* tag stays strict: any failure stops here.
       - name: Build, sign and zip the app
+        id: build
+        if: ${{ success() || (!cancelled() && github.ref_type == 'branch' && steps.tests.outcome == 'failure') }}
         run: |
           set -o pipefail
           mkdir -p dist/ci
           .venv/bin/python packaging/build.py --zip --no-identity-scan 2>&1 | tee dist/ci/build.log
 
       - name: Smoke-test the app
+        id: smoke
+        if: ${{ success() || (!cancelled() && github.ref_type == 'branch' && steps.tests.outcome == 'failure' && steps.build.outcome == 'success') }}
         run: .venv/bin/python packaging/smoke_test_macos.py --offscreen --screenshot dist/smoke/first-run.png --json dist/ci/smoke.json
 
       - name: Keep the macOS zip as it is (the artifact is the zip itself)
+        if: ${{ success() && steps.tests.outcome == 'success' && steps.smoke.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: dist/release/Tracklister-*-macos-arm64.zip

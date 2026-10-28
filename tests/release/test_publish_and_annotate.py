@@ -187,6 +187,58 @@ def test_annotations_from_logs_and_the_smoke_json(tmp_path, capsys):
     ]
 
 
+def _junit_with_13_failures(tmp_path: Path) -> Path:
+    more = "\n".join(f'<testcase classname="tests.x" name="t{i}"><failure message="m{i}"/></testcase>'
+                     for i in range(11))
+    junit = tmp_path / "pytest.xml"
+    junit.write_text(JUNIT.format(more=more), encoding="utf-8")
+    return junit
+
+
+@pytest.mark.parametrize("build_errors,tests_shown", [(8, 5), (1, 8)])
+def test_many_failing_tests_leave_room_for_the_packaging_failures(tmp_path, capsys, build_errors, tests_shown):
+    """1.1b: a branch build still packages the app after failed tests, so up to half of the 10 annotations stay
+    for the build and the smoke test."""
+    junit = _junit_with_13_failures(tmp_path)
+    log = tmp_path / "build.log"
+    log.write_text("".join(f"ERROR: fallo {i} del paquete\n" for i in range(build_errors)), encoding="utf-8")
+    smoke = tmp_path / "smoke.json"
+    smoke.write_text(json.dumps({"ok": False, "checks": {"codesign_verify": False}, "info": {"details": {}}}),
+                     encoding="utf-8")
+    assert ann.main(["--title-prefix", "macOS", "--junit", str(junit), "--log", str(log), "--smoke", str(smoke)]) == 0
+    titles = [line.split("::")[1] for line in capsys.readouterr().out.splitlines()]
+    others = ["error title=macOS build.log"] * build_errors + ["error title=macOS smoke"]
+    assert titles == ["error title=macOS test"] * tests_shown + others[:10 - tests_shown]
+
+
+@pytest.mark.parametrize("last,expected", [
+    ("5 failed, 1531 passed, 6 skipped in 386.35s (0:06:26)", "5 failed, 1531 passed, 6 skipped in 386.35s"),
+    ("====== 1542 passed, 6 skipped, 2 warnings in 380.10s (0:06:20) ======",
+     "1542 passed, 6 skipped, 2 warnings in 380.10s"),
+    ("1 error in 0.52s", "1 error in 0.52s"),
+])
+def test_the_totals_notice_is_pytest_s_own_summary_line(tmp_path, capsys, last, expected):
+    log = tmp_path / "pytest.log"
+    log.write_text(f"....F..s\nFAILED tests/x.py::t - 1 passed in 2s\n{last}\n3 apples in 2s\n", encoding="utf-8")
+    junit = _junit_with_13_failures(tmp_path)
+    assert ann.main(["--title-prefix", "macOS", "--summary", str(log), "--junit", str(junit)]) == 0
+    assert capsys.readouterr().out.splitlines() == [f"::notice title=macOS pytest::{expected}"]    # no ::error
+
+
+def test_the_totals_notice_falls_back_to_the_junit_counts(tmp_path, capsys):
+    log = tmp_path / "pytest.log"
+    log.write_text("....F\nFatal Python error: Segmentation fault\n", encoding="utf-8")
+    junit = tmp_path / "pytest.xml"
+    junit.write_text(JUNIT.format(more=""), encoding="utf-8")                # tests 20, failures 12, errors 1
+    assert ann.main(["--title-prefix", "macOS", "--summary", str(log), "--junit", str(junit)]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "::notice title=macOS pytest::7 passed, 12 failed, 0 skipped, 1 errors "
+        "(del JUnit: pytest no escribió su resumen)"]
+    assert ann.main(["--title-prefix", "macOS", "--summary", str(tmp_path / "no-existe.log")]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "::notice title=macOS pytest::pytest no dejó resumen (¿se cortó antes de terminar?)"]
+
+
 def test_annotations_fall_back_to_the_last_log_line_and_never_fail(tmp_path, capsys):
     log = tmp_path / "pip.log"
     log.write_text("Collecting x\nNo matching distribution found for macholib==9\n\n", encoding="utf-8")

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
 from pathlib import Path
 
 from tracklister.core.model import TrackRow
@@ -74,6 +75,16 @@ def win_long(path: Path | str) -> str:
     if p.startswith("\\\\"):
         return "\\\\?\\UNC\\" + p[2:]
     return "\\\\?\\" + p
+
+
+def listing_key(name: str) -> tuple[str, str]:
+    """THE order of a folder listing, the same on every platform (brief mac-1b): the name in NFC, case-folded,
+    then the name itself (so two names never tie). A listing comes back sorted from NTFS but in no fixed order
+    from APFS, HFS+ gives names back decomposed (NFD), and pathlib orders paths case-insensitively only on
+    Windows. So every listing whose order decides something (the library rebuild: the set that wins and the
+    copy offered first for «Ya en biblioteca»; Reordenar: the file that wins a tie; the stray files) is sorted
+    with this key, never by Path or in listing order. For an ordinary name it is Windows' order."""
+    return unicodedata.normalize("NFC", name).casefold(), name
 
 
 def is_mac_metadata_file(name: str) -> bool:

@@ -11,6 +11,7 @@ import hashlib
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 from tests.release.helpers import REPO, load
@@ -138,6 +139,104 @@ def test_the_macos_job_builds_tests_smoke_tests_and_uploads_the_zip_unchanged():
     for needle in ("--junit dist/ci/pytest.xml", "dist/ci/build.log", "build/pyinstaller.log",
                    "--smoke dist/ci/smoke.json", "--max 10"):
         assert needle in explain["run"]
+    # 1.1b: the ids the conditions read, and the totals notice right after the tests
+    tests_step = steps[found[6]]
+    assert (tests_step["id"], steps[found[7]]["id"], steps[found[8]]["id"]) == ("tests", "build", "smoke")
+    summary = steps[found[6] + 1]
+    assert summary["name"] == "Report the test totals (annotation)" and summary["run"] == (
+        "python packaging/ci_annotate.py --title-prefix macOS --summary dist/ci/pytest.log --junit dist/ci/pytest.xml")
+    assert not [s["name"] for s in steps if "continue-on-error" in s]     # a failed step always turns the job red
+
+
+# ---- 1.1b: what runs in the macOS job, simulated with GitHub's rules for `if:` ----------------------------------
+
+_TOKEN = re.compile(r"'[^']*'|&&|\|\||==|!=|!|\(|\)|[A-Za-z_][\w.-]*\(\)|[A-Za-z_][\w.-]*")
+
+
+def _gh_if(expr: str | None, ctx: dict) -> bool:
+    """A step's `if:` as GitHub Actions evaluates it, for the expressions of the macOS job: the status functions,
+    !, &&, ||, ==, !=, parentheses, 'strings', github.ref_type and steps.<id>.outcome. Without a status function
+    GitHub puts `success() &&` in front; no `if:` at all is `success()`."""
+    text = (expr or "").strip()
+    if text.startswith("${{") and text.endswith("}}"):
+        text = text[3:-2].strip()
+    text = text or "success()"
+    if not re.search(r"\b(success|failure|cancelled|always)\(\)", text):
+        text = f"success() && ({text})"
+    assert not _TOKEN.sub("", text).strip(), f"cannot read: {expr!r}"
+    py = []
+    for t in _TOKEN.findall(text):
+        if t in ("&&", "||", "!"):
+            py.append({"&&": " and ", "||": " or ", "!": " not "}[t])
+        elif t in ("==", "!=", "(", ")") or t.startswith("'"):
+            py.append(t)
+        elif t.endswith("()"):
+            py.append(repr(ctx[t[:-2]]))
+        elif t == "github.ref_type":
+            py.append(repr(ctx["ref_type"]))
+        elif t.startswith("steps.") and t.endswith(".outcome"):
+            py.append(repr(ctx["steps"].get(t[len("steps."):-len(".outcome")], "")))
+        else:
+            raise AssertionError(f"unexpected {t!r} in {expr!r}")
+    return bool(eval("".join(py), {"__builtins__": {}}, {}))  # noqa: S307 - this repository's own workflow
+
+
+def _run_macos_job(ref_type: str, failing: set[str]) -> tuple[dict[str, str], str]:
+    """The macOS job of a push of `ref_type` where the steps in `failing` (by id, or by name) fail and every other
+    step that runs succeeds: (the outcome of each step by name, the job's conclusion)."""
+    outcomes: dict[str, str] = {}
+    by_id: dict[str, str] = {}
+    failed = False
+    for step in _steps("macos"):
+        ctx = {"success": not failed, "failure": failed, "cancelled": False, "always": True, "ref_type": ref_type,
+               "steps": by_id}
+        if _gh_if(step.get("if"), ctx):
+            outcome = "failure" if {step.get("id"), step["name"]} & failing else "success"
+        else:
+            outcome = "skipped"
+        outcomes[step["name"]] = outcome
+        if step.get("id"):
+            by_id[step["id"]] = outcome
+        failed = failed or outcome == "failure"
+    return outcomes, "failure" if failed else "success"
+
+
+S_TESTS, S_TOTALS = "Run the tests (offline, fake engine)", "Report the test totals (annotation)"
+S_BUILD, S_SMOKE = "Build, sign and zip the app", "Smoke-test the app"
+S_UPLOAD = "Keep the macOS zip as it is (the artifact is the zip itself)"
+S_EXPLAIN, S_VENV = "Explain the failure (annotations)", "Create the venv from the exact pins (wheels only)"
+ALL_OK = {S_TESTS, S_TOTALS, S_BUILD, S_SMOKE, S_UPLOAD}
+
+
+@pytest.mark.parametrize("ref_type,failing,ran,conclusion", [
+    # a branch push: failed tests do not stop the build and the smoke test; the zip only goes up when all passed
+    ("branch", set(), ALL_OK, "success"),
+    ("branch", {"tests"}, {S_TESTS, S_TOTALS, S_BUILD, S_SMOKE, S_EXPLAIN}, "failure"),
+    ("branch", {"tests", "build"}, {S_TESTS, S_TOTALS, S_BUILD, S_EXPLAIN}, "failure"),
+    ("branch", {"tests", "smoke"}, {S_TESTS, S_TOTALS, S_BUILD, S_SMOKE, S_EXPLAIN}, "failure"),
+    ("branch", {"build"}, {S_TESTS, S_TOTALS, S_BUILD, S_EXPLAIN}, "failure"),
+    ("branch", {"smoke"}, {S_TESTS, S_TOTALS, S_BUILD, S_SMOKE, S_EXPLAIN}, "failure"),
+    ("branch", {S_VENV}, {S_EXPLAIN}, "failure"),              # no venv: nothing after it is worth running
+    # a v* tag stays strict: any failure stops the job there
+    ("tag", set(), ALL_OK, "success"),
+    ("tag", {"tests"}, {S_TESTS, S_TOTALS, S_EXPLAIN}, "failure"),
+    ("tag", {"build"}, {S_TESTS, S_TOTALS, S_BUILD, S_EXPLAIN}, "failure"),
+    ("tag", {"smoke"}, {S_TESTS, S_TOTALS, S_BUILD, S_SMOKE, S_EXPLAIN}, "failure"),
+], ids=["branch-ok", "branch-tests", "branch-tests-build", "branch-tests-smoke", "branch-build", "branch-smoke",
+        "branch-venv", "tag-ok", "tag-tests", "tag-build", "tag-smoke"])
+def test_a_branch_build_still_packages_after_failed_tests_and_a_tag_stays_strict(ref_type, failing, ran, conclusion):
+    outcomes, got = _run_macos_job(ref_type, failing)
+    watched = {S_TESTS, S_TOTALS, S_BUILD, S_SMOKE, S_UPLOAD, S_EXPLAIN}
+    assert {name for name in watched if outcomes[name] != "skipped"} == ran, outcomes
+    assert got == conclusion                                  # failed tests always leave the job red
+
+
+def test_the_condition_reader_follows_github_s_rules():
+    ctx = {"success": False, "failure": True, "cancelled": False, "always": True, "ref_type": "branch",
+           "steps": {"tests": "failure"}}
+    assert not _gh_if(None, ctx) and not _gh_if("steps.tests.outcome == 'failure'", ctx)   # success() && ... added
+    assert _gh_if("failure()", ctx) and _gh_if("${{ !cancelled() && steps.tests.outcome != 'success' }}", ctx)
+    assert not _gh_if("${{ success() || github.ref_type == 'tag' }}", ctx)
 
 
 def test_publish_downloads_both_artifacts_and_runs_dry_on_branches():

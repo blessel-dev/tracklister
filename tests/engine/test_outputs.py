@@ -105,6 +105,42 @@ def test_collect_outputs_rebuilt_from_real_tree(tmp_path, eid, dialect):
         assert out[2].source_path_tail == "Techno\\Chris Liebing - Higher Things (FJAAK Remix).flac"
 
 
+@pytest.mark.parametrize("dialect", [D3, D2], ids=["sockseek3", "sldl2"])
+def test_every_reader_takes_both_separators(tmp_path, dialect):
+    """1.1b: what an engine writes on Windows ('\\' in the playlist and in sldl's index) and on macOS ('/' in all of
+    them; .NET paths use '/' on Unix) reads the same: the index, the playlist's #FAIL lines, the download lines
+    and the files of in/<snum>/. The playlist's path lines are never read."""
+    from tracklister.engine.outputs import _split_display
+    from tracklister.engine.progress import remote_name
+
+    manifest = [ManifestItem(1, "u1", 1, "Fjaak", "Spirit", 20), ManifestItem(2, "u2", 2, "Nadie", "Nada", None)]
+    code, reason = (9, "NoSearchResults") if dialect == D3 else (3, "NoSuitableFileFound")
+    results = []
+    for sep in ("\\", "/"):
+        work = tmp_path / ("win" if sep == "\\" else "mac")
+        rel = sep.join(["in", "1", "Fjaak - Spirit.flac"])
+        f = work / "in" / "1" / "Fjaak - Spirit.flac"
+        f.parent.mkdir(parents=True)
+        f.write_bytes(b"x" * 10)
+        (work / "index.csv").write_text("filepath,artist,album,title,length,tracktype,state,failurereason\n"
+                                        f"./{rel},Fjaak,,Spirit,20,0,1,0\n,Nadie,,Nada,-1,0,2,{code}\n",
+                                        encoding="utf-8")
+        (work / "playlist.m3u").write_text(f"{rel}\n#FAIL: Nadie - Nada [{reason}]\n", encoding="utf-8")
+        shown = sep.join(["peerA", "..", "Musica", "Fjaak - Spirit.flac"])
+        (work / "stdout.txt").write_text(f"[003] SongJob: succeeded: Fjaak - Spirit: {shown}\n" if dialect == D3
+                                         else f"Succeeded:     {shown} [20s/0.0MB]\n", encoding="utf-8")
+        rows = parse_index(dialect, work / "index.csv")
+        assert rows[0]["filepath"] == "in/1/Fjaak - Spirit.flac"
+        assert parse_playlist_failures(work / "playlist.m3u") == {"nadie - nada": reason}
+        assert _split_display(shown) == ("peerA", ["Musica", "Fjaak - Spirit.flac"])
+        assert remote_name(shown + " [20s/0.0MB]") == "Fjaak - Spirit.flac"
+        out = collect_outputs(EngineJob(work, build_preset("lossless").passes[0], True, 49998), manifest, dialect)
+        results.append((rows, out[1].file.name, out[1].peer, out[1].source_path_tail, out[2].engine_state,
+                        out[2].reason))
+    assert results[0] == results[1]
+    assert results[1][1:] == ("Fjaak - Spirit.flac", "peerA", "Musica\\Fjaak - Spirit.flac", "not_found", reason)
+
+
 def test_collect_outputs_without_any_engine_files(tmp_path):
     job = EngineJob(tmp_path, build_preset("lossless").passes[0], False, 49998)
     m = [ManifestItem(1, "u1", 1, "A", "T", None)]

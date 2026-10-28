@@ -27,7 +27,7 @@ from types import SimpleNamespace
 from typing import Callable, Sequence
 
 from tracklister import config
-from tracklister.core import osplatform
+from tracklister.core import osplatform, quarantine
 from tracklister.core.bundled import YtdlpPin, bundled_dir, ytdlp_pin
 from tracklister.core.model import SourceRef, TrackRow
 from tracklister.core.paths import AppPaths, app_paths
@@ -218,12 +218,20 @@ class Services:
         """Copy the bundled yt-dlp to the per-user tools folder (updatable without admin); the app only runs
         that copy. A copy that is already there is used as it is, never hashed again ('yt-dlp -U' updates it).
 
-        macOS only (DECISIONES Y): before the copy is used, its size and SHA-256 must match the pin, or it is
-        deleted and the next candidate is tried; then it is made executable (0755). shutil.copy2 copies no
-        extended attributes on macOS, so the copy carries no quarantine flag."""
+        macOS only (DECISIONES Y): the copy is written data-only (core.quarantine.copy_data_only), never with
+        shutil: on macOS shutil copies through fcopyfile(3), which carries the bundled file's
+        com.apple.quarantine over, and macOS would then block yt-dlp. Before the copy is used, its size and
+        SHA-256 must match the pin, or it is deleted and the next candidate is tried; then it is made
+        executable (0755). An existing copy that carries the quarantine (left by a build that copied with
+        shutil) is copied again; only if macOS itself marks the fresh, checked copy is that one attribute
+        removed from it (core.quarantine.clear_ours)."""
         exe = self.ytdlp_exe()
+        stale = False
         if exe.is_file():
-            return exe
+            if not (osplatform.is_macos() and quarantine.carries(exe)):
+                return exe
+            log.warning("the yt-dlp copy carries %s: copying it again", quarantine.QUARANTINE)
+            stale = True
         pin = ytdlp_pin()
         candidates = []
         if self.bundle is not None:
@@ -238,13 +246,17 @@ class Services:
                 part = exe.with_name(exe.name + ".part")
                 try:
                     exe.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(c, part)
                     if osplatform.is_macos():
+                        quarantine.copy_data_only(c, part)
                         if not _matches_pin(part, pin):
                             log.error("bundled %s does not match its pin (size or SHA-256): not used", c.name)
                             part.unlink(missing_ok=True)
                             continue
                         os.chmod(part, 0o755)
+                        if quarantine.carries(part):        # only if macOS itself marked the checked copy
+                            quarantine.clear_ours(part, self.paths.tools_dir)
+                    else:
+                        shutil.copy2(c, part)
                     os.replace(part, exe)
                     return exe
                 except OSError as e:
@@ -253,7 +265,7 @@ class Services:
                         part.unlink(missing_ok=True)
                     except OSError:
                         pass
-        return None
+        return exe if stale and exe.is_file() else None
 
     def ytdlp(self):
         try:

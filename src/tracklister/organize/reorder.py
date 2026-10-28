@@ -23,7 +23,7 @@ from tracklister.core.layout import is_reserved_subdir
 from tracklister.core.model import TrackRow
 from tracklister.core.textnorm import nfc, norm_key, versions_compatible
 from tracklister.organize.journal import Journal
-from tracklister.organize.naming import is_mac_metadata_file, pad_width, track_filename, win_long
+from tracklister.organize.naming import is_mac_metadata_file, listing_key, pad_width, track_filename, win_long
 from tracklister.verify.audioinfo import read_tags_and_length
 from tracklister.verify.identity import (
     FileIdentity, artist_match, duration_confirms, file_identities, reading_fits, row_artists, title_similarity,
@@ -49,7 +49,11 @@ class ReorderProposal:
 
 def _audio_files(folder: Path) -> list[Path]:
     """The audio files of an old folder, never its AppleDouble '._*' files (naming.is_mac_metadata_file, on every
-    platform): they are never proposed, so apply_reorder never renames them."""
+    platform): they are never proposed, so apply_reorder never renames them.
+
+    In naming.listing_key order, part by part, never in listing order or by Path: a file's place in this list
+    breaks the ties of the assignment (two files that fit a row equally well), so it must be the same on every
+    platform (brief mac-1b)."""
     out = []
     for dirpath, dirnames, filenames in os.walk(folder):
         dirnames[:] = [d for d in dirnames if not is_reserved_subdir(d)]
@@ -57,7 +61,7 @@ def _audio_files(folder: Path) -> list[Path]:
             if Path(fn).suffix.lower() in AUDIO_EXTS and not fn.startswith("__tracklister_tmp_") \
                     and not is_mac_metadata_file(fn):
                 out.append(Path(dirpath) / fn)
-    return sorted(out)
+    return sorted(out, key=lambda f: [listing_key(part) for part in f.relative_to(folder).parts])
 
 
 def _file_identity(f: Path) -> tuple[list[FileIdentity], float | None]:

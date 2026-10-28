@@ -9,12 +9,15 @@ third_party/engines/ENGINE-FACTS.md) before they are unpacked to <tools_dir>/eng
 The app only ever runs that copy, never a file inside the bundle. Nothing here runs the engine.
 
 Pins per platform (1.1): Windows ships both engines as zips; macOS (arm64) ships only Sockseek 3.0.5, as
-its upstream .tar.gz, which is extracted with tarfile's 'data' filter and made executable (0755). sldl 2.6.0
-is not shipped on macOS: its Mac build is unsigned, has no executable bit and runs on an unsupported .NET.
+its upstream .tar.gz, which is extracted with tarfile's 'data' filter and made executable (0755). tarfile only
+writes data, so that copy never carries the bundle's com.apple.quarantine (core.quarantine); an old copy that
+does is extracted again. sldl 2.6.0 is not shipped on macOS: its Mac build is unsigned, has no executable bit
+and runs on an unsupported .NET.
 """
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import shutil
 import sys
@@ -24,8 +27,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 
-from tracklister.core import osplatform
+from tracklister.core import osplatform, quarantine
 from tracklister.core.paths import AppPaths
+
+log = logging.getLogger("tracklister.engine")
 
 
 class EngineDialect(StrEnum):
@@ -209,8 +214,13 @@ def resolve_engine(engine_id: str, paths: AppPaths, bundled_dir: Path | None = N
     target = paths.tools_dir / "engines" / engine_id
     exe = target / pin.exe_name
     marker = target / _MARKER
+    stale = False
     if exe.is_file() and marker.is_file() and marker.read_text(encoding="ascii").strip() == pin.asset_sha256:
-        return EngineSpec(engine_id, pin.dialect, (str(exe),))
+        if not (osplatform.is_macos() and quarantine.carries(exe)):
+            return EngineSpec(engine_id, pin.dialect, (str(exe),))
+        # macOS would block a quarantined engine: extract a fresh copy from the verified archive
+        log.warning("the %s copy carries %s: extracting it again", engine_id, quarantine.QUARANTINE)
+        stale = True
 
     candidates: list[Path] = []
     if bundled_dir is not None:
@@ -241,11 +251,17 @@ def resolve_engine(engine_id: str, paths: AppPaths, bundled_dir: Path | None = N
         if osplatform.is_macos():
             # the copy the app runs must be executable whatever mode the archive gave it
             os.chmod(tmp / pin.exe_name, 0o755)
+            # tarfile writes data only, so the copy carries no quarantine; only if macOS itself marked the copy
+            # just extracted from the verified archive is that one attribute removed from it (core.quarantine)
+            if quarantine.carries(tmp / pin.exe_name):
+                quarantine.clear_ours(tmp / pin.exe_name, paths.tools_dir)
         (tmp / _MARKER).write_text(pin.asset_sha256, encoding="ascii")
         if target.exists():
             shutil.rmtree(target)
         tmp.replace(target)
         return EngineSpec(engine_id, pin.dialect, (str(target / pin.exe_name),))
+    if stale:                               # nothing to extract it again from: the copy is used as before
+        return EngineSpec(engine_id, pin.dialect, (str(exe),))
     raise EngineMissing(
         f"No se encuentra el motor {engine_id} ({asset_name(pin)}). "
         "Vuelve a descomprimir Tracklister completo o reinstálalo.")

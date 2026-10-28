@@ -17,10 +17,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.fakes.xattrs import FakeXattrs
 from tests.gui.fakes import FakeServices
 from tracklister.config import DEFAULT_LISTEN_PORT
 from tracklister.core import bundled as bundled_mod
+from tracklister.core import quarantine
 from tracklister.core.paths import app_paths
+from tracklister.core.quarantine import QUARANTINE
 from tracklister.engine.spec import fake_engine_spec
 from tracklister.gui import services as services_mod
 from tracklister.gui.services import Services
@@ -149,7 +152,120 @@ def test_mac_an_existing_copy_is_kept_unread(as_macos, tmp_path, monkeypatch):
         raise AssertionError("an existing copy must not be read or replaced")
     monkeypatch.setattr(services_mod, "sha256_file", must_not_run)
     monkeypatch.setattr(shutil, "copy2", must_not_run)
+    monkeypatch.setattr(quarantine, "copy_data_only", must_not_run)
     assert s.ensure_ytdlp() == target and target.read_bytes() == b"updated by yt-dlp -U"
+
+
+# ---- 1.1b, macOS: the copy never carries the bundled file's com.apple.quarantine (CI run 3) -----------------
+
+@pytest.fixture
+def xattrs(monkeypatch):
+    """Fake extended attributes (they follow the file, as on APFS), for core.quarantine."""
+    fake = FakeXattrs()
+    monkeypatch.setattr(quarantine, "_xattrs", fake)
+    return fake
+
+
+def _no_shutil_copies(monkeypatch):
+    def must_not_run(*a, **k):
+        raise AssertionError("on macOS shutil copies through fcopyfile(3), which carries the quarantine over")
+    for name in ("copyfile", "copy", "copy2", "copystat"):
+        monkeypatch.setattr(shutil, name, must_not_run)
+
+
+def test_mac_the_copy_is_data_only_so_the_bundled_quarantine_stays_behind(as_macos, tmp_path, monkeypatch, xattrs):
+    """The root cause of CI run 3: shutil.copy2 -> fcopyfile(COPYFILE_DATA), which still applies the source's
+    quarantine to the copy. The copy is made with plain reads and writes instead, so nothing but the bytes."""
+    data = b"\xca\xfe\xba\xbe" + bytes(range(256)) * 64
+    res, bundled = _mac_bundle(tmp_path, monkeypatch, data)
+    xattrs.set(bundled, QUARANTINE)                      # a .app unpacked from a browser download
+    _no_shutil_copies(monkeypatch)
+    s = Services(bundle=res)
+    target = s.paths.tools_dir / "yt-dlp"
+    assert s.ensure_ytdlp() == target and target.read_bytes() == data
+    assert not quarantine.carries(target) and quarantine.attribute_names(target) == []
+    assert xattrs.removed == []                          # the data-only copy was enough: nothing to remove
+    assert quarantine.carries(bundled)                   # the bundle itself is never changed
+
+
+def test_mac_a_quarantined_copy_left_by_an_older_build_is_copied_again(as_macos, tmp_path, monkeypatch, xattrs,
+                                                                     caplog):
+    data = b"the pinned yt-dlp"
+    res, bundled = _mac_bundle(tmp_path, monkeypatch, data)
+    xattrs.set(bundled, QUARANTINE)
+    s = Services(bundle=res)
+    target = s.paths.tools_dir / "yt-dlp"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    xattrs.set(target, QUARANTINE)                       # what 1.1.0.dev1 (mac-1) copied with shutil.copy2
+    with caplog.at_level(logging.WARNING, logger="tracklister.gui"):
+        assert s.ensure_ytdlp() == target
+    assert target.read_bytes() == data and not quarantine.carries(target)
+    assert "the yt-dlp copy carries com.apple.quarantine: copying it again" in caplog.text
+    assert xattrs.removed == [] and quarantine.carries(bundled)
+    assert s.ensure_ytdlp() == target                    # from now on it is used as it is
+
+
+def test_mac_a_quarantined_copy_is_still_used_when_there_is_nothing_to_copy_again(as_macos, tmp_path, xattrs):
+    s = Services(bundle=tmp_path / "no-bundle")
+    target = s.paths.tools_dir / "yt-dlp"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"old copy")
+    xattrs.set(target, QUARANTINE)
+    assert s.ensure_ytdlp() == target and target.read_bytes() == b"old copy"     # as before 1.1b
+
+
+def test_mac_if_macos_itself_marks_the_checked_copy_only_that_attribute_is_removed(as_macos, tmp_path, monkeypatch,
+                                                                                 xattrs, caplog):
+    """Precedence step 2 (brief mac-1b): only when the attribute is on the copy right after the data-only write
+    and the SHA-256 check, which can only be macOS's doing, that one attribute goes, from that one file."""
+    data = b"the pinned yt-dlp"
+    res, bundled = _mac_bundle(tmp_path, monkeypatch, data)
+    xattrs.set(bundled, QUARANTINE)
+    real_copy = quarantine.copy_data_only
+
+    def macos_marks_it(src, dst):
+        real_copy(src, dst)
+        xattrs.set(dst, QUARANTINE)
+        xattrs.set(dst, "com.apple.provenance", b"\x01")
+    monkeypatch.setattr(quarantine, "copy_data_only", macos_marks_it)
+    s = Services(bundle=res)
+    target = s.paths.tools_dir / "yt-dlp"
+    with caplog.at_level(logging.WARNING, logger="tracklister.platform"):
+        assert s.ensure_ytdlp() == target
+    assert target.read_bytes() == data and not quarantine.carries(target)
+    assert quarantine.attribute_names(target) == ["com.apple.provenance"]       # every other attribute stays
+    assert xattrs.removed == [("yt-dlp.part", QUARANTINE)]                      # before it is moved into place
+    assert quarantine.carries(bundled)
+    assert "macOS put com.apple.quarantine on the yt-dlp.part copy" in caplog.text
+
+
+def test_mac_a_tampered_copy_is_never_unquarantined(as_macos, tmp_path, monkeypatch, xattrs):
+    res, bundled = _mac_bundle(tmp_path, monkeypatch, b"good bytes")
+    bundled.write_bytes(b"evil bytes")
+    xattrs.set(bundled, QUARANTINE)
+    real_copy = quarantine.copy_data_only
+
+    def macos_marks_it(src, dst):
+        real_copy(src, dst)
+        xattrs.set(dst, QUARANTINE)
+    monkeypatch.setattr(quarantine, "copy_data_only", macos_marks_it)
+    s = Services(bundle=res)
+    assert s.ensure_ytdlp() is None and xattrs.removed == []      # the SHA-256 check comes first
+
+
+def test_windows_keeps_its_1_0_copy(as_windows, tmp_path, monkeypatch):
+    bundle = tmp_path / "bundle"
+    (bundle / "tools").mkdir(parents=True)
+    (bundle / "tools" / "yt-dlp.exe").write_bytes(b"MZ windows")
+
+    def must_not_run(*a, **k):
+        raise AssertionError("Windows copies yt-dlp.exe with shutil.copy2, as in 1.0")
+    monkeypatch.setattr(quarantine, "copy_data_only", must_not_run)
+    monkeypatch.setattr(quarantine, "carries", must_not_run)
+    s = Services(bundle=bundle)
+    assert s.ensure_ytdlp() == s.paths.tools_dir / "yt-dlp.exe"
+    assert s.ensure_ytdlp() == s.paths.tools_dir / "yt-dlp.exe"     # an existing copy: no quarantine check
 
 
 # ---- 1.1: the engine each platform runs ----------------------------------------------------------------

@@ -25,7 +25,7 @@ from tracklister.core.model import (
     LIBRARY_SCHEMA, LIBRARY_SCHEMA_V1, DoubtKind, LibraryEntry, ResultState, SetDoc, TrackRow,
 )
 from tracklister.core.textnorm import classify_version, norm_key, split_artists, version_key
-from tracklister.organize.naming import win_long
+from tracklister.organize.naming import listing_key, win_long
 from tracklister.verify.spectral import LEGACY_FLAG, STRONG_FLAG, SpectralClass, legacy_class
 
 log = logging.getLogger("tracklister.library")
@@ -65,6 +65,13 @@ def row_key(row: TrackRow) -> str:
     return library_key(row.artist_display or row.search_artist, row.title, row.version)
 
 
+def _on_disk(path: str) -> bool:
+    """The entry's file is there. Only an absolute path of this system counts: an entry of a library.json
+    copied from the other system ('C:\\...' on a Mac, '/Users/...' on a PC) would otherwise be looked up
+    relative to the current folder or drive, and could find some other file there."""
+    return os.path.isabs(path) and os.path.isfile(win_long(path))
+
+
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
@@ -91,9 +98,13 @@ class LibraryIndex:
 
     def _rekey_v1(self) -> None:
         """A 1.0.0 library: rebuild each set's entries from its own set.json, with the 1.0.1 keys. Nothing
-        is written here; the next save() writes schema /2."""
+        is written here; the next save() writes schema /2. A path that is not absolute on this system (a
+        library.json copied from a PC to a Mac: 'C:\\...' is one relative name there) names no folder here:
+        its entries keep their keys, and find() never offers them."""
         folders: list[Path] = []
         for e in self.entries:
+            if not os.path.isabs(e.path):
+                continue
             d = Path(e.path).parent
             if d not in folders:
                 folders.append(d)
@@ -147,7 +158,7 @@ class LibraryIndex:
         for e in self.entries:
             if e.key != key or (exclude_set_id and e.set_id == exclude_set_id):
                 continue
-            if not os.path.isfile(win_long(e.path)):
+            if not _on_disk(e.path):
                 continue
             if row.expected_duration_s and e.duration_s and abs(e.duration_s - row.expected_duration_s) > DURATION_TOL_S:
                 continue
@@ -156,16 +167,20 @@ class LibraryIndex:
 
     def prune_missing(self) -> int:
         before = len(self.entries)
-        self.entries = [e for e in self.entries if os.path.isfile(win_long(e.path))]
+        self.entries = [e for e in self.entries if _on_disk(e.path)]
         return before - len(self.entries)
 
     def rebuild(self, library_root: Path) -> int:
-        """Re-scan <library_root>/*/.tracklister/set.json. Returns the number of entries."""
+        """Re-scan <library_root>/*/.tracklister/set.json. Returns the number of entries.
+
+        The set folders are read in organize.naming.listing_key order, never in listing order: that order
+        decides which folder wins when two hold the same set (a copied set folder) and which copy «Ya en
+        biblioteca» offers first, and it must be the same on every platform (brief mac-1b)."""
         self.entries = []
         root = Path(library_root)
         if not root.is_dir():
             return 0
-        for d in sorted(p for p in root.iterdir() if p.is_dir()):
+        for d in sorted((p for p in root.iterdir() if p.is_dir()), key=lambda p: listing_key(p.name)):
             doc_path = set_doc_path(d)
             if not doc_path.is_file():
                 continue
