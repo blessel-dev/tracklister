@@ -61,6 +61,19 @@ def test_prepare_app_leaves_the_dock_icon_to_the_bundle_on_macos(as_macos, app, 
     assert app.applicationName() == "Tracklister"                 # the rest of the setup still runs
 
 
+def test_the_app_starts_numpy_with_one_openblas_thread(monkeypatch):
+    """AG-22b (his decision, 29 Oct): main() caps OpenBLAS before anything imports numpy. Otherwise numpy commits
+    about 350 MB for one idle OpenBLAS thread per CPU, and nothing in the app uses them. The exe enters through
+    main() too (packaging/entry.py). A value the user set is kept."""
+    import tracklister.__main__ as entry
+    import tracklister.gui.app
+    monkeypatch.setattr(tracklister.gui.app, "run", lambda argv: os.environ.get("OPENBLAS_NUM_THREADS"))
+    monkeypatch.setenv("OPENBLAS_NUM_THREADS", "4")
+    assert entry.main() == "4"
+    monkeypatch.delenv("OPENBLAS_NUM_THREADS")
+    assert entry.main() == "1"
+
+
 def test_flags_and_quit_after(tmp_path):
     import tracklister.__main__ as entry
     assert callable(entry.main)
