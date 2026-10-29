@@ -156,6 +156,40 @@ def test_a_move_to_another_drive_killed_halfway_leaves_nothing_under_the_final_n
     assert a.read_bytes() == b"A" * 1000                       # the source is still there, whole
 
 
+def test_a_part_locked_for_a_moment_still_gets_its_name(tmp_path, monkeypatch):
+    """Barrido audit AU-2-01: on Windows an antivirus or the indexer can hold a just-written file for a moment.
+    Since the copies go through '<name>.part' (Z.3), a PermissionError on the rename of that '.part' failed the
+    copy at once (the row ended «Fallida»), where the copy straight to the final name of T had no rename at all.
+    The rename is now retried, as write_json does for journal.json."""
+    s = tmp_path / "set"
+    s.mkdir()
+    a, b = tmp_path / "a.flac", tmp_path / "b.flac"
+    a.write_bytes(b"A" * 1000)
+    b.write_bytes(b"B" * 1000)
+    real_replace = os.replace
+    locked = []
+
+    def locked_once(src, dst, *args, **kw):
+        if os.fspath(src).endswith(".part") and os.fspath(src) not in locked:
+            locked.append(os.fspath(src))
+            raise PermissionError(errno.EACCES, "held by another process", os.fspath(src))
+        return real_replace(src, dst, *args, **kw)
+    monkeypatch.setattr(os, "replace", locked_once)
+    j = Journal(s)
+    bid = j.begin("Usar el que ya tengo")
+    copied = j.copy(bid, a, s / "01 - X.flac", uid="u1")
+
+    def cross_device(src, dst, *args, **kw):
+        raise OSError(errno.EXDEV, "cross-device", src)
+    monkeypatch.setattr(os, "rename", cross_device)            # another drive: shutil.move copies through a .part
+    moved = j.move(bid, b, s / "02 - Y.flac", uid="u2")
+    j.commit(bid)
+    assert len(locked) == 2                                    # each rename met the lock once
+    assert copied.name == "01 - X.flac" and copied.read_bytes() == b"A" * 1000 and a.exists()
+    assert moved.name == "02 - Y.flac" and moved.read_bytes() == b"B" * 1000 and not b.exists()
+    assert not list(s.glob("*.part"))
+
+
 # ---- external audit, round 4 (claude-audit-raw-r4-1.txt) ---------------------------------------------
 
 def test_r4_b5_mkdir_on_a_drive_that_is_gone_fails_at_once(tmp_path, monkeypatch):

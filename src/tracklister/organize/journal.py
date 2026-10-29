@@ -14,6 +14,7 @@ import hashlib
 import logging
 import os
 import shutil
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -37,11 +38,20 @@ def _copy_via_part(src: str, dst: str) -> str:
     """Copy src to '<dst>.part' and give it the final name only once it is whole. A power cut, a forced close or
     a USB stick pulled out halfway never leaves a cut file under a track's name (the next run would push the good
     one to ' (2)'). Journal.copy uses it, and shutil.move uses it when it has to copy (another drive); a move on
-    the same drive is still a rename. A '.part' is not audio: listings and Reordenar ignore it."""
+    the same drive is still a rename. A '.part' is not audio: listings and Reordenar ignore it.
+    On Windows an antivirus or the indexer can hold the just-written '.part' for a moment, so its rename is
+    retried the way write_json retries journal.json (barrido audit AU-2-01)."""
     part = os.fspath(dst) + ".part"
     try:
         shutil.copy2(src, part)                 # the module attribute, so a test can still patch shutil.copy2
-        os.replace(part, dst)
+        for attempt in range(5):
+            try:
+                os.replace(part, dst)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.2 * (attempt + 1))
     except BaseException:
         try:
             os.remove(part)
