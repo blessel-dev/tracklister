@@ -11,7 +11,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest  # noqa: E402
 
-from tests.gui.fakes import FakeServices, ScriptedPrompter  # noqa: E402
+from tests.gui.fakes import FakeServices, ScriptedPrompter, flush_deferred_deletes  # noqa: E402
 from tracklister.engine.credentials import CredentialStore, Credentials  # noqa: E402
 
 TEST_USER = "usuario-prueba"
@@ -27,8 +27,11 @@ def app(qapp):
 @pytest.fixture(autouse=True)
 def _collect_garbage_in_the_gui_thread():
     """Windows and pages of the previous test are collected here, in the GUI thread, never by an
-    automatic collection inside a worker thread (see tracklister.gui.gcguard)."""
+    automatic collection inside a worker thread (see tracklister.gui.gcguard). Torn down last: pytest-qt has
+    closed the test's windows and the window fixtures have stopped their threads, so the windows are deleted
+    now instead of piling up for the rest of the module."""
     yield
+    flush_deferred_deletes()
     gc.collect()
 
 
@@ -88,3 +91,6 @@ def fresh_window(qtbot, app, services, prompter):
     yield w
     w.pool.cancel_all()
     w.pool.wait_all(10000)
+    if w.worker is not None:
+        w.worker.stop()
+        w.worker.wait(30000)

@@ -19,7 +19,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest  # noqa: E402
 
-from tests.gui.fakes import ScriptedPrompter  # noqa: E402
+from tests.gui.fakes import ScriptedPrompter, flush_deferred_deletes  # noqa: E402
 from tracklister.engine.credentials import CredentialStore, Credentials  # noqa: E402
 from tracklister.engine.ratelimit import SearchBudget  # noqa: E402
 from tracklister.engine.runner import EngineRunner  # noqa: E402
@@ -90,8 +90,10 @@ def app(qapp):
 
 @pytest.fixture(autouse=True)
 def _collect_garbage_in_the_gui_thread():
-    """Same rule as tests/gui: Qt objects are only collected in the GUI thread."""
+    """Same rule as tests/gui: Qt objects are only collected in the GUI thread, and the closed windows are
+    deleted now (pytest-qt's deleteLater() is never delivered outside an event loop)."""
     yield
+    flush_deferred_deletes()
     gc.collect()
 
 

@@ -12,11 +12,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from PySide6.QtCore import QCoreApplication, QEvent
+
 from tracklister.core.model import RowStatus, SourceRef, TrackRow
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.runner import EngineRunner
 from tracklister.engine.spec import fake_engine_spec
 from tracklister.gui.services import Services
+
+
+def flush_deferred_deletes() -> None:
+    """Delete now the objects whose deleteLater() is pending. pytest-qt closes each test's windows with close()
+    + deleteLater() and then calls processEvents(), which outside an event loop never delivers DeferredDelete:
+    the closed windows of a module piled up (thousands of live widgets) and every new window polished them all."""
+    if QCoreApplication.instance() is not None:
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 @dataclass
