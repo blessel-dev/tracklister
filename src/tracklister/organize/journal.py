@@ -29,6 +29,24 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _copy_via_part(src: str, dst: str) -> str:
+    """Copy src to '<dst>.part' and give it the final name only once it is whole. A power cut, a forced close or
+    a USB stick pulled out halfway never leaves a cut file under a track's name (the next run would push the good
+    one to ' (2)'). Journal.copy uses it, and shutil.move uses it when it has to copy (another drive); a move on
+    the same drive is still a rename. A '.part' is not audio: listings and Reordenar ignore it."""
+    part = os.fspath(dst) + ".part"
+    try:
+        shutil.copy2(src, part)                 # the module attribute, so a test can still patch shutil.copy2
+        os.replace(part, dst)
+    except BaseException:
+        try:
+            os.remove(part)
+        except OSError:
+            pass
+        raise
+    return dst
+
+
 def same_file_content(a: Path, b: Path) -> bool:
     """Same size and SHA-1."""
     try:
@@ -97,7 +115,7 @@ class Journal:
         self.mkdir(batch_id, dst.parent)
         real = unique_path(dst)
         try:
-            shutil.move(win_long(src), win_long(real))
+            shutil.move(win_long(src), win_long(real), copy_function=_copy_via_part)
         except OSError:
             # When a rename fails (on Windows, a file open in Ableton or a player), shutil.move copies and
             # then cannot delete the source: never leave that copy (or half of it) behind while the source
@@ -116,7 +134,7 @@ class Journal:
         self.mkdir(batch_id, dst.parent)
         real = unique_path(dst)
         try:
-            shutil.copy2(win_long(src), win_long(real))
+            _copy_via_part(win_long(src), win_long(real))
         except OSError:
             # never leave half a file behind under a final name: `real` did not exist (unique_path)
             try:

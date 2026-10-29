@@ -4,6 +4,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+import errno
+import os
 import shutil
 from pathlib import Path
 
@@ -78,6 +80,57 @@ def test_r3_n2_a_copy_that_fails_leaves_no_half_file_and_discard_reverts_the_bat
     assert j.discard(bid) == []
     assert not (s / "_originales").exists() and a.exists() and b.exists()   # sources untouched
     assert j.batches() == [] and Journal(s).batches() == []
+
+
+def _dies_after_10_bytes(src, dst, *args, **kw):
+    """A copy killed halfway (a power cut, a forced close, a USB stick pulled out): 10 bytes, then gone. Not an
+    OSError, so no `except OSError` cleans it up."""
+    with open(dst, "wb") as f:
+        f.write(b"x" * 10)
+    raise KeyboardInterrupt
+
+
+def test_a_copy_killed_halfway_leaves_nothing_under_the_final_name(tmp_path, monkeypatch):
+    """Barrido CL-34: «Usar el que ya tengo» and the _originales copies wrote straight to the final name, so a
+    copy killed halfway left a cut file with the track's name; the next run then put the good one at ' (2)'.
+    The data now goes to '<name>.part', which gets the final name only once it is whole."""
+    s = tmp_path / "set"
+    s.mkdir()
+    a = tmp_path / "a.flac"
+    a.write_bytes(b"A" * 1000)
+    j = Journal(s)
+    bid = j.begin("Usar el que ya tengo")
+    monkeypatch.setattr(shutil, "copy2", _dies_after_10_bytes)
+    with pytest.raises(KeyboardInterrupt):
+        j.copy(bid, a, s / "01 - X.flac")
+    assert not (s / "01 - X.flac").exists()
+    assert not (s / "01 - X.flac.part").exists() and a.read_bytes() == b"A" * 1000
+
+
+def test_a_move_to_another_drive_killed_halfway_leaves_nothing_under_the_final_name(tmp_path, monkeypatch):
+    """Barrido CL-34: a library on another drive (a USB stick, an external disk). shutil.move cannot rename
+    across drives, so it copies and then deletes the source; that copy went straight to the final name."""
+    s = tmp_path / "set"
+    s.mkdir()
+    a = tmp_path / "a.flac"
+    a.write_bytes(b"A" * 1000)
+    j = Journal(s)
+    bid = j.begin("Pasada 1: lossless")
+
+    def cross_device(src, dst, *args, **kw):
+        raise OSError(errno.EXDEV, "cross-device", src)
+    monkeypatch.setattr(os, "rename", cross_device)            # another drive: shutil.move falls back to a copy
+    monkeypatch.setattr(shutil, "copyfile", _dies_after_10_bytes)
+    try:
+        import _winapi                                          # Windows: shutil.copy2 copies with CopyFile2
+        if hasattr(_winapi, "CopyFile2"):
+            monkeypatch.setattr(_winapi, "CopyFile2", _dies_after_10_bytes)
+    except ImportError:
+        pass
+    with pytest.raises(KeyboardInterrupt):
+        j.move(bid, a, s / "01 - X.flac")
+    assert not (s / "01 - X.flac").exists() and not (s / "01 - X.flac.part").exists()
+    assert a.read_bytes() == b"A" * 1000                       # the source is still there, whole
 
 
 # ---- external audit, round 4 (claude-audit-raw-r4-1.txt) ---------------------------------------------
