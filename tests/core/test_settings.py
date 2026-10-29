@@ -60,3 +60,22 @@ def test_checked_load_reports_the_reset_settings(tmp_path):
     p.write_text(json.dumps({"theme": ["x"], "first_run_done": True}), encoding="utf-8")
     s, bad = load_settings_checked(p)
     assert s.first_run_done and s.theme is None and bad == ["theme"]
+
+
+def test_out_of_range_numbers_go_back_to_their_defaults():
+    # AG-18 (T.4 N5): a hand-edited settings.json with -5 searches per window made every download end in
+    # «Error inesperado (IndexError)». Out of range counts as not valid, like a wrong type.
+    names = ["searches_per_time", "searches_renew_s", "concurrent_downloads", "duration_ok_s", "duration_review_s"]
+    s, bad = settings_from_dict({"searches_per_time": -5, "searches_renew_s": 0, "concurrent_downloads": 0,
+                                 "duration_ok_s": -1, "duration_review_s": 601})
+    assert [getattr(s, n) for n in names] == [34, 220, 4, 3, 10]
+    assert sorted(bad) == sorted(names)
+    lows = {"searches_per_time": 1, "searches_renew_s": 1, "concurrent_downloads": 1, "duration_ok_s": 0,
+            "duration_review_s": 0}
+    highs = {"searches_per_time": 1000, "searches_renew_s": 3600, "concurrent_downloads": 16, "duration_ok_s": 600,
+             "duration_review_s": 600}
+    for edges in (lows, highs):                     # the edges of each range are kept
+        s, bad = settings_from_dict(edges)
+        assert bad == [] and [getattr(s, n) for n in names] == [edges[n] for n in names]
+    s, bad = settings_from_dict({n: v + 1 for n, v in highs.items()})
+    assert sorted(bad) == sorted(names) and s == Settings()

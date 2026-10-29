@@ -4,9 +4,10 @@ Never stores the Soulseek username or password: both live in Windows Credential 
 through tracklister.engine.credentials (keyring). No API keys either.
 
 A value of the wrong type (a hand-edited or damaged file: "theme": ["x"], "custom_preset": [1],
-"listen_port": "abc"...) never stops the app: that one setting goes back to its default and the
-others are kept (settings_from_dict reports which ones). Only a file that is not a JSON object at
-all raises TypeError (the GUI then backs it up and starts from the defaults).
+"listen_port": "abc"...) or a number out of its range ("searches_per_time": -5, AG-18) never stops
+the app: that one setting goes back to its default and the others are kept (settings_from_dict
+reports which ones). Only a file that is not a JSON object at all raises TypeError (the GUI then
+backs it up and starts from the defaults).
 """
 from __future__ import annotations
 
@@ -83,12 +84,26 @@ def _type_ok(value: Any, annotation: str) -> bool:
     return False
 
 
+# Inclusive ranges of the numbers the app cannot work with outside them (AG-18, T.4 N5): a hand-edited
+# "searches_per_time": -5 made every download end in «Error inesperado (IndexError)» (engine/ratelimit.py), and
+# 0 downloads at a time went to the engine as it was. Out of range counts as not valid, like a wrong type.
+_RANGES = {
+    "listen_port": (1, 65535),
+    "searches_per_time": (1, 1000),
+    "searches_renew_s": (1, 3600),
+    "concurrent_downloads": (1, 16),
+    "duration_ok_s": (0, 600),
+    "duration_review_s": (0, 600),
+}
+
+
 def _value_ok(name: str, value: Any) -> bool:
     """The few values the app cannot work with even when the type is right."""
     if name == "preset_id":
         return value in PRESET_IDS
-    if name == "listen_port":
-        return 1 <= value <= 65535
+    if name in _RANGES:
+        low, high = _RANGES[name]
+        return low <= value <= high
     return True
 
 
