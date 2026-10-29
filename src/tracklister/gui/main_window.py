@@ -42,9 +42,13 @@ log = logging.getLogger("tracklister.gui")
 
 NAV = (("new_set", "Nuevo set"), ("results", "Descarga"), ("reorder", "Reordenar"),
        ("diagnostic", "Diagnóstico"), ("settings", "Ajustes"))
+# «Salir» during a download: the files that already arrived are still being checked and placed
+CLOSING_AFTER_CHECKS_ES = "Guardando lo ya descargado… Tracklister se cerrará al terminar."
 
 
 class MainWindow(QMainWindow):
+    CLOSE_WAIT_MS = 30000       # closing during a download: how long the window waits for the worker to stop
+
     def __init__(self, services, themes: ThemeManager, prompter=None, parent: QWidget | None = None):
         super().__init__(parent)
         self.services = services
@@ -53,6 +57,7 @@ class MainWindow(QMainWindow):
         self.pool = TaskPool(self)
         self.session = None
         self.worker: SessionWorker | None = None
+        self._close_when_done = False     # «Salir» was answered: close as soon as the worker has finished
         self.update_info = None
         self.setWindowTitle(config.APP_NAME)
         self.setWindowIcon(QIcon(str(asset_path(load_tokens()["app_icon"]))))
@@ -297,6 +302,8 @@ class MainWindow(QMainWindow):
         self.results.on_finished(error)
         self.nav_buttons["results"].setEnabled(True)
         self.status("Descarga terminada." if not error else "La descarga terminó con errores.")
+        if self._close_when_done:
+            QTimer.singleShot(0, self.close)
 
     def cancel_run(self) -> None:
         if self.worker_running():
@@ -326,12 +333,21 @@ class MainWindow(QMainWindow):
     # ---- closing -------------------------------------------------------------------------------------
     def closeEvent(self, event) -> None:  # noqa: N802
         if self.worker_running():
+            if self._close_when_done:          # already answered «Salir»: it closes by itself when done
+                event.ignore()
+                return
             if not self.prompter.confirm("Salir", "Hay una descarga en curso. Si sales, se cancela y se guarda "
                                          "lo que ya esté descargado.", ok="Salir", cancel="Seguir"):
                 event.ignore()
                 return
             self.worker.stop()
-            self.worker.wait(30000)
+            if not self.worker.wait(self.CLOSE_WAIT_MS):
+                # the files that already arrived are still being checked and placed: closing now would kill
+                # the process in the middle of a file (QThread destroyed while running)
+                self._close_when_done = True
+                self.status(CLOSING_AFTER_CHECKS_ES, 0)
+                event.ignore()
+                return
         self.pool.cancel_all()
         self.pool.wait_all(5000)
         self.new_set.stop_watching()

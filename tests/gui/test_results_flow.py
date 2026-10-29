@@ -178,6 +178,46 @@ def test_cancel_keeps_what_is_done_and_offers_continue(window, qtbot, ready_serv
     assert window.results.continue_btn.isVisible()
 
 
+def test_closing_during_the_checks_waits_for_them(window, qtbot, ready_services, prompter, tmp_path, monkeypatch):
+    """CL-35 (V.6 N15): «Salir» promises «se guarda lo que ya esté descargado». After cancelling, the files that
+    already arrived are still checked and placed; when that takes longer than the close wait, the window stays
+    open, says so and closes by itself once they are placed. Before, it closed anyway and the process died with
+    the QThread still running, in the middle of a file."""
+    from tracklister.core.layout import set_doc_path
+    from tracklister.gui.main_window import MainWindow
+    from tracklister.pipeline.session import SetSession
+    rows, net = build_scenario("correcto", tmp_path / "net-cerrar")
+    ready_services.network = net
+    monkeypatch.setattr(MainWindow, "CLOSE_WAIT_MS", 200)
+    entered, gate = threading.Event(), threading.Event()
+    real_settle = SetSession._settle_row
+
+    def slow_settle(self, *args, **kwargs):          # placing the downloaded files takes a while
+        entered.set()
+        gate.wait(60)
+        return real_settle(self, *args, **kwargs)
+
+    monkeypatch.setattr(SetSession, "_settle_row", slow_settle)
+    try:
+        assert window.start_download("Cerrar", rows, [])
+        qtbot.waitUntil(entered.is_set, timeout=60000)
+        prompter.confirm_answer = True                 # «Salir»
+        window.close()
+        assert window.isVisible() and window.worker_running()
+        assert "se cerrará al terminar" in window.statusBar().currentMessage()
+        window.close()                                 # asking again while it waits: still open, no new question
+        assert window.isVisible()
+        assert [c[1] for c in prompter.calls if c[0] == "confirm"] == ["Salir"]
+    finally:
+        gate.set()
+    qtbot.waitUntil(lambda: not window.isVisible(), timeout=60000)
+    assert not window.worker_running()
+    doc = json.loads(set_doc_path(window.session.set_dir).read_text(encoding="utf-8"))
+    states = [res["state"] for res in doc["results"].values()]
+    assert len(states) == 2 and "en_curso" not in states
+    assert set(states) == {"verificado"}
+
+
 def test_download_without_account_goes_to_settings(window, prompter):
     CredentialStore().clear()
     assert window.start_download("X", sample_rows(), []) is False
