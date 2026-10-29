@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (QButtonGroup, QMainWindow, QStackedWidget, QStatu
 
 from tracklister import config
 from tracklister.assets import asset_path, load_tokens
+from tracklister.core import osplatform
 from tracklister.core.layout import set_doc_path
 from tracklister.core.model import DuplicateChoice
 from tracklister.engine.credentials import CredentialError
@@ -343,8 +344,10 @@ class MainWindow(QMainWindow):
         if not d:
             return
         if not set_doc_path(Path(d)).is_file():
+            # the path with the separator of this system (CL-25, Y.12; Windows unchanged)
+            where = ".tracklister/set.json" if osplatform.is_macos() else ".tracklister\\set.json"
             self.prompter.error("Abrir un set anterior", "Esa carpeta no es un set de Tracklister "
-                                "(no tiene .tracklister\\set.json).")
+                                f"(no tiene {where}).")
             return
         try:
             self.session = self.services.load_session(Path(d))

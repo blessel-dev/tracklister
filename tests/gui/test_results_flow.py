@@ -337,6 +337,22 @@ def test_open_previous_set(window, ready_services, prompter, tmp_path):
     assert prompter.calls[-1][0] == "error"
 
 
+def test_mac_open_set_error_uses_slash(as_macos, window, prompter, tmp_path):
+    """Barrido CL-25 (with Y.12): on the Mac, «Esa carpeta no es un set de Tracklister (no tiene
+    .tracklister\\set.json).» showed the Windows backslash."""
+    prompter.folders = [str(tmp_path)]
+    window.open_previous_set()
+    kind, title, text = prompter.calls[-1]
+    assert (kind, title) == ("error", "Abrir un set anterior")
+    assert ".tracklister/set.json" in text and "\\" not in text, text
+
+
+def test_windows_open_set_error_keeps_its_text(as_windows, window, prompter, tmp_path):
+    prompter.folders = [str(tmp_path)]
+    window.open_previous_set()
+    assert prompter.calls[-1][2] == ("Esa carpeta no es un set de Tracklister (no tiene .tracklister\\set.json).")
+
+
 @pytest.mark.parametrize("mode", ["continue", "retry"])
 def test_continuar_and_reintentar_ask_about_a_repeated_track(window, qtbot, ready_services, prompter, tmp_path,
                                                              mode):
