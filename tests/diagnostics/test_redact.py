@@ -71,6 +71,24 @@ def test_assert_no_secrets():
         assert_no_secrets("hola USUARIO-PRUEBA", ["usuario-prueba"])
 
 
+def test_a_secret_inside_the_censor_mark_or_the_home_label(as_windows, monkeypatch):
+    """CL-23 (T.4 N4): a password such as «sura» or a username such as «file» is part of «[censurado]» or of
+    «%USERPROFILE%», and the final check stopped the Diagnóstico with an error instead of the report (failing
+    closed: nothing leaked). A match wholly inside one of those marks is not a leak; anywhere else it still is."""
+    monkeypatch.setenv("USERPROFILE", r"C:\Users\Juanito")
+    out = Redactor(secrets=["sura"]).redact("Basura")
+    assert out == "Ba[censurado]"
+    assert_no_secrets(out, ["sura"])
+    out = Redactor(secrets=["file"]).redact(r"C:\Users\Juanito\Music\x.flac")
+    assert out == r"%USERPROFILE%\Music\x.flac"
+    assert_no_secrets(out, ["file"])
+    # the guard keeps its strength: the secret outside a mark, next to one, or with a mark's character in it
+    for text, secret in (("x sura x", "sura"), ("[censurado] y sura", "sura"),
+                         ("%USERPROFILE%\\file.txt", "file"), ("clave dj~2024", "dj~2024")):
+        with pytest.raises(AssertionError):
+            assert_no_secrets(text, [secret])
+
+
 @pytest.mark.parametrize("text,expected", [
     ("Connecting to 203.0.113.7:2242", "Connecting to [censurado]:2242"),          # ip:port (.NET endpoint)
     ("IP:203.0.113.7", "IP:[censurado]"),                                           # after a colon

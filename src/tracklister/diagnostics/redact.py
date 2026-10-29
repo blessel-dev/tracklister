@@ -124,8 +124,21 @@ def secret_pattern(s: str) -> str:
     return re.escape(s)
 
 
+_MARKS = re.compile("|".join(re.escape(m) for m in (CENSORED, HOME_LABEL_WINDOWS, HOME_LABEL_MACOS)))
+
+
 def assert_no_secrets(text: str, secrets: Iterable[str]) -> None:
-    """Raise AssertionError if any secret survived (case-insensitive, same rule as redact)."""
+    """Raise AssertionError if any secret survived (case-insensitive, same rule as redact).
+
+    A match that lies wholly inside the censor mark or a home-folder label is not a leak: a password «sura»
+    is part of «[censurado]», a username «file» of «%USERPROFILE%» (CL-23, T.4 N4). Every other match, also
+    one that overlaps a mark and every overlapping occurrence, still raises: the text itself is searched,
+    nothing is cut out of it."""
+    marks = [m.span() for m in _MARKS.finditer(text)]
     for s in secrets:
-        if s and re.search(secret_pattern(s), text, flags=re.IGNORECASE):
-            raise AssertionError("el informe contiene un dato privado sin censurar")
+        if not s:
+            continue
+        for m in re.finditer("(?=(" + secret_pattern(s) + "))", text, flags=re.IGNORECASE):
+            start, end = m.span(1)
+            if not any(lo <= start and end <= hi for lo, hi in marks):
+                raise AssertionError("el informe contiene un dato privado sin censurar")
