@@ -12,10 +12,13 @@ The engine then spreads them itself: its limiter hands out per_time searches and
 one window later (3.x Sockseek.Core/Search/RateLimitedSemaphore.cs:12-39, 2.x Utilities/
 RateLimitedSemaphore.cs:9-29). So
 reserve() records them the same way, per_time now, per_time one window later..., and the next process
-waits for the searches this one is still going to make (1.0.1, R4).
+waits for the searches this one is still going to make (1.0.1, R4). Every window such a reservation
+covers is kept, however long it is (CL-10). reserve_if_free() checks and reserves in one step under
+the file lock, so two windows of the app that start a pass together never both find the budget free.
 """
 from __future__ import annotations
 
+import math
 import os
 import time
 from pathlib import Path
@@ -24,9 +27,6 @@ from typing import Callable
 from tracklister.core.jsonio import read_json, write_json
 
 SCHEMA = "tracklister.searchbudget/1"
-# Reserved searches are kept up to this many windows ahead (a reservation of up to ~340 searches); a
-# timestamp further ahead means the clock went back, and it is dropped.
-MAX_WINDOWS_AHEAD = 10
 
 
 class _FileLock:
@@ -69,25 +69,44 @@ class SearchBudget:
         except ValueError:
             data = {}
         ev = [float(x) for x in data.get("events", []) if isinstance(x, (int, float))]
-        horizon = now + 1 + self.window_s * MAX_WINDOWS_AHEAD
+        # Reservations of k searches reach at most ceil(k / per_time) - 1 windows ahead (reserve()), so every
+        # window they cover is kept, however long (CL-10: a deep search of 49+ rows covers more than 10). A
+        # timestamp further ahead than all of them could reach means the clock went back, and it is dropped.
+        horizon = now + 1 + self.window_s * (math.ceil(len(ev) / max(1, self.per_time)) + 1)
         return sorted(x for x in ev if now - self.window_s < x <= horizon)
 
-    def wait_time(self, n: int) -> float:
-        """Seconds to wait before n more searches fit in the window (n is capped at per_time).
-        Searches reserved for a later window by a running process count as well."""
-        now = self.clock()
-        ev = self._events(now)
+    def _wait(self, ev: list[float], n: int, now: float) -> float:
         n = max(0, min(int(n), self.per_time))
         excess = len(ev) + n - self.per_time
         if excess <= 0:
             return 0.0
         return max(0.0, ev[excess - 1] + self.window_s - now)
 
+    def _new(self, n: int, now: float) -> list[float]:
+        per = max(1, self.per_time)
+        return [now + (i // per) * self.window_s for i in range(max(0, int(n)))]
+
+    def wait_time(self, n: int) -> float:
+        """Seconds to wait before n more searches fit in the window (n is capped at per_time).
+        Searches reserved for a later window by a running process count as well."""
+        now = self.clock()
+        return self._wait(self._events(now), n, now)
+
     def reserve(self, n: int) -> None:
         """Record n searches of the process that starts now: per_time of them now, the next per_time
         one window later, and so on, as the engine's own limiter will make them."""
         with _FileLock(self.path):
             now = self.clock()
-            per = max(1, self.per_time)
-            new = [now + (i // per) * self.window_s for i in range(max(0, int(n)))]
-            write_json(self.path, {"schema": SCHEMA, "events": sorted(self._events(now) + new)})
+            write_json(self.path, {"schema": SCHEMA, "events": sorted(self._events(now) + self._new(n, now))})
+
+    def reserve_if_free(self, n: int) -> float:
+        """wait_time() and reserve() in one step, under the file lock (CL-10): 0.0 when the n searches fit
+        now and were reserved; otherwise the seconds to wait, and nothing is written."""
+        with _FileLock(self.path):
+            now = self.clock()
+            ev = self._events(now)
+            wait = self._wait(ev, n, now)
+            if wait <= 0:
+                write_json(self.path, {"schema": SCHEMA, "events": sorted(ev + self._new(n, now))})
+                return 0.0
+            return wait

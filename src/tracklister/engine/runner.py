@@ -154,18 +154,20 @@ class EngineRunner:
             except Exception:  # noqa: BLE001 - a UI callback must never kill the run
                 pass
 
-        wait = self.budget.wait_time(n)
+        # CL-10: the budget is checked and reserved in one step (reserve_if_free), so two Tracklister windows that
+        # start a pass at the same moment never both find it free. A cancel that arrives after the reservation
+        # leaves it in place: the safe side (X.18).
+        wait = 0.0 if cancel.is_set() else self.budget.reserve_if_free(n)
         while wait > 0:
             emit(EngineEvent("log", None, f"Esperando {int(wait) + 1} s para no superar el límite de "
                                           "búsquedas de Soulseek..."))
             if cancel.wait(min(wait, 1.0)):
                 return EngineRunResult(None, True, False, collect_outputs(job, manifest, self.spec.dialect),
                                        job.log_path, job.stdout_path, argv_red)
-            wait = self.budget.wait_time(n)
+            wait = self.budget.reserve_if_free(n)
         if cancel.is_set():
             return EngineRunResult(None, True, False, collect_outputs(job, manifest, self.spec.dialect),
                                    job.log_path, job.stdout_path, argv_red)
-        self.budget.reserve(n)
 
         env = dict(os.environ)
         env.update(self.env)
