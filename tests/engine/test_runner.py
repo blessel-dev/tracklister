@@ -205,6 +205,42 @@ def test_r7_n7_json_all_is_read_before_redaction_and_kept_in_memory_only(tmp_pat
     assert plain.json_all is None
 
 
+KICKED_FOLDER_FILE = "@@x\\Soulseek Downloads\\Kicked Inside\\Fjaak - Spirit.flac"
+
+
+def _kicked_folder_net(tmp_path):
+    """One result whose path says «Soulseek» and «Kicked» (a common 'Soulseek Downloads' share folder)."""
+    import json
+    from tests.fakes.scenarios import file
+    net = tmp_path / "net-kicked.json"
+    net.write_text(json.dumps({"schema": "tracklister.fakenet/1", "search_delay_ms": 0, "ban_after_searches": None,
+                               "peers": {}, "files": [file("peerA", KICKED_FOLDER_FILE, "Fjaak", "Spirit", 30)]}),
+                   encoding="utf-8")
+    return net
+
+
+def test_the_json_results_line_is_neither_an_event_nor_a_ban(tmp_path):
+    """Barrido AG-02: with --print json-all the engine prints all the results of a search as ONE JSON line
+    (ENGINE-FACTS 4). It went through the ban check, so one result in a '…\\Soulseek Downloads\\Kicked Inside\\…'
+    folder made the run look kicked. The line, up to hundreds of KB with other users' names and folders, was also
+    sent as a log event (the Diagnóstico shows those in its status label). Now it is only kept as the results,
+    and written redacted to stdout.txt as before."""
+    from tests.fakes.scenarios import row
+    net = _kicked_folder_net(tmp_path)
+    work = tmp_path / "w"
+    item = write_engine_csv([row(1, "Fjaak", "Spirit", dur=30)], work / "input.csv")
+    job = EngineJob(work, build_preset("lossless").passes[0], True, 49998, print_json_all=True,
+                    input_override="artist=Fjaak, title=Spirit, length=30")
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(tmp_path / "b.json"),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    events = []
+    res = runner.run(job, item, CREDS, events.append, threading.Event())
+    assert not res.banned and res.fatal_es is None
+    assert [c["File"]["Filename"] for c in res.json_all] == [KICKED_FOLDER_FILE]
+    assert not [e for e in events if (e.text or "").lstrip().startswith("[{")]
+    assert "Kicked Inside" in res.stdout_path.read_text(encoding="utf-8")
+
+
 def test_r4_desperate_reserves_seven_searches_per_item(tmp_path):
     """1.0.1, R4: --desperate makes up to 7 searches per item; all of them go in the app-wide budget."""
     from tracklister.core.jsonio import read_json

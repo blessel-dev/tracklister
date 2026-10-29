@@ -278,6 +278,24 @@ def test_r7_n7_an_account_named_like_a_word_of_the_engines_json(tmp_path):
     assert "elegido" in text and "true" not in text.lower() and "file" not in text.lower()
 
 
+def test_a_soulseek_downloads_folder_is_not_a_kick(tmp_path):
+    """Barrido AG-02: one result in a 'Soulseek Downloads\\Kicked Inside' folder made the Diagnóstico say
+    «Soulseek cortó la sesión durante la búsqueda.», drop the results and stop before the next row."""
+    from tests.fakes.scenarios import row
+    net = tmp_path / "net.json"
+    net.write_text(json.dumps({"schema": "tracklister.fakenet/1", "search_delay_ms": 0, "ban_after_searches": None,
+                               "peers": {}, "files": [file("peerA", "@@x\\Soulseek Downloads\\Kicked Inside\\"
+                                                           "Fjaak - Spirit.flac", "Fjaak", "Spirit", 30)]}),
+                   encoding="utf-8")
+    paths = app_paths().ensure()
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    diag = run_diagnostic([row(1, "Fjaak", "Spirit", dur=30), row(2, "Fjaak", "Raw", dur=30)], runner, CREDS,
+                          paths=paths, settings=Settings())
+    assert len(diag) == 2 and len(diag[0].candidates) == 1
+    assert diag[0].error_es is None
+
+
 def test_download_only_when_opted_in(tmp_path):
     rows, runner, paths = _setup(tmp_path)
     diag = run_diagnostic(rows, runner, CREDS, download=True, max_rows=1, paths=paths, settings=Settings())

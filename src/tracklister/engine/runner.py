@@ -192,13 +192,15 @@ class EngineRunner:
                 assert proc.stdout is not None
                 for raw in proc.stdout:
                     try:
+                        results_line = False
                         if job.print_json_all and raw.lstrip().startswith("["):
                             try:
                                 parsed = json.loads(raw)
                             except ValueError:
-                                parsed = None
+                                parsed = None          # e.g. Sockseek's '[003] SongJob: …' lines: the normal path
                             if isinstance(parsed, list):
                                 arrays.append(parsed)
+                                results_line = True
                         line = redactor.redact(raw.rstrip("\r\n"))
                         if out is not None:
                             try:
@@ -211,6 +213,12 @@ class EngineRunner:
                                 except OSError:
                                     pass
                                 out = None
+                        if results_line:
+                            # --print json-all: the results of a search (ENGINE-FACTS 4) are data, not an engine
+                            # message. No event (the line can be hundreds of KB of other users' names and folders),
+                            # and never read as a fatal error or a kick: a result in a 'Soulseek Downloads\Kicked
+                            # Inside' share folder is not Soulseek cutting the session (barrido AG-02)
+                            continue
                         ev = parse_progress_line(self.spec.dialect, line)
                         if ev is None:
                             continue
