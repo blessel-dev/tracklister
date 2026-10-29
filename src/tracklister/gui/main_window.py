@@ -44,6 +44,8 @@ NAV = (("new_set", "Nuevo set"), ("results", "Descarga"), ("reorder", "Reordenar
        ("diagnostic", "Diagnóstico"), ("settings", "Ajustes"))
 # «Salir» during a download: the files that already arrived are still being checked and placed
 CLOSING_AFTER_CHECKS_ES = "Guardando lo ya descargado… Tracklister se cerrará al terminar."
+# a repeated-track question was closed: nothing starts
+DUPLICATE_NOT_STARTED_ES = "Descarga no iniciada: no se ha elegido qué hacer con una pista repetida."
 
 
 class MainWindow(QMainWindow):
@@ -234,22 +236,9 @@ class MainWindow(QMainWindow):
             log.exception("find_duplicates")
             self.status(f"No se pudo leer la biblioteca: {error_text(e)}")
             hits = []
-        choices = []
-        all_choice = None
-        for i, hit in enumerate(hits, start=1):
-            if all_choice is not None:
-                entry = hit.entries[0] if all_choice == DuplicateChoice.REUSE and hit.entries else None
-                choices.append((hit.row.uid, all_choice, entry))
-                continue
-            ans = self.prompter.ask_duplicate(hit, i, len(hits))
-            if ans is None:
-                self.new_set.banner.show_message("Descarga no iniciada: no se ha elegido qué hacer con una "
-                                                 "pista repetida.", "info")
-                return False
-            choice, entry, apply_all = ans
-            choices.append((hit.row.uid, choice, entry))
-            if apply_all:
-                all_choice = choice
+        choices = self._ask_duplicates(hits, self.new_set.banner)
+        if choices is None:
+            return False
         try:
             session.save()
         except Exception as e:  # noqa: BLE001
@@ -262,6 +251,27 @@ class MainWindow(QMainWindow):
         self._start_worker("run", creds, choices)
         return True
 
+    def _ask_duplicates(self, hits: list, banner: Banner) -> list | None:
+        """Ask about each track already in the library, with both options and «Aplicar a todos los repetidos de
+        este set» (G.3): the choices for the worker, or None when a question was closed (nothing starts, and
+        `banner` says so)."""
+        choices = []
+        all_choice = None
+        for i, hit in enumerate(hits, start=1):
+            if all_choice is not None:
+                entry = hit.entries[0] if all_choice == DuplicateChoice.REUSE and hit.entries else None
+                choices.append((hit.row.uid, all_choice, entry))
+                continue
+            ans = self.prompter.ask_duplicate(hit, i, len(hits))
+            if ans is None:
+                banner.show_message(DUPLICATE_NOT_STARTED_ES, "info")
+                return None
+            choice, entry, apply_all = ans
+            choices.append((hit.row.uid, choice, entry))
+            if apply_all:
+                all_choice = choice
+        return choices
+
     def run_again(self, mode: str) -> None:
         if self.session is None:
             return
@@ -272,9 +282,21 @@ class MainWindow(QMainWindow):
         creds = self._credentials()
         if creds is None:
             return
+        # barrido audit AU-2-04: the tracks the library has and this set has no answer for (a «Usar el que ya
+        # tengo» whose file was deleted forgets its choice, Z.14) are asked about, as «Descargar» does
+        try:
+            hits = [h for h in self.session.find_duplicates(self.services.library())
+                    if h.row.uid not in self.session.doc.duplicate_choices]
+        except Exception as e:  # noqa: BLE001 - a broken library index must not block downloads
+            log.exception("find_duplicates")
+            self.status(f"No se pudo leer la biblioteca: {error_text(e)}")
+            hits = []
+        choices = self._ask_duplicates(hits, self.results.banner)
+        if choices is None:
+            return
         self.results.show_session(self.session, running=True)
         self.go("results")
-        self._start_worker(mode, creds, [])
+        self._start_worker(mode, creds, choices)
 
     def _start_worker(self, mode: str, creds, choices) -> None:
         w = SessionWorker(self.session, runner_factory=self.services.make_runner, creds=creds,

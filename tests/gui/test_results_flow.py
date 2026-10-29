@@ -299,3 +299,43 @@ def test_open_previous_set(window, ready_services, prompter, tmp_path):
     prompter.folders = [str(tmp_path)]
     window.open_previous_set()
     assert prompter.calls[-1][0] == "error"
+
+
+@pytest.mark.parametrize("mode", ["continue", "retry"])
+def test_continuar_and_reintentar_ask_about_a_repeated_track(window, qtbot, ready_services, prompter, tmp_path,
+                                                             mode):
+    """Barrido audit AU-2-04 (his decision, 29 Oct): a «Usar el que ya tengo» row whose file was deleted forgets its
+    choice (Z.14), and only «Descargar» asked again: after «Abrir un set anterior…», «Continuar descarga» and
+    «Reintentar fallos» searched it on Soulseek although the library still had a copy. They ask «Ya tienes esta
+    pista» too now, for the library's tracks that have no answer in this set; closing the question starts nothing."""
+    _previous_set(ready_services, tmp_path)               # «Anterior»: both tracks are in the library
+    rows, net = build_scenario("correcto", tmp_path / "net-repetido")
+    ready_services.network = net
+    prompter.duplicates = [(DuplicateChoice.REUSE, "first", True)]
+    assert window.start_download("Repetido", rows, [])
+    _wait_done(qtbot, window)
+    set_dir = window.session.set_dir
+    first = min(window.session.doc.rows, key=lambda r: r.pos)
+    assert window.session.doc.results[first.uid].state == S.YA_EN_BIBLIOTECA
+
+    def reopen_without_its_file():
+        (set_dir / window.session.doc.results[first.uid].file).unlink()      # the library copy stays
+        prompter.folders = [str(set_dir)]
+        window.open_previous_set()
+        assert window.session.doc.results[first.uid].state == S.PENDIENTE
+        assert first.uid not in window.session.doc.duplicate_choices
+
+    reopen_without_its_file()
+    calls, passes = len(prompter.calls), len(window.session.doc.passes)
+    prompter.duplicates = [(DuplicateChoice.REUSE, "first", False)]
+    window.run_again(mode)
+    _wait_done(qtbot, window)
+    assert ("ask_duplicate", first.pos, 1, 1) in prompter.calls[calls:], prompter.calls[calls:]
+    assert window.session.doc.results[first.uid].state == S.YA_EN_BIBLIOTECA
+    assert not [p.name for p in window.session.doc.passes[passes:] if first.uid in p.uids]
+    # closing the question starts nothing
+    reopen_without_its_file()
+    prompter.duplicates = [None]
+    window.run_again(mode)
+    assert window.worker is None
+    assert "Descarga no iniciada" in window.results.banner.message(), window.results.banner.message()
