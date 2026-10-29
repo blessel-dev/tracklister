@@ -849,18 +849,34 @@ class SetSession:
         old_cut = self._old_cut(res)
         return new_cut is not None and old_cut is not None and new_cut >= old_cut + BETTER_CUT_HZ
 
-    def _retire_marked(self, row: TrackRow, res: RowResult, width: int, bid: str) -> None:
-        """The marked file (and its _originales copy) goes to _dudosos with its NN name: never deleted."""
+    def _retire_marked(self, row: TrackRow, res: RowResult, width: int, bid: str) -> list[tuple[str, str, Path]]:
+        """The marked file (and its _originales copy) goes to _dudosos with its NN name: never deleted.
+        Returns the moves made, (attribute, old path in the set, path in _dudosos), for _unretire (CL-22)."""
+        moved: list[tuple[str, str, Path]] = []
         for attr in ("file", "original_file"):
             rel = getattr(res, attr)
             if not rel:
                 continue
             cur = self.set_dir / rel
             if os.path.lexists(win_long(cur)):
-                self.journal.move(bid, cur, self.set_dir / DUDOSOS / track_filename(row, cur.suffix, width), uid=row.uid)
+                real = self.journal.move(bid, cur, self.set_dir / DUDOSOS / track_filename(row, cur.suffix, width),
+                                         uid=row.uid)
+                moved.append((attr, rel, real))
             setattr(res, attr, None)
         if res.peer and res.peer not in res.rejected_peers:
             res.rejected_peers = res.rejected_peers + [res.peer]
+        return moved
+
+    def _unretire(self, row: TrackRow, res: RowResult, moved: list[tuple[str, str, Path]], bid: str) -> None:
+        """Placing the better copy failed after _retire_marked (a full disk, a locked file): the marked file goes
+        back to its name in the set. If that move fails too, the row names the file where it is now, in _dudosos:
+        either way the row keeps a file (CL-22)."""
+        for attr, old_rel, real in moved:
+            try:
+                real = self.journal.move(bid, real, self.set_dir / old_rel, uid=row.uid)
+            except OSError as e:
+                log.warning("row %s: the marked file stays in %s (%s)", row.pos, DUDOSOS, type(e).__name__)
+            setattr(res, attr, rel_to_set(self.set_dir, real))
 
     def _handle_file(self, row: TrackRow, res: RowResult, outcome, fmt: FormatPass, lossy_ok: bool, width: int,
                      bid: str, had_quarantined: bool, label: str = "") -> None:
@@ -899,24 +915,30 @@ class SetSession:
                 self._not_in_format(res, outcome, [CONVERT_FAILED_ES.format(err=type(e).__name__)],
                                     verdict.flags + ["conversion_fallida"], info, had_quarantined)
                 return
+        retired: list[tuple[str, str, Path]] = []
         if marked:
-            self._retire_marked(row, res, width, bid)
+            retired = self._retire_marked(row, res, width, bid)
             reasons.append(REPLACED_MARKED_ES)
-        if conv is not None:
-            orig_dst = self.set_dir / ORIGINALES / track_filename(row, src.suffix, width)
-            real_orig = self.journal.move(bid, src, orig_dst, uid=row.uid)
-            original_rel = rel_to_set(self.set_dir, real_orig)
-            src = conv.dst
-            samplerate, bitdepth, container = conv.samplerate, conv.bitdepth, "aiff"
-            flags.append("convertido_aiff")
-            reasons.append(conv.warning_es or "Convertido a AIFF para CDJ antiguos (mismo sample rate y bits). "
-                                              "El original está en _originales.")
-        elif verdict.needs_conversion:
-            # identity/version/duration doubt (truncated files too): the download goes as it is to _dudosos,
-            # never converted (a damaged FLAC would not convert anyway) and with no copy in _originales
-            flags.append("sin_convertir")
-            reasons.append(f"No se convierte a AIFF: es dudoso y va tal cual a {DUDOSOS}.")
-        res.file = place_verified(self.set_dir, row, src, verdict, width, self.journal, bid)
+        try:
+            if conv is not None:
+                orig_dst = self.set_dir / ORIGINALES / track_filename(row, src.suffix, width)
+                real_orig = self.journal.move(bid, src, orig_dst, uid=row.uid)
+                original_rel = rel_to_set(self.set_dir, real_orig)
+                src = conv.dst
+                samplerate, bitdepth, container = conv.samplerate, conv.bitdepth, "aiff"
+                flags.append("convertido_aiff")
+                reasons.append(conv.warning_es or "Convertido a AIFF para CDJ antiguos (mismo sample rate y bits). "
+                                                  "El original está en _originales.")
+            elif verdict.needs_conversion:
+                # identity/version/duration doubt (truncated files too): the download goes as it is to _dudosos,
+                # never converted (a damaged FLAC would not convert anyway) and with no copy in _originales
+                flags.append("sin_convertir")
+                reasons.append(f"No se convierte a AIFF: es dudoso y va tal cual a {DUDOSOS}.")
+            res.file = place_verified(self.set_dir, row, src, verdict, width, self.journal, bid)
+        except Exception:
+            # the row keeps its marked file; the pass loop adds the reason of the error (CL-22)
+            self._unretire(row, res, retired, bid)
+            raise
         if came_back:
             reasons.append(SAME_FILE_ES)
         res.state, res.doubt, res.score = verdict.state, verdict.doubt, verdict.score

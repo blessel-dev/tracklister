@@ -100,6 +100,35 @@ def test_v101_retry_bans_the_peer_and_a_clean_copy_replaces_the_marked_file(tmp_
     assert "Resumen: verificado 1" in rep and "revisar calidad" not in rep.split("\n")[5]
 
 
+def test_place_failure_keeps_the_marked_file_linked(tmp_path, monkeypatch):
+    """CL-22: a clean copy arrived, the marked file went to _dudosos, and then placing the copy failed (a full
+    disk, a locked file). The row kept «Verificado · revisar calidad» with no file: no «Archivo:» in the report,
+    not in the library, «Pendiente» on the next load, and the marked file a stray in _dudosos. Now the marked
+    file goes back to its name in the set and the row keeps it, with the reason of the error."""
+    import errno
+
+    import tracklister.pipeline.session as session_mod
+    s, runner = _marked_set(tmp_path)
+    old = (s.set_dir / NAME).read_bytes()
+    clean = file("peerLimpio", "@@y\\Border One\\Border One - Spectral Tension.flac", "Border One",
+                 "Spectral Tension", 30, audio={"seed": 7})
+    runner.env["TRACKLISTER_FAKE_NETWORK"] = _network(tmp_path, "limpio", [_marked_file(), clean])
+
+    def full_disk(*args, **kw):
+        raise OSError(errno.ENOSPC, "No space left on device")
+    monkeypatch.setattr(session_mod, "place_verified", full_disk)
+    s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    r = _res(s)
+    assert (r.state, r.file) == (ResultState.REVISAR_CALIDAD, NAME), r.reasons
+    assert (s.set_dir / NAME).read_bytes() == old
+    dudosos = s.set_dir / "_dudosos"
+    assert not dudosos.exists() or list(dudosos.iterdir()) == []
+    assert r.reasons[-1] == ("No se pudo mover o guardar el archivo descargado (No space left on device). Pulsa "
+                             "«Reintentar fallos» para volver a intentarlo.")
+    again = SetSession.load(s.set_dir, s.settings, app_paths())           # the next load keeps it too
+    assert (_res(again).state, _res(again).file) == (ResultState.REVISAR_CALIDAD, NAME)
+
+
 def test_v101_a_copy_that_is_not_better_leaves_everything_as_it_was(tmp_path):
     s, runner = _marked_set(tmp_path)
     old = (s.set_dir / NAME).read_bytes()
