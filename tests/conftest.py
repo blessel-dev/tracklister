@@ -15,8 +15,9 @@ from __future__ import annotations
 import os
 
 # Before anything imports numpy: one OpenBLAS thread instead of one per CPU (each idle thread commits about
-# 32 MB). The fake engines inherit it through EngineRunner, which copies os.environ.
-os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+# 32 MB). The fake engines inherit it through EngineRunner, which copies os.environ. Forced, whatever the
+# environment says, so the suite runs the same everywhere (barrido audit AU-1-08).
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 import socket  # noqa: E402
 
