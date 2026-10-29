@@ -75,11 +75,11 @@ def test_a_secret_inside_the_censor_mark_or_the_home_label(as_windows, monkeypat
     """CL-23 (T.4 N4): a password such as «sura» or a username such as «file» is part of «[censurado]» or of
     «%USERPROFILE%», and the final check stopped the Diagnóstico with an error instead of the report (failing
     closed: nothing leaked). A match wholly inside one of those marks is not a leak; anywhere else it still is."""
-    monkeypatch.setenv("USERPROFILE", r"C:\Users\Juanito")
+    monkeypatch.setenv("USERPROFILE", r"D:\Cuentas\Juanito")
     out = Redactor(secrets=["sura"]).redact("Basura")
     assert out == "Ba[censurado]"
     assert_no_secrets(out, ["sura"])
-    out = Redactor(secrets=["file"]).redact(r"C:\Users\Juanito\Music\x.flac")
+    out = Redactor(secrets=["file"]).redact(r"D:\Cuentas\Juanito\Music\x.flac")
     assert out == r"%USERPROFILE%\Music\x.flac"
     assert_no_secrets(out, ["file"])
     # the guard keeps its strength: the secret outside a mark, next to one, or with a mark's character in it
