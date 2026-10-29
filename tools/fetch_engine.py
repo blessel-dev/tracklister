@@ -72,7 +72,10 @@ def list_release(tag: str) -> dict:
     return out
 
 
-def _download(url: str, dst: Path) -> None:
+def _download(url: str, dst: Path, sha256: str | None = None, size: int | None = None) -> bool:
+    """Download `url` to `dst` through `dst.part`. With `sha256` (and `size`) the .part is checked BEFORE it
+    gets its final name: a cut or tampered download is deleted and False returned, so the next run downloads it
+    again instead of finding a bad file under the asset name (CL-45)."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     tmp = dst.with_name(dst.name + ".part")
     r = _get(url, stream=True)
@@ -80,7 +83,18 @@ def _download(url: str, dst: Path) -> None:
         for chunk in r.iter_content(chunk_size=1 << 20):
             if chunk:
                 f.write(chunk)
+    if sha256 is not None:
+        got, got_size = sha256_file(tmp), tmp.stat().st_size
+        if got != sha256:
+            print(f"ERROR SHA-256 {dst.name}: esperado {sha256}, obtenido {got} (descarga borrada)")
+            tmp.unlink(missing_ok=True)
+            return False
+        if size is not None and got_size != size:
+            print(f"ERROR tamaño {dst.name}: esperado {size} bytes, obtenido {got_size} (descarga borrada)")
+            tmp.unlink(missing_ok=True)
+            return False
     tmp.replace(dst)
+    return True
 
 
 def verify(fetch: bool, platform: str | None = None) -> int:
@@ -95,7 +109,9 @@ def verify(fetch: bool, platform: str | None = None) -> int:
                 errors += 1
                 continue
             print(f"Descargando {pin.asset_url}")
-            _download(pin.asset_url, dst)
+            if not _download(pin.asset_url, dst, pin.asset_sha256, pin.asset_size):
+                errors += 1                       # checked as a .part and deleted: never kept under its name
+                continue
         got = sha256_file(dst)
         size = dst.stat().st_size
         if got != pin.asset_sha256:

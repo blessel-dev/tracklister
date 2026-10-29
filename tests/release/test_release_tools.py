@@ -407,6 +407,32 @@ def test_fetch_engine_checks_each_platform_with_its_own_pins(tmp_path, monkeypat
     assert "ERROR tamaño sockseek_3.0.5_osx-arm64.tar.gz: esperado 1 bytes" in capsys.readouterr().out
 
 
+def test_fetch_engine_never_keeps_a_bad_download(tmp_path, monkeypatch, capsys):
+    """CL-45: a cut or tampered engine download got its final name first and failed the SHA-256 afterwards, so
+    every later run found the file, never downloaded it again and failed until someone deleted it by hand. The
+    .part is checked first now, and deleted when it does not match. No network: _get is faked."""
+    from tracklister.engine.spec import asset_name, engine_pins
+    fe = _fetch_engine()
+    monkeypatch.setattr(fe, "dev_bin_dir", lambda: tmp_path)
+    asked: list[str] = []
+
+    class Bad:
+        def iter_content(self, chunk_size=0):
+            yield b"not the pinned archive"
+
+    def get(url, stream=False):
+        asked.append(url)
+        return Bad()
+    monkeypatch.setattr(fe, "_get", get)
+    pin = engine_pins("darwin")["sockseek-3.0.5"]
+    name = asset_name(pin)
+    for attempt in (1, 2):
+        assert fe.verify(fetch=True, platform="darwin") == 1
+        assert not (tmp_path / name).exists() and not (tmp_path / (name + ".part")).exists()
+        assert asked.count(pin.asset_url) == attempt         # nothing was kept: the next run downloads it again
+    assert f"ERROR SHA-256 {name}" in capsys.readouterr().out
+
+
 # ---- smoke_test.py ----------------------------------------------------------------------------------------------
 def test_clean_env_has_no_python_and_a_fresh_home(tmp_path):
     base = {"Path": r"C:\Program Files\Python313;C:\proj\.venv\Scripts", "PYTHONPATH": "src", "PYTHONHOME": "x",
