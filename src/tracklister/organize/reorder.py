@@ -15,6 +15,7 @@ as 'ambiguous': unchecked, with the reason, like the other doubtful matches (G.1
 """
 from __future__ import annotations
 
+import errno
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -173,6 +174,14 @@ REORDER_LOCKED_ES = ("No se pudo cambiar el nombre de '{name}': está abierto en
                      "reproductor…). Ciérralo y vuelve a pulsar «Aplicar cambios».")
 REORDER_FAILED_ES = "No se pudo cambiar el nombre de '{name}' ({err})."
 NOTHING_RENAMED_ES = "No se ha renombrado nada."
+# the most common system errors of a rename, said in Spanish ({err} above): the system's own text is in English
+# on macOS. Any other error keeps the system's text (barrido audit AU-1-10)
+_OSERROR_ES = {errno.ENOSPC: "no queda espacio en el disco", errno.EROFS: "el disco es de solo lectura",
+               errno.ENOENT: "no se encuentra el archivo"}
+
+
+def _oserror_es(e: OSError) -> str:
+    return _OSERROR_ES.get(e.errno) or e.strerror or type(e).__name__
 
 
 class ReorderError(ValueError):
@@ -227,7 +236,7 @@ def apply_reorder(folder: Path, proposals: list[ReorderProposal], journal: Journ
         if isinstance(e, PermissionError):
             msg = REORDER_LOCKED_ES.format(name=name)
         else:
-            msg = REORDER_FAILED_ES.format(name=name, err=e.strerror or type(e).__name__)
+            msg = REORDER_FAILED_ES.format(name=name, err=_oserror_es(e))
         msg += " " + (" ".join([RENAME_NOT_REVERTED_ES] + not_reverted) if not_reverted else NOTHING_RENAMED_ES)
         raise ReorderError(msg) from e
     journal.commit(bid)

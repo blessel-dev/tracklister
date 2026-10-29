@@ -4,6 +4,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+import errno
 import unicodedata
 
 import pytest
@@ -443,6 +444,37 @@ def test_apply_reverts_everything_when_a_rename_fails(tmp_path, monkeypatch):
     assert sorted(p.name for p in folder.iterdir() if p.is_file()) == before
     assert not list(folder.glob("__tracklister_tmp_*"))
     assert Journal(folder).batches() == []
+
+
+@pytest.mark.parametrize("code,system_text,shown", [
+    (errno.ENOENT, "No such file or directory", "no se encuentra el archivo"),
+    (errno.ENOSPC, "No space left on device", "no queda espacio en el disco"),
+    (errno.EROFS, "Read-only file system", "el disco es de solo lectura"),
+    (errno.EIO, "Input/output error", "Input/output error"),          # any other error: as the system says it
+])
+def test_the_reordenar_notice_says_common_system_errors_in_spanish(tmp_path, monkeypatch, code, system_text,
+                                                                    shown):
+    """Barrido audit AU-1-10 (his decision, 29 Oct): «No se pudo cambiar el nombre de '…' (<el error>)» (Z.16)
+    showed the system's own text, in English on macOS. The three most common errors are now said in Spanish, on
+    both platforms; any other one stays as the system gives it."""
+    import shutil
+    folder = tmp_path / "set"
+    _make(folder, ["Phara - Grey Ribbon.flac", "Klint - Gunslingers.wav"])
+    props = propose_reorder(folder, [_row(1, "Phara", "Grey Ribbon"), _row(2, "Klint", "Gunslingers")])
+    assert [p.status for p in props] == ["match"] * 2
+    real_move, calls = shutil.move, {"n": 0}
+
+    def fails_second(src, dst, *args, **kw):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise OSError(code, system_text, src)
+        return real_move(src, dst, *args, **kw)
+    monkeypatch.setattr(shutil, "move", fails_second)
+    with pytest.raises(ReorderError) as e:
+        apply_reorder(folder, props, Journal(folder))
+    assert f"({shown}). No se ha renombrado nada." in e.value.msg_es, e.value.msg_es
+    if shown != system_text:
+        assert system_text not in e.value.msg_es
 
 
 def test_reserved_subdirs_are_ignored(tmp_path):
