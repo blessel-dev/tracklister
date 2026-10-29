@@ -100,6 +100,24 @@ def test_bracketed_numbering_is_not_minutes():
 
 
 @pytest.mark.parametrize("line,expected", [
+    ("00:00 - 04:30 Fjaak - Spirit", (0, "Fjaak", "Spirit")),
+    ("[00:00 - 04:30] Fjaak - Spirit", (0, "Fjaak", "Spirit")),
+    ("Fjaak - Spirit [00:00 - 04:30]", (0, "Fjaak", "Spirit")),
+    ("00:00-04:30 Fjaak - Spirit", (0, "Fjaak", "Spirit")),
+    ("1. 00:00 - 04:30 Fjaak - Spirit", (0, "Fjaak", "Spirit")),
+    # lines without a range are read as before
+    ("0:00 Fjaak - Spirit", (0, "Fjaak", "Spirit")),
+    ("Fjaak - Spirit (04:30)", (270, "Fjaak", "Spirit")),
+    ("1:02:03 Fjaak - Spirit", (3723, "Fjaak", "Spirit")),
+])
+def test_a_time_range_is_the_start_of_the_track(line, expected):
+    """CL-03: «00:00 - 04:30 Fjaak - Spirit» gave the artist «30 Fjaak» (the track number rule took «04:»),
+    «[00:00 - 04:30] …» gave «30] Fjaak», and «Fjaak - Spirit [00:00 - 04:30]» the title «Spirit [00:00» with
+    the start at 4:30. A time range is the start of the track."""
+    assert [(r.ts, r.artist, r.title) for r in parse_line(line)] == [expected]
+
+
+@pytest.mark.parametrize("line,expected", [
     ("Tek.Ka - TTA techno (Joey H\u00e4tz 150bpm remix) @ SDL records",
      [dict(artist="Tek.Ka", title="TTA techno", version="Joey H\u00e4tz 150bpm remix", label="SDL records")]),
     ("Tek.Ka - TTA techno (Joey H\u00e4tz remix @150bpm) @ SDL records",

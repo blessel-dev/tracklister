@@ -11,6 +11,9 @@ lines). Normalisation now comes from `tracklister.core.textnorm`. Formats added 
 - a trailing label written with an at sign: "Titulo (X Remix) @ SDL records";
 - a version written after a feat group: "Titulo (feat. X) Y Dub".
 
+And for 1.1 (CL-03): a time range before or after the track, "00:00 - 04:30 Artista - Titulo" or
+"Artista - Titulo [00:00 - 04:30]", starts at its first time.
+
 API:
     parse_line(line) -> list[ParsedLine]
     parse_text(text, duration=None) -> list[ParsedLine]
@@ -59,6 +62,10 @@ LOOSE_SEP = re.compile(rf"(?<=\w)[{DASH_CHARS}]+\s+|\s+[{DASH_CHARS}]+(?=\w)")
 TS_CORE = r"(?:\d{1,2}[:.])?\d{1,2}:\d{2}"
 LEAD_TS = re.compile(rf"^[\[\(]?\s*({TS_CORE})\s*[\]\)]?(?=\s|$|[{DASH_CHARS}|:>\]\)])")
 TRAIL_TS = re.compile(rf"[\s\[\(]+({TS_CORE})\s*[\]\)]?\s*$")
+# a time range «00:00 - 04:30» is the start of the track (CL-03): the end of a leading range, right after the
+# start and its separator, and a whole trailing range, whose FIRST time is the start
+RANGE_END = re.compile(rf"({TS_CORE})\s*[\]\)]?(?=\s|$)")
+TRAIL_RANGE = re.compile(rf"[\s\[\(]+({TS_CORE})\s*[{DASH_CHARS}]+\s*({TS_CORE})\s*[\]\)]?\s*$")
 MIXESDB_TS = re.compile(r"^\[\s*(\d{1,3}|\?{1,3})\s*\]\s*")
 NUMBERING = re.compile(rf"^(?:#\s?\d{{1,3}}\b[.):]?|\d{{1,3}}\s*[.)\]:]|\d{{1,3}}\s+[{DASH_CHARS}|]"
                        rf"|\d{{1,3}}\s+(?=[\[\(]?{TS_CORE}))\s*")
@@ -285,11 +292,14 @@ def parse_line(line: str) -> list[ParsedLine]:
     if m:
         ts = ts_to_s(m.group(1))
         s = AFTER_TS_JUNK.sub("", s[m.end():])
+        e = RANGE_END.match(s)        # «00:00 - 04:30 Artista - Título»: «04:» is not a track number (CL-03)
+        if e:
+            s = AFTER_TS_JUNK.sub("", s[e.end():])
         n = NUMBERING.match(s)
         if n:
             s = s[n.end():]
     elif not marker:
-        m = TRAIL_TS.search(s)
+        m = TRAIL_RANGE.search(s) or TRAIL_TS.search(s)
         if m and m.start() > 3:
             ts = ts_to_s(m.group(1))
             s = s[:m.start()].rstrip(" -|")
