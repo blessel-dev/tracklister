@@ -10,7 +10,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
   rewritten redacted when the process ends. The unredacted argv is never stored or logged.
 - Cancel kills the whole process tree: taskkill /T on Windows; on POSIX SIGTERM to the engine's process
   group, then SIGKILL if it is still there after KILL_GRACE_S.
-- Search budget: one search per item, DESPERATE_SEARCHES_PER_ITEM per item with --desperate (1.0.1, R4).
+- Search budget: one search per item (two when its query has a non-ASCII character: the engine's twin search
+  without diacritics), DESPERATE_SEARCHES_PER_ITEM per item with --desperate (1.0.1, R4).
 - --print json-all (Diagnóstico): the JSON array is also read from the RAW line, in memory only
   (EngineRunResult.json_all), before the line is redacted for stdout.txt. Redacting first broke the JSON
   when the account was called like one of its words: a username 'file', a password 'true' (audit r4-3 N7).
@@ -46,16 +47,25 @@ CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.pl
 KILL_GRACE_S = 3.0                              # POSIX cancel: SIGTERM, then SIGKILL after this long
 SIGKILL = getattr(signal, "SIGKILL", 9)         # Windows' signal module has no SIGKILL (never sent there)
 
+# Every search of a query with a diacritic has a twin without them (3.x Sockseek.Core/Search/Searcher.cs:583-584,
+# Common/Utils.cs:881-885): «Héctor Oaks - Tema» is 2 searches (barrido AG-05). Without --desperate an item whose
+# artist or title has any non-ASCII character reserves 2 (more than the engine may use: the safe side, X.18).
 # --desperate: when an item's searches find nothing, both engines search again (3.x Sockseek.Core/Search/
 # Searcher.cs:596-648, 2.x Services/Searcher.cs:739-811): artist + album, artist + title without the length
 # condition, album, title only and artist only; plus the base search and its no-diacritics twin (3.x :581-584).
-# Up to 7 searches per item, all counted against the app-wide budget before the process starts.
+# Up to 7 searches per item (the twin included), all counted against the app-wide budget before the process starts.
 DESPERATE_SEARCHES_PER_ITEM = 7
+
+
+def _has_twin_search(item: ManifestItem) -> bool:
+    return any(ord(c) > 127 for c in f"{item.artist}{item.title}")
 
 
 def searches_for(job: EngineJob, manifest: list[ManifestItem]) -> int:
     """Searches to reserve in the app-wide budget for one engine process (at least 1)."""
-    return max(1, len(manifest)) * (DESPERATE_SEARCHES_PER_ITEM if job.desperate else 1)
+    if job.desperate:
+        return max(1, len(manifest)) * DESPERATE_SEARCHES_PER_ITEM
+    return max(1, sum(2 if _has_twin_search(m) else 1 for m in manifest))
 
 
 class EngineError(Exception):

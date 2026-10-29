@@ -300,6 +300,21 @@ def test_the_reader_keeps_draining_after_a_write_error_or_a_bad_line(tmp_path, m
     assert len(res.outcomes) == 60
 
 
+def test_a_query_with_diacritics_reserves_its_second_search(tmp_path):
+    """Barrido AG-05 (v101-1 N13): Sockseek 3.0.5 searches again without diacritics whenever the query has one
+    (Sockseek.Core/Search/Searcher.cs:583-584), so «Héctor Oaks - Tema» costs 2 searches and the app reserved 1.
+    The next pass could start before the window was free and send Soulseek more than 34 searches in 220 s (the
+    30-minute kick). Reserving more than the engine uses is the safe side (DECISIONES X.18)."""
+    from tracklister.engine.csvwriter import ManifestItem
+    from tracklister.engine.runner import searches_for
+    fmt = build_preset("lossless").passes[0]
+    items = [ManifestItem(1, "u1", 1, "Héctor Oaks", "Tema", None), ManifestItem(2, "u2", 2, "Rødhåd", "Tema", None),
+             ManifestItem(3, "u3", 3, "Fjaak", "Spirit", None)]
+    assert searches_for(EngineJob(tmp_path, fmt, False, 49998), items) == 5
+    assert searches_for(EngineJob(tmp_path, fmt, False, 49998, desperate=True), items) == 21   # already counts it
+    assert searches_for(EngineJob(tmp_path, fmt, False, 49998), []) == 1
+
+
 def test_runner_waits_for_the_search_budget_and_can_be_cancelled(tmp_path):
     rows, net = build_scenario("correcto", tmp_path / "net")
     work = tmp_path / "w"
