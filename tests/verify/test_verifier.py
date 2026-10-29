@@ -111,6 +111,14 @@ def test_other_number_in_the_title_is_another_track(tmp_path, want, got, dur):
     assert any("mismos números" in r for r in v.reasons_es) and v.score < REVIEW_SCORE
 
 
+def test_z_nine_lives_is_another_track(tmp_path):
+    """Barrido CL-01: without tags and without an expected duration, 'Surgeon - 9 Lives.flac' was VERIFICADO
+    for the row «Surgeon - Lives»: the '9' after the artist was dropped as a track number."""
+    v = _v(tmp_path, "9 Lives.flac", row=_row("Surgeon", "Lives", dur=None), tail="Surgeon\\Surgeon - 9 Lives.flac")
+    assert v.state == ResultState.DUDOSO and v.doubt == DoubtKind.IDENTIDAD, v.reasons_es
+    assert any("no lleva los mismos números" in r for r in v.reasons_es), v.reasons_es
+
+
 def test_partial_artist_is_identity_doubt_but_a_collab_tag_is_fine(tmp_path):
     v = _v(tmp_path, "p.flac", row=_row("Planetary Assault Systems", "Gated"),
            tags={"artist": "Systems", "title": "Gated"})

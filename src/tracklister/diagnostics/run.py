@@ -134,7 +134,8 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     guess = unconfirmed_es(row, file_identities(name, parent, None, None)[0])
     # same title/artist rules as the verification (verify.identity): other numbers in the title are
     # another track, and a one-word partial artist does not count
-    title, numbers_ok = title_similarity(row.title, base)
+    # (a leading number is a track number only at the start of the name: barrido CL-01)
+    title, numbers_ok = title_similarity(row.title, base, at_name_start=first.from_folder or not first.artist)
     # the artist must match word by word: 'Adam Port' is not 'Adam Beyer' (audit round 3, B1)
     m = artist_match(row_artists(row), artist)
     art, same_artist = m.score, m.same

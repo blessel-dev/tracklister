@@ -11,8 +11,8 @@ from tracklister.core.model import TrackRow
 from tracklister.verify.audioinfo import probe
 from tracklister.core.textnorm import split_title_version
 from tracklister.verify.identity import (
-    NUMBER_MISMATCH_MAX, SAME_ARTIST_MIN, ArtistMatch, artist_match, artist_similarity, identity_score,
-    number_tokens, parse_name, strip_track_number, title_similarity, title_words_match,
+    NUMBER_MISMATCH_MAX, SAME_ARTIST_MIN, ArtistMatch, artist_match, artist_similarity, identity_from_names,
+    identity_score, number_tokens, parse_name, strip_track_number, title_similarity, title_words_match,
 )
 
 
@@ -96,6 +96,25 @@ def test_same_numbers_still_match():
     assert title_similarity("Spirit", "01 Spirit") == (100.0, True)
     assert title_similarity("Dust 1", "01 Dust 2")[1] is False
     assert title_similarity("Pacific State", "808 Pacific State")[1] is False
+
+
+def test_z_a_number_after_the_artist_or_in_a_title_tag_belongs_to_the_title():
+    """Barrido CL-01: a leading number was taken for a track number also in the title part after ' - ' and in a
+    title tag, so 'Surgeon - 9 Lives.flac' (or the tag '2 Rain') was VERIFICADO 100 for «Lives» («Rain»).
+    DECISIONES R.2 only exempts a track number glued to the start of the FILE NAME. After the artist, or in a
+    title tag, only a zero-padded two-digit token ('01') is a ripper's track number."""
+    other = [(_row("Surgeon", "Lives"), "Surgeon - 9 Lives.flac", "Surgeon", None, None),
+             (_row("Kerri Chandler", "Rain"), "Kerri Chandler - 24 Rain.flac", None, None, None),
+             (_row("Kerri Chandler", "Rain"), "track.flac", None, "Kerri Chandler", "2 Rain")]
+    for row, name, parent, tag_artist, tag_title in other:
+        s = identity_from_names(row, name, parent, tag_artist, tag_title)
+        assert s.numbers_ok is False and s.title <= NUMBER_MISMATCH_MAX, (name, tag_title, s)
+    same = [("01 Spirit.flac", "Fjaak", None, None), ("01 Fjaak - Spirit.mp3", None, None, None),
+            ("01 - Fjaak - Spirit.flac", None, None, None), ("Fjaak - 01 Spirit.flac", None, None, None),
+            ("x.flac", None, "Fjaak", "01 Spirit")]
+    for name, parent, tag_artist, tag_title in same:
+        s = identity_from_names(_row("Fjaak", "Spirit"), name, parent, tag_artist, tag_title)
+        assert (s.artist, s.title) == (100.0, 100.0), (name, tag_title, s)
 
 
 def test_partial_artist_needs_two_words():

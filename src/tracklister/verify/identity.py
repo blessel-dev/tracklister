@@ -265,31 +265,38 @@ def number_tokens(key: str) -> list[str]:
                   if any(c.isdigit() for c in t))
 
 
-def _without_track_number(key: str) -> str | None:
-    """'01 spirit' -> 'spirit': a leading 1-2 digit token of the FILE's text is read as a track number
-    glued to the name ('01 Artist - Title.mp3', '01 Title.flac'). '808 State' keeps its 3 digits."""
+def _without_track_number(key: str, at_name_start: bool = True) -> str | None:
+    """'01 spirit' -> 'spirit': a leading 1-2 digit token at the START of the file name is read as a track
+    number glued to the name ('01 Artist - Title.mp3', '01 Title.flac'); '808 State' keeps its 3 digits.
+    Anywhere else (the title part after the artist, a title tag: at_name_start=False) only a zero-padded
+    two-digit token is one ('Fjaak - 01 Spirit.flac', the tag '01 Spirit'): '9 Lives' and '24 Rain' are
+    titles (barrido CL-01; DECISIONES R.2 only exempts a number glued to the start of the name)."""
     toks = key.split()
-    if len(toks) >= 2 and len(toks[0]) <= 2 and toks[0].isdigit():
-        return " ".join(toks[1:])
-    return None
+    if len(toks) < 2:
+        return None
+    if at_name_start:
+        track_number = len(toks[0]) <= 2 and toks[0].isdigit()
+    else:
+        track_number = re.fullmatch(r"0\d", toks[0]) is not None
+    return " ".join(toks[1:]) if track_number else None
 
 
-def title_similarity(wanted: str | None, got_base: str | None) -> tuple[float, bool]:
+def title_similarity(wanted: str | None, got_base: str | None, at_name_start: bool = True) -> tuple[float, bool]:
     """(0-100 score, same numbers) of two BASE titles (no version). Different numbers, or titles that
     do not have the same words (title_words_match: 'Feel It' / 'Feel It All'), cap the score at
-    NUMBER_MISMATCH_MAX."""
+    NUMBER_MISMATCH_MAX. at_name_start: got_base starts the file name (see _without_track_number)."""
     a, b = norm_key(wanted), norm_key(got_base)
     if not a or not b:
         return 0.0, True
     out: list[tuple[float, bool]] = []
-    for c in (b, _without_track_number(b)):
+    for c in (b, _without_track_number(b, at_name_start)):
         if not c:
             continue
         score = max(float(fuzz.ratio(a, c)), float(fuzz.token_sort_ratio(a, c)))
         same = number_tokens(a) == number_tokens(c)
         out.append((score if same else min(score, NUMBER_MISMATCH_MAX), same))
     score, same = max(out, key=lambda x: x[0])
-    if not title_words_match(wanted, got_base):
+    if not title_words_match(wanted, got_base, at_name_start=at_name_start):
         score = min(score, NUMBER_MISMATCH_MAX)
     return score, same
 
@@ -323,19 +330,20 @@ def _same_title_words(a: list[str], b: list[str]) -> bool:
     return True
 
 
-def title_words_match(wanted: str | None, got_base: str | None) -> bool:
+def title_words_match(wanted: str | None, got_base: str | None, at_name_start: bool = True) -> bool:
     """Do two BASE titles (no version) have the same words? Audit round 4, B2: 'Feel It' / 'Feel It All'
     (78 %), 'Higher' / 'Higher Love' (71 %), 'Feel It' / 'Feel Me' and 'Sin' / 'Original Sin' were
     close enough to pass, and Sockseek's --strict-title lets such files through (the wanted title is
     a whole-word part of theirs). No word may be missing or extra; 'original' counts as a word here
     (split_title_version already took '(Original Mix)' and its kind away). 'and' is ignored, 'pt' is
     'part', '01' is '1', titles equal without their spaces are the same ('Dont Stop' / 'Don t Stop'),
-    and a track number glued to the file's name is tried away ('01 Feel It')."""
+    and a track number glued to the file's name is tried away ('01 Feel It'; at_name_start: see
+    _without_track_number)."""
     a, b = norm_key(wanted, drop_original=False), norm_key(got_base, drop_original=False)
     if not a or not b:
         return True
     wa = _title_words(a)
-    for c in (b, _without_track_number(b)):
+    for c in (b, _without_track_number(b, at_name_start)):
         if not c:
             continue
         wc = _title_words(c)
@@ -697,6 +705,9 @@ class FileIdentity:
     dropped: tuple[str, ...] = ()
     dropped_groups: tuple[str, ...] = ()
     groups_from_tag: bool = False  # dropped_groups come from a title tag (no artist tag), not from the name
+    # barrido CL-01: the title starts the file name (no title tag, and the name gives no artist part, or it is
+    # the folder reading), so a leading 1-2 digit number in it is a track number; otherwise only a '01' is
+    title_at_name_start: bool = True
 
 
 def clean_artist(text: str | None) -> str | None:
@@ -762,7 +773,7 @@ def file_identities(file_name: str, parent: str | None, tag_artist: str | None,
                 dropped = _words_beyond(r.title, tt)
         fi = FileIdentity(artist, title_full, base or title_full, version, name_version, evidence,
                           "" if r.from_folder else r.artist, i > 0, r.cut and not r.from_folder, dropped, groups,
-                          bool(tt))
+                          bool(tt), title_at_name_start=(not tt) and (r.from_folder or not r.artist))
         if fi not in out:
             out.append(fi)
     return out
@@ -926,8 +937,8 @@ def _score(row: TrackRow, wanted: list[str], fi: FileIdentity) -> tuple[tuple, I
     artist = artist_match(wanted, fi.artist)
     if not fits:                     # B1: never the same artist through a reading that ate title words
         artist = ArtistMatch(artist.score, False)
-    title, numbers_ok = title_similarity(row.title, fi.base)
-    words_ok = title_words_match(row.title, fi.base)
+    title, numbers_ok = title_similarity(row.title, fi.base, at_name_start=fi.title_at_name_start)
+    words_ok = title_words_match(row.title, fi.base, at_name_start=fi.title_at_name_start)
     ok, reason = _version_ok(row.version, versions)
     guess = unconfirmed_es(row, fi)
     ident = IdentityScore(round(artist.score, 1), round(title, 1), ok, reason, fi.evidence, fi.artist,

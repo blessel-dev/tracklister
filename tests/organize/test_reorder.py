@@ -175,6 +175,21 @@ def test_titles_with_other_numbers_never_match(tmp_path):
     assert _by_pos(propose_reorder(folder, rows))[1].src.name == "Truncate - Dust 1.mp3"
 
 
+def test_z_nine_lives_is_never_proposed_for_lives(tmp_path):
+    """Barrido CL-01: «Reordenar» gave 'Surgeon - 9 Lives.flac' to the row «Surgeon - Lives» (the '9' after the
+    artist was dropped as a track number). Now the row stays missing and the file extra; the right file is
+    still found."""
+    folder = tmp_path / "Surgeon"
+    _make(folder, ["Surgeon - 9 Lives.flac"])
+    rows = [_row(1, "Surgeon", "Lives")]
+    props = propose_reorder(folder, rows)
+    assert _by_pos(props)[1].status == "missing"
+    assert [p.src.name for p in props if p.status == "extra"] == ["Surgeon - 9 Lives.flac"]
+    _make(folder, ["Surgeon - Lives.flac"])
+    by = _by_pos(propose_reorder(folder, rows))
+    assert by[1].status == "match" and by[1].src.name == "Surgeon - Lives.flac"
+
+
 @pytest.mark.parametrize("want,got", [("Adam Beyer", "Adam Port"), ("Chris Liebing", "Chris Lake"),
                                       ("Len Faki", "Ken Faki")])
 def test_r3_b1_an_artist_with_a_similar_name_is_never_proposed(tmp_path, want, got):

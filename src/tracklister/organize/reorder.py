@@ -76,7 +76,7 @@ def _file_identity(f: Path) -> tuple[list[FileIdentity], float | None]:
 def _reading_score(row: TrackRow, fi: FileIdentity) -> float:
     if not norm_key(fi.base):
         return 0.0
-    title, _ = title_similarity(row.title, fi.base)
+    title, _ = title_similarity(row.title, fi.base, at_name_start=fi.title_at_name_start)
     m = artist_match(row_artists(row), fi.artist) if norm_key(fi.artist) else None
     # audit v101-1 B1: a later reading of the name that moved title words into the artist is no artist
     art = m.score if m is not None and m.same and reading_fits(row_artists(row), fi) else 0.0
