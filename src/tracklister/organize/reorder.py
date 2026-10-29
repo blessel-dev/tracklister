@@ -16,6 +16,7 @@ as 'ambiguous': unchecked, with the reason, like the other doubtful matches (G.1
 from __future__ import annotations
 
 import errno
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,8 @@ from tracklister.verify.identity import (
     FileIdentity, artist_match, duration_confirms, file_identities, reading_fits, row_artists, title_similarity,
     unconfirmed_es,
 )
+
+log = logging.getLogger("tracklister.organize")
 
 AUDIO_EXTS = (".flac", ".wav", ".aiff", ".aif", ".mp3", ".m4a", ".ogg", ".opus")
 MATCH_MIN = 75.0
@@ -174,6 +177,8 @@ REORDER_LOCKED_ES = ("No se pudo cambiar el nombre de '{name}': está abierto en
                      "reproductor…). Ciérralo y vuelve a pulsar «Aplicar cambios».")
 REORDER_FAILED_ES = "No se pudo cambiar el nombre de '{name}' ({err})."
 NOTHING_RENAMED_ES = "No se ha renombrado nada."
+# the names went back, but the undo record could not be saved after them (a full disk): barrido audit AU-2-03
+REORDER_UNDO_UNSAVED_ES = "No se pudo guardar el registro de deshacer ({err}): revisa los nombres de la carpeta."
 # the most common system errors of a rename, said in Spanish ({err} above): the system's own text is in English
 # on macOS. Any other error keeps the system's text (barrido audit AU-1-10)
 _OSERROR_ES = {errno.ENOSPC: "no queda espacio en el disco", errno.EROFS: "el disco es de solo lectura",
@@ -229,7 +234,14 @@ def apply_reorder(folder: Path, proposals: list[ReorderProposal], journal: Journ
     except Exception as e:
         # all or nothing, as sync_names (U.4): a file open in Ableton must not leave the others with their
         # temporary names (barrido CL-08, U.8 N9)
-        not_reverted = journal.discard(bid)          # in reverse order: every temporary name goes back
+        unsaved: OSError | None = None
+        try:
+            not_reverted = journal.discard(bid)      # in reverse order: every temporary name goes back
+        except OSError as e2:
+            # a full disk: the names went back, but saving the undo record failed too. That error must not
+            # replace the Reordenar notice (barrido audit AU-2-03)
+            log.warning("reorder: the undo journal could not be saved after reverting (%s)", type(e2).__name__)
+            not_reverted, unsaved = None, e2
         if not isinstance(e, OSError):
             raise
         name = current.name if current is not None else "?"
@@ -237,7 +249,10 @@ def apply_reorder(folder: Path, proposals: list[ReorderProposal], journal: Journ
             msg = REORDER_LOCKED_ES.format(name=name)
         else:
             msg = REORDER_FAILED_ES.format(name=name, err=_oserror_es(e))
-        msg += " " + (" ".join([RENAME_NOT_REVERTED_ES] + not_reverted) if not_reverted else NOTHING_RENAMED_ES)
+        if unsaved is not None:
+            msg += " " + REORDER_UNDO_UNSAVED_ES.format(err=_oserror_es(unsaved))
+        else:
+            msg += " " + (" ".join([RENAME_NOT_REVERTED_ES] + not_reverted) if not_reverted else NOTHING_RENAMED_ES)
         raise ReorderError(msg) from e
     journal.commit(bid)
     for p, real in renamed:

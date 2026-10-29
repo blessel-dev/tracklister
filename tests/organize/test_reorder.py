@@ -477,6 +477,32 @@ def test_the_reordenar_notice_says_common_system_errors_in_spanish(tmp_path, mon
         assert system_text not in e.value.msg_es
 
 
+def test_a_full_disk_during_reordenar_still_gives_its_notice(tmp_path, monkeypatch):
+    """Barrido audit AU-2-03 (the part of T): the disk fills up during «Reordenar». A save of journal.json fails,
+    discard puts the names back but its own last save fails too, and that raw error left apply_reorder: the
+    general «No se pudo leer o escribir un archivo…» instead of the Reordenar notice."""
+    folder = tmp_path / "set"
+    names = ["Phara - Grey Ribbon.flac", "Klint - Gunslingers.wav"]
+    _make(folder, names)
+    props = propose_reorder(folder, [_row(1, "Phara", "Grey Ribbon"), _row(2, "Klint", "Gunslingers")])
+    assert [p.status for p in props] == ["match"] * 2
+    real_save, saves = Journal._save, []
+
+    def save(self):
+        saves.append(1)
+        if len(saves) >= 3:                     # begin() and the first rename are saved, then the disk is full
+            raise OSError(errno.ENOSPC, "No space left on device")
+        return real_save(self)
+    monkeypatch.setattr(Journal, "_save", save)
+    with pytest.raises(ReorderError) as e:
+        apply_reorder(folder, props, Journal(folder))
+    msg = e.value.msg_es
+    assert "(no queda espacio en el disco)" in msg and "No se pudo guardar el registro de deshacer" in msg, msg
+    assert "No space left" not in msg
+    assert sorted(p.name for p in folder.iterdir() if p.is_file()) == sorted(names)
+    assert not list(folder.glob("__tracklister_tmp_*"))
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])
