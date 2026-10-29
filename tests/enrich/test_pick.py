@@ -83,6 +83,19 @@ def test_r4_v_the_radio_edit_of_a_remix_never_takes_the_originals_radio_edit():
     assert pick_best(_row("Fjaak", "Spirit", "Radio Edit"), [cand("Spirit (Radio Edit)", 200.0)]).accepted
 
 
+def test_other_numbers_are_another_track():
+    """CL-02 (the numbers half): the store had «Robert Hood - Minus 2» but not «Minus 1»; fuzz.ratio gives 85.7,
+    which passed TITLE_MIN, so «Minus 1» took Minus 2's duration and ids, and --length-tol then filtered out the
+    right file. As in the verification (R.2), other numbers are another track."""
+    row = _row("Robert Hood", "Minus 1")
+    p = pick_best(row, [_c("Robert Hood", "Minus 2", None, 371)])
+    assert p.accepted is False and p.reason_es == "no coincide (otro número)", (p.accepted, p.reason_es)
+    p = pick_best(row, [_c("Robert Hood", "Minus 2", None, 371), _c("Robert Hood", "Minus 1", None, 402)])
+    assert p.accepted and p.candidate.title == "Minus 1" and p.candidate.duration_s == 402
+    # the same numbers, written another way, are still the same track
+    assert pick_best(_row("Blasha & Allatt", "Dust 01"), [_c("Blasha & Allatt", "Dust 1", None, 300)]).accepted
+
+
 def test_thresholds():
     row = _row("ANFS", "Caballero")
     p = pick_best(row, [_c("Nicolas Grandfils", "Les trois caballeros", None, 305, "deezer")])
