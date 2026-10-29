@@ -207,6 +207,33 @@ def test_duplicado_entre_sets_reuse(tmp_path):
     assert b.doc.duplicate_choices[hits[0].row.uid] == "reuse"
 
 
+def test_a_reused_file_that_was_deleted_is_downloaded_again(tmp_path):
+    """Barrido CL-07 (T.4 N1): a row reused from the library («Usar el que ya tengo») whose file was deleted went
+    back to PENDIENTE with «se vuelve a buscar», but «Descargar» skipped it: the set still remembered the reuse
+    choice. The choice is now forgotten when its file is gone (if a copy is left, the question comes back)."""
+    h = Harness(tmp_path)
+    a, ra = h.session("correcto", name="Set A")
+    h.run(a, ra)
+    a.finalize(h.library)
+    b, rb = h.session("duplicado_entre_sets", name="Set B")
+    hits = b.find_duplicates(h.library)
+    uid = hits[0].row.uid
+    b.apply_duplicate_choice(uid, DuplicateChoice.REUSE, hits[0].entries[0])
+    h.run(b, rb)
+    b.finalize(h.library)
+    assert _res(b, 1).state == ResultState.YA_EN_BIBLIOTECA
+    (b.set_dir / _res(b, 1).file).unlink()
+    (a.set_dir / "01 - Fjaak - Spirit.flac").unlink()            # no copy left in the library either
+    again = SetSession.load(b.set_dir, Settings(library_root=str(h.lib_root)), h.paths)
+    assert _res(again, 1).state == ResultState.PENDIENTE
+    _, net = build_scenario("duplicado_entre_sets", tmp_path / "net-again")
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(h.paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    h.run(again, runner)
+    assert again.doc.passes and uid in again.doc.passes[-1].uids
+    assert _res(again, 1).state == ResultState.VERIFICADO
+
+
 def test_rerun_is_idempotent(tmp_path):
     h = Harness(tmp_path)
     s, runner = h.session("rerun", name="Mismo set")

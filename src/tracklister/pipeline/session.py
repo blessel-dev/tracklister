@@ -303,12 +303,15 @@ class SetSession:
         return pad_width(len(self.doc.rows))
 
     def _refresh_missing_files(self) -> None:
-        """A good result whose file was deleted outside the app goes back to PENDIENTE."""
+        """A good result whose file was deleted outside the app goes back to PENDIENTE. A «Usar el que ya tengo»
+        choice for it is forgotten, so «Descargar» does search it again, as its reason says; if the library still
+        has a copy, the repeated-track question comes back (G.3). Barrido CL-07, T.4 N1."""
         for r in self.doc.rows:
             res = self._res(r.uid)
             if res.state in GOOD and (not res.file or not os.path.exists(win_long(self.set_dir / res.file))):
                 res.state, res.file, res.doubt = ResultState.PENDIENTE, None, None
                 res.reasons = ["El archivo ya no estaba en la carpeta: se vuelve a buscar."]
+                self.doc.duplicate_choices.pop(r.uid, None)
 
     def _set_state(self, uid: str, state: ResultState, on_event, msg: str = "", done: int = 0, total: int = 0):
         self._res(uid).state = state
