@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -135,15 +136,17 @@ class LibraryIndex:
                                "entries": [e.to_dict() for e in self.entries]})
 
     def keep_damaged_copy(self) -> None:
-        """Set a damaged library.json aside as library-danado.json before the index is rebuilt (nothing is
-        lost: the sets themselves are still in the library folder)."""
+        """Copy a damaged library.json to library-danado.json before the index is rebuilt (nothing is lost:
+        the sets themselves are still in the library folder). A copy, never a move: library.json stays until
+        save() replaces it, so a rebuild or a save that fails never leaves the library without its index
+        (barrido audit AU-1-05)."""
         target = self.path.with_name(DAMAGED_COPY_NAME)
         try:
-            os.replace(self.path, target)
+            shutil.copy2(self.path, target)
         except OSError as e:
-            log.warning("library: the damaged index could not be set aside (%s)", type(e).__name__)
+            log.warning("library: the damaged index could not be copied aside (%s)", type(e).__name__)
             return
-        log.warning("library: the index was damaged; kept as %s and rebuilt from the set folders", target.name)
+        log.warning("library: the index was damaged; copied to %s and rebuilt from the set folders", target.name)
 
     def add_from_set(self, set_dir: Path, doc: SetDoc) -> int:
         """Replace this set's entries with its current root files. Returns how many were added."""
@@ -205,7 +208,10 @@ class LibraryIndex:
             if not doc_path.is_file():
                 continue
             try:
-                doc = SetDoc.from_dict(read_json(doc_path))
+                data = read_json(doc_path)
+                if not isinstance(data, dict):
+                    continue                      # 'null' or a list (a hand edit): not a set (barrido AU-1-05)
+                doc = SetDoc.from_dict(data)
             except (OSError, ValueError, KeyError, TypeError):
                 continue                          # damaged or unreadable (locked, no permission): skipped
             self.add_from_set(d, doc)

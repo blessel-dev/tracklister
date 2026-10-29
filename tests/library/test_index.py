@@ -266,3 +266,30 @@ def test_rebuild_skips_an_unreadable_set_json(tmp_path, monkeypatch):
     lib = LibraryIndex(tmp_path / "library.json")
     assert lib.rebuild(tmp_path / "lib") == 1
     assert {e.set_name for e in lib.entries} == {"Set A"}
+
+
+@pytest.mark.parametrize("text", ["", '{"schema": "tracklister.library/2", "entries": [{"key": "fja'])
+def test_the_damaged_index_is_copied_not_moved(tmp_path, text):
+    """Barrido audit AU-1-05: keep_damaged_copy() MOVED library.json before the rebuild and the save; if either
+    failed, there was no index left, and the next download took it for a new library and saved only its own set.
+    It is copied now: library.json stays until save() replaces it with the rebuilt index."""
+    p = tmp_path / "library.json"
+    p.write_text(text, encoding="utf-8")
+    lib = LibraryIndex(p)
+    lib.load()
+    assert lib.damaged is True
+    lib.keep_damaged_copy()
+    copy = tmp_path / "library-danado.json"
+    assert p.is_file() and copy.is_file()
+    assert copy.read_bytes() == p.read_bytes() == text.encode("utf-8")
+
+
+def test_rebuild_skips_a_set_json_that_is_not_an_object(tmp_path):
+    """Barrido audit AU-1-05: a set.json that holds `null` (or a list) raised AttributeError in rebuild(), which
+    stopped «Reconstruir índice» and the rebuild of a damaged library. It is skipped, like a damaged one."""
+    _set(tmp_path, "Set A", "aaaa1111")
+    for name, value in (("Set N", None), ("Set L", [])):
+        write_json(set_doc_path(tmp_path / "lib" / name), value)
+    lib = LibraryIndex(tmp_path / "library.json")
+    assert lib.rebuild(tmp_path / "lib") == 1
+    assert {e.set_name for e in lib.entries} == {"Set A"}
