@@ -98,7 +98,9 @@ class Journal:
         self._data = data
 
     def _save(self) -> None:
-        write_json(self.path, self._data)
+        # one line: the journal is rewritten whole after every operation, and never trimmed (it is the set's
+        # history), so indenting it only made it bigger and slower to write (barrido AG-12)
+        write_json(self.path, self._data, indent=None)
 
     def _batch(self, batch_id: str) -> dict:
         for b in self._data["batches"]:

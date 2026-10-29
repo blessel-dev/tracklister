@@ -190,6 +190,26 @@ def test_a_part_locked_for_a_moment_still_gets_its_name(tmp_path, monkeypatch):
     assert not list(s.glob("*.part"))
 
 
+def test_the_journal_is_saved_without_indentation(tmp_path):
+    """AG-12 (his decision, 29 Oct): journal.json is rewritten whole after every move, and with indent=2 each pass
+    of 100 moves added about 40 KB. It is now saved on one line. It is never trimmed (it is the set's history),
+    and undo works as before."""
+    from tracklister.core.layout import journal_path
+    s = tmp_path / "set"
+    s.mkdir()
+    a = tmp_path / "a.flac"
+    a.write_bytes(b"A")
+    j = Journal(s)
+    bid = j.begin("Pasada 1: lossless")
+    moved = j.move(bid, a, s / "01 - X.flac", uid="u1")
+    j.commit(bid)
+    text = journal_path(s).read_text(encoding="utf-8")
+    assert "\n " not in text and text.endswith("\n") and text.count("\n") == 1
+    again = Journal(s)
+    assert [b["label_es"] for b in again.batches()] == ["Pasada 1: lossless"]
+    assert again.undo_last() == [] and a.read_bytes() == b"A" and not moved.exists()
+
+
 # ---- external audit, round 4 (claude-audit-raw-r4-1.txt) ---------------------------------------------
 
 def test_r4_b5_mkdir_on_a_drive_that_is_gone_fails_at_once(tmp_path, monkeypatch):

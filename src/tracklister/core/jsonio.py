@@ -9,12 +9,13 @@ from pathlib import Path
 from typing import Any
 
 
-def write_json(path: Path, obj: Any) -> None:
+def write_json(path: Path, obj: Any, indent: int | None = 2) -> None:
     """Write UTF-8 JSON atomically (temp file in the same dir + os.replace, with retries
-    because antivirus/indexers on Windows can briefly lock the target)."""
+    because antivirus/indexers on Windows can briefly lock the target). indent=None writes one line
+    (journal.json, rewritten whole after every move: AG-12)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=False)
+    data = json.dumps(obj, ensure_ascii=False, indent=indent, sort_keys=False)
     fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
