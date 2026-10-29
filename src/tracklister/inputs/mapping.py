@@ -117,6 +117,23 @@ def _row_from_text(text: str, source: str) -> list[TrackRow]:
     return out
 
 
+# an Excel time cell: '6:24' typed in a Duración/Length cell is stored as the time 06:24:00 (tabular.cell_text)
+_EXCEL_TIME_MSS = re.compile(r"(\d{1,2}):([0-5]\d):00")
+
+
+def _length_of(text: str) -> tuple[int | None, str | None]:
+    """A Length/Duración cell -> (seconds, note). Excel turns «6:24» typed in a cell into the time 06:24:00, a
+    6 h 24 min track that the engine never finds (--length-tol 3) and the enrichment never corrects (E.23): in
+    this column an H:MM:00 or HH:MM:00 with an hour from 1 to 23 is minutes:seconds, with a note (barrido CL-04).
+    Any other value is read as before."""
+    secs = parse_hms(text)
+    m = _EXCEL_TIME_MSS.fullmatch((text or "").strip())
+    if secs is not None and m and 1 <= int(m.group(1)) <= 23:
+        mins, s = int(m.group(1)), int(m.group(2))
+        return mins * 60 + s, f"duración leída como {mins}:{s:02d} (minutos:segundos)"
+    return secs, None
+
+
 def rows_from_table(t: RawTable, m: ColumnMapping, source: str = "tabla") -> list[TrackRow]:
     """Missing or partial Pos -> table order. Empty title -> ID row (never sent to the engine)."""
 
@@ -128,7 +145,7 @@ def rows_from_table(t: RawTable, m: ColumnMapping, source: str = "tabla") -> lis
     for cells in items:
         raw = raw_line(cells, t.delimiter)
         start = parse_hms(cell(cells, m.start))
-        length = parse_hms(cell(cells, m.length))
+        length, length_note = _length_of(cell(cells, m.length))
         version, label = cell(cells, m.version) or None, cell(cells, m.label) or None
         if m.combined is not None:
             text = cell(cells, m.combined)
@@ -155,6 +172,8 @@ def rows_from_table(t: RawTable, m: ColumnMapping, source: str = "tabla") -> lis
                 r.ts_start = start
             if length and not r.is_id:
                 r.expected_duration_s = length
+                if length_note:
+                    r.notes.append(length_note)
         rows.extend(new)
     for i, r in enumerate(rows, 1):
         r.pos = i

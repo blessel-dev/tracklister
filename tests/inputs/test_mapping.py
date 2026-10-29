@@ -98,6 +98,27 @@ def test_length_column_sets_expected_duration():
         ("Phara", "Grey Ribbon", 309, None), ("Klint", "Gunslingers", 401, None)]
 
 
+def test_an_excel_time_typed_as_m_ss_is_a_track_length():
+    """Barrido CL-04: Excel stores «6:24» typed in a Duración/Length cell as the time 06:24:00, which was read as a
+    6 h 24 min track: every row asked the engine for a 6-hour file (--length-tol 3) and found nothing, and the
+    enrichment never corrected it (E.23). In the length column an hour from 1 to 23 with 0 seconds is
+    minutes:seconds, with a note; an h:mm:ss with seconds, and the start column, are read as before."""
+    import datetime as dt
+    from tracklister.inputs.tabular import cell_text
+    t = RawTable(headers=["Artist", "Title", "Length"],
+                 rows=[["Fjaak", "Spirit", cell_text(dt.time(6, 24))], ["Fjaak", "Trip", cell_text(dt.time(0, 6, 24))],
+                       ["Fjaak", "Hand", "6:24"], ["Fjaak", "Largo", "1:05:30"]],
+                 encoding=None, delimiter=None, sheet="Hoja1")
+    rows = rows_from_table(t, ColumnMapping(artist=0, title=1, length=2))
+    assert [r.expected_duration_s for r in rows] == [384, 384, 384, 3930]
+    assert "duración leída como 6:24 (minutos:segundos)" in rows[0].notes
+    assert not [n for r in rows[1:] for n in r.notes if "leída como" in n]
+    starts = RawTable(headers=["Start", "Artist", "Title"], rows=[["01:05:00", "Fjaak", "Spirit"]],
+                      encoding=None, delimiter=None, sheet="Hoja1")
+    (r,) = rows_from_table(starts, ColumnMapping(start=0, artist=1, title=2))
+    assert r.ts_start == 3900 and not r.notes
+
+
 def test_explicit_mapping():
     t = RawTable(headers=["a", "b", "c"], rows=[["x", "Phara", "Grey Ribbon"]], encoding=None, delimiter=",",
                  sheet=None)
