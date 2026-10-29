@@ -9,6 +9,7 @@ from collections import Counter
 
 from tracklister.core.layout import DUDOSOS, ORIGINALES
 from tracklister.core.model import DoubtKind, ResultState, RowResult, SetDoc, TrackRow
+from tracklister.organize.naming import pad_width
 from tracklister.verify.spectral import LEGACY_FLAG, MARK_ES, STRONG_FLAG, SpectralClass, legacy_class
 
 STATE_ES = {
@@ -60,7 +61,7 @@ def row_label(row: TrackRow) -> str:
 
 def tracklist_text(doc: SetDoc) -> str:
     """'01. 00:00 Artista - Titulo (Version) [Sello]'; the time is omitted when unknown."""
-    width = 3 if len(doc.rows) > 99 else 2
+    width = pad_width(len(doc.rows))           # the same NN width as the file names (CL-31)
     lines = []
     for r in sorted(doc.rows, key=lambda x: x.pos):
         t = fmt_time(r.ts_start)
@@ -73,7 +74,7 @@ def report_text(doc: SetDoc, *, preset_label: str, engine_id: str | None = None,
                 stray_files: list[str] | None = None) -> str:
     """`stray_files`: audio files of the folder that belong to no current row (organize.finalize)."""
     rows = sorted(doc.rows, key=lambda x: x.pos)
-    width = 3 if len(rows) > 99 else 2
+    width = pad_width(len(rows))               # the same NN width as the file names (CL-31)
     counts = Counter(doc.results[r.uid].state for r in rows if r.uid in doc.results)
     out = [f"Informe de Tracklister - {doc.name}", "",
            f"Preset: {preset_label}" + (f"   Motor: {engine_id}" if engine_id else ""),

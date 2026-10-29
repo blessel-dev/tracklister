@@ -61,6 +61,33 @@ def test_search_only_candidates_and_report(tmp_path):
     assert re.search(r"01\. Fjaak - Spirit", text) and "Puerto de escucha: 49998" in text
 
 
+def test_the_diagnostico_uses_the_settings_duration_bands(tmp_path):
+    """CL-31 / AG-19: the Diagnóstico judged durations with fixed 3 and 10 s, the download with the settings
+    duration_ok_s and duration_review_s, so with other settings the two explained the same file differently."""
+    rows, net = build_scenario("correcto", tmp_path / "net")
+    data = json.loads(net.read_text(encoding="utf-8"))
+    # another copy of row 1 (30 s) that lasts 33 s: inside the engine's --length-tol 3, so the judge sees it
+    data["files"].insert(0, file("peerC", "@@c\\Fjaak\\Fjaak - Spirit.flac", "Fjaak", "Spirit", 33))
+    net.write_text(json.dumps(data), encoding="utf-8")
+    paths = app_paths().ensure()
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+
+    def peer_c_line(settings):
+        diag = run_diagnostic(rows[:1], runner, CREDS, paths=paths, settings=settings)
+        return next(c for c in diag[0].candidates if c.peer == "peerC")
+
+    default = peer_c_line(Settings())                         # 3 s apart: within the default 3 s
+    assert default.accepted and "duración" not in default.why_es
+    strict = peer_c_line(Settings(duration_ok_s=1, duration_review_s=2))
+    assert not strict.accepted and "duración 33 s (se esperaban 30 s)" in strict.why_es, strict.why_es
+    # a wider band too, judged directly (the engine would filter a result 11 s off): 41 s for a 30 s row
+    fmt = build_preset("lossless").passes[0]
+    name = "@@c\\Fjaak\\Fjaak - Spirit.flac"
+    assert "duración 41 s" in judge_candidate(rows[0], fmt, name, 41.0, None)[2]
+    assert "duración" not in judge_candidate(rows[0], fmt, name, 41.0, None, duration_review_s=12)[2]
+
+
 def _no_results(tmp_path):
     rows, net = build_scenario("sin_resultados", tmp_path / "net")
     paths = app_paths().ensure()

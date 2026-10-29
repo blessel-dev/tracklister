@@ -121,9 +121,11 @@ def _ext(filename: str) -> str:
 
 
 def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: float | None,
-                    bitrate: int | None) -> tuple[float, bool, str]:
+                    bitrate: int | None, duration_ok_s: int = 3,
+                    duration_review_s: int = 10) -> tuple[float, bool, str]:
     """Score a search result from its path alone (no audio yet) and say why it passes or not. A name that only
-    fits after leaving words out needs the duration the result reports to confirm it (Addendum 10)."""
+    fits after leaving words out needs the duration the result reports to confirm it (Addendum 10). The
+    duration bands are the settings' duration_ok_s / duration_review_s, as in the verification (CL-31)."""
     parts = [p for p in PureWindowsPath(filename.replace("/", "\\")).parts if p not in ("\\",)]
     name = parts[-1] if parts else filename
     parent = parts[-2] if len(parts) >= 2 else None
@@ -161,8 +163,8 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     d = 0.75
     if row.expected_duration_s and duration:
         diff = abs(duration - row.expected_duration_s)
-        d = 1.0 if diff <= 3 else (0.5 if diff <= 10 else 0.0)
-        if diff > 10:
+        d = 1.0 if diff <= duration_ok_s else (0.5 if diff <= duration_review_s else 0.0)
+        if diff > duration_review_s:
             problems.append(f"duración {duration:.0f} s (se esperaban {row.expected_duration_s} s)")
     if fmt.min_bitrate and bitrate is not None and ext == "mp3" and bitrate < fmt.min_bitrate:
         problems.append(f"{bitrate} kbps (se piden {fmt.min_bitrate})")
@@ -174,9 +176,9 @@ def judge_candidate(row: TrackRow, fmt: FormatPass, filename: str, duration: flo
     if title < 70:
         problems.append(f"título distinto ({title:.0f}%)" if numbers_ok else "título con otros números (otra pista)")
     # the name only fits after leaving words out (or cutting without ' - '): the duration the result reports
-    # must confirm it, within 3 s of the row's, as the verification asks of the file (Addendum 10)
+    # must confirm it, within duration_ok_s of the row's, as the verification asks of the file (Addendum 10)
     unconfirmed = bool(guess) and art >= 60 and same_artist and title >= 70 \
-        and not duration_confirms(row.expected_duration_s, duration)
+        and not duration_confirms(row.expected_duration_s, duration, duration_ok_s)
     if unconfirmed:
         problems.append(f"{guess}, sin una duración que lo confirme")
     identity_doubt = not ok_v or art < 60 or not same_artist or title < 70 or d == 0.0 or unconfirmed
@@ -233,7 +235,8 @@ def _search(row: TrackRow, query: SearchQuery | None, i: int, k: int, root: Path
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _judge_all(d: DiagRow, row: TrackRow, fmt: FormatPass, arr: list[dict]) -> None:
+def _judge_all(d: DiagRow, row: TrackRow, fmt: FormatPass, arr: list[dict], duration_ok_s: int = 3,
+               duration_review_s: int = 10) -> None:
     """Judge every result against the ROW (also when another spelling found it: its aliases count)."""
     accepted_one = False
     shown: dict[tuple, CandidateLine] = {}
@@ -246,7 +249,7 @@ def _judge_all(d: DiagRow, row: TrackRow, fmt: FormatPass, arr: list[dict]) -> N
         dur = f.get("Length")
         dur = float(dur) if dur else None
         br = f.get("Bitrate")
-        score, ok, why = judge_candidate(row, fmt, filename, dur, br)
+        score, ok, why = judge_candidate(row, fmt, filename, dur, br, duration_ok_s, duration_review_s)
         # what the line will show, before 'elegido'/'aceptable, pero...': the same file of the same peer
         # listed again (another share folder, the same folder twice) is one line with «(×N)»
         key = (user, tail, mb_text(f.get("Size")), br, mmss_text(dur), round(score), ok, why)
@@ -274,6 +277,9 @@ def run_diagnostic(rows: list[TrackRow], runner: EngineRunner, creds: Credential
     fmt = fmt or build_preset((settings.preset_id if settings else "lossless"),
                               settings.custom_preset if settings else None).passes[0]
     chosen = [r for r in sorted(rows, key=lambda x: x.pos) if r.download and (r.title or "").strip()][:max_rows]
+    # the duration bands of the download (CL-31): the settings' tolerances when given, else their defaults
+    bands = {"duration_ok_s": int(settings.duration_ok_s), "duration_review_s": int(settings.duration_review_s)} \
+        if settings is not None else {}
     out: list[DiagRow] = []
     root = paths.work_dir / "diagnostico"
     root.mkdir(parents=True, exist_ok=True)
@@ -301,7 +307,7 @@ def run_diagnostic(rows: list[TrackRow], runner: EngineRunner, creds: Credential
             if arr:
                 d.error_es = None
                 d.found_by = query_text(row, query) if query is not None else None
-                _judge_all(d, row, fmt, arr)
+                _judge_all(d, row, fmt, arr, **bands)
                 break
             d.tried.append(query_text(row, query))
             d.error_es = NO_RESULTS_ES
