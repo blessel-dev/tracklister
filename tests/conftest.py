@@ -12,13 +12,19 @@ branches run on Windows and the Windows ones on the macOS runner (tracklister.co
 """
 from __future__ import annotations
 
-import socket
+import os
 
-import keyring
-import keyring.backend
-import pytest
+# Before anything imports numpy: one OpenBLAS thread instead of one per CPU (each idle thread commits about
+# 32 MB). The fake engines inherit it through EngineRunner, which copies os.environ.
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
-from tracklister.core import osplatform
+import socket  # noqa: E402
+
+import keyring  # noqa: E402
+import keyring.backend  # noqa: E402
+import pytest  # noqa: E402
+
+from tracklister.core import osplatform  # noqa: E402
 
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
