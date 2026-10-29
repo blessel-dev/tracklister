@@ -167,6 +167,29 @@ def test_r4_b4_a_file_really_open_in_another_program_leaves_the_folder_as_it_was
     assert sync_names(s, rows, res, j) == 3 and "01 - A - C.flac" in _folder(s)
 
 
+def test_a_revert_that_also_fails_names_what_stayed(tmp_path, monkeypatch):
+    """CL-41: when a rename fails and putting the names back fails too (a USB stick pulled out halfway), the
+    notice says what stayed: «Además, no se pudo dejar todo como estaba:» and a line per file. No test covered
+    that branch."""
+    import errno
+    import shutil
+
+    s, rows, res = _rotated_set(tmp_path)
+    real_move, calls = shutil.move, {"n": 0}
+
+    def gone(src, dst, *a, **kw):
+        calls["n"] += 1
+        if calls["n"] >= 5:                     # B's rename in phase 2, then every move of the revert
+            raise OSError(errno.EIO, "Input/output error", src)
+        return real_move(src, dst, *a, **kw)
+    monkeypatch.setattr(shutil, "move", gone)
+    with pytest.raises(RenameError) as e:
+        sync_names(s, rows, res, Journal(s))
+    msg = e.value.msg_es
+    assert msg.startswith("No se pudo cambiar el nombre de '02 - A - B.flac' (Input/output error)."), msg
+    assert "Además, no se pudo dejar todo como estaba:" in msg and "No se pudo deshacer " in msg, msg
+
+
 APPLEDOUBLE = b"\x00\x05\x16\x07" + b"\x00\x02\x00\x00" + b"Mac OS X        " + bytes(4096 - 24)
 
 

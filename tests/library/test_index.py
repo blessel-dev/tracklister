@@ -172,6 +172,23 @@ def test_v101_a_1_0_0_library_is_re_keyed_from_its_sets_and_saved_as_v2(tmp_path
     assert sorted(e.key for e in again.entries) == keys
 
 
+def test_a_1_0_0_set_with_a_broken_set_json_keeps_its_old_keys(tmp_path):
+    """CL-41: a 1.0.0 library whose set has a cut set.json (a power cut, CL-11) still loads, and that set's
+    entries keep their 1.0.0 keys (R8). No test covered that branch of the re-key."""
+    d = tmp_path / "lib" / "Set Roto"
+    f1 = d / "01 - Fjaak - Spirit (Radio Edit - Kai Remix).flac"
+    f1.parent.mkdir(parents=True)
+    f1.write_bytes(b"1")
+    set_doc_path(d).parent.mkdir()
+    set_doc_path(d).write_text("{", encoding="utf-8")
+    write_json(tmp_path / "library.json", {"schema": "tracklister.library/1", "updated_at": None, "entries": [
+        _v1_entry(f1, "fjaak|spirit|radio edit kai remix", "roto")]})
+    lib = LibraryIndex(tmp_path / "library.json")
+    lib.load()
+    assert [(e.key, e.set_id, e.path) for e in lib.entries] == [("fjaak|spirit|radio edit kai remix", "roto", str(f1))]
+    assert lib.damaged is False
+
+
 def test_v101_a_quality_marked_file_enters_the_library_with_its_mark(tmp_path):
     d = tmp_path / "lib" / "Set Q"
     d.mkdir(parents=True)
