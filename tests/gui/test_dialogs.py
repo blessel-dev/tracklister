@@ -152,6 +152,33 @@ def test_prompter_dialogs_are_deleted_after_use(qtbot, app, tmp_path):
     assert parent.findChildren(QDialog) == []
 
 
+def _question_box(qtbot):
+    """(parent, box): the caller keeps the parent, which owns the box."""
+    from PySide6.QtWidgets import QMessageBox, QWidget
+    from tracklister.gui.dialogs import Prompter
+    parent = QWidget()
+    qtbot.addWidget(parent)
+    box = Prompter(parent, lambda: load_theme("hormigon"))._box(QMessageBox.Icon.Question,
+                                                                "Ya hay una tracklist en la tabla",
+                                                                "¿Qué hago con la nueva?")
+    return parent, box
+
+
+def test_mac_boxes_show_the_title(as_macos, qtbot, app):
+    """Barrido CL-24 (with Y.12): macOS does not show a message box's window title, and the title often carries the
+    meaning: «Ya hay una tracklist en la tabla» showed only «¿Qué hago con la nueva?». On the Mac the title is the
+    main text now, with the message under it."""
+    parent, box = _question_box(qtbot)
+    assert box.text() == "Ya hay una tracklist en la tabla"
+    assert box.informativeText() == "¿Qué hago con la nueva?"
+
+
+def test_windows_boxes_keep_their_title_and_text(as_windows, qtbot, app):
+    parent, box = _question_box(qtbot)
+    assert box.windowTitle() == "Ya hay una tracklist en la tabla"
+    assert box.text() == "¿Qué hago con la nueva?" and box.informativeText() == ""
+
+
 def test_lossy_words_per_preset():
     assert lossless_words(build_preset("lossless")) == "FLAC, WAV ni AIFF"
     assert lossless_words(build_preset("cdj_antiguos")) == "AIFF, WAV ni FLAC"

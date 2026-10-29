@@ -14,6 +14,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QHBoxLayout, QLabel, QListWidget,
                                QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout, QWidget)
 
+from tracklister.core import osplatform
 from tracklister.core.model import DuplicateChoice, LibraryEntry, ResultState, TrackRow
 from tracklister.gui.models import fmt_clock, track_label
 from tracklister.library.index import CARRIED_FLAGS
@@ -211,6 +212,11 @@ class Prompter:
     def _box(self, icon, title: str, text: str) -> QMessageBox:
         box = QMessageBox(icon, title, text, QMessageBox.StandardButton.NoButton, self.parent)
         box.setTextFormat(Qt.TextFormat.PlainText)
+        if osplatform.is_macos():
+            # macOS shows no window title on a message box, and the title often carries the meaning: it is the
+            # main text there, with the message under it (CL-24, Y.12; Windows unchanged)
+            box.setText(title)
+            box.setInformativeText(text)
         return box
 
     def inform(self, title: str, text: str) -> None:
