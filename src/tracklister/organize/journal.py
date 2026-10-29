@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import errno
 import hashlib
+import logging
 import os
 import shutil
 import uuid
@@ -22,7 +23,10 @@ from tracklister.core.layout import journal_path
 from tracklister.core.model import JOURNAL_SCHEMA, JournalOp
 from tracklister.organize.naming import unique_path, win_long
 
+log = logging.getLogger("tracklister.organize")
+
 DRIVE_GONE_ES = "No se encuentra la unidad de la carpeta del set: ¿se ha desconectado el disco?"
+DAMAGED_COPY_NAME = "journal-danado.json"
 
 
 def _now() -> str:
@@ -68,7 +72,17 @@ class Journal:
     def __init__(self, set_dir: Path):
         self.set_dir = Path(set_dir)
         self.path = journal_path(self.set_dir)
-        data = read_json(self.path, default=None)
+        try:
+            data = read_json(self.path, default=None)
+        except ValueError:
+            # an empty or cut journal.json (a power cut right after a save) must never block the set: its undo
+            # history is unreadable anyway, so it is set aside and a new journal starts (barrido AG-06)
+            data = None
+            try:
+                os.replace(self.path, self.path.with_name(DAMAGED_COPY_NAME))
+            except OSError:
+                pass                              # a read-only folder keeps it; the new journal is in memory
+            log.warning("journal.json was damaged: kept as %s, a new one starts", DAMAGED_COPY_NAME)
         if not isinstance(data, dict) or data.get("schema") != JOURNAL_SCHEMA:
             data = {"schema": JOURNAL_SCHEMA, "batches": []}
         self._data = data

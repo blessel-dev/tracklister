@@ -82,6 +82,29 @@ def test_r3_n2_a_copy_that_fails_leaves_no_half_file_and_discard_reverts_the_bat
     assert j.batches() == [] and Journal(s).batches() == []
 
 
+def test_a_damaged_journal_is_set_aside_and_a_new_one_starts(tmp_path):
+    """Barrido AG-06: an empty or cut journal.json raised «JSON corrupto…» in Journal(), so the set could not be
+    opened, continued or reordered although its music and set.json were fine. It is now kept as
+    journal-danado.json and a new journal starts (the old undo history, already unreadable, is lost)."""
+    from tracklister.core.layout import journal_path
+    s = tmp_path / "set"
+    s.mkdir()
+    jp = journal_path(s)
+    jp.parent.mkdir(parents=True)
+    jp.write_text("{", encoding="utf-8")
+    j = Journal(s)
+    assert j.batches() == []
+    assert (jp.parent / "journal-danado.json").read_text(encoding="utf-8") == "{"
+    a = tmp_path / "a.flac"
+    a.write_bytes(b"A")
+    bid = j.begin("Reordenar")
+    moved = j.move(bid, a, s / "01 - X.flac")
+    j.commit(bid)
+    again = Journal(s)                                         # the new journal was saved
+    assert [b["label_es"] for b in again.batches()] == ["Reordenar"]
+    assert again.undo_last() == [] and a.read_bytes() == b"A" and not moved.exists()
+
+
 def _dies_after_10_bytes(src, dst, *args, **kw):
     """A copy killed halfway (a power cut, a forced close, a USB stick pulled out): 10 bytes, then gone. Not an
     OSError, so no `except OSError` cleans it up."""

@@ -523,6 +523,26 @@ def test_a_damaged_library_is_rebuilt_not_replaced(tmp_path):
     assert [x.row.pos for x in hits] == [1] and hits[0].entries[0].set_name == "Set A"
 
 
+def test_a_damaged_journal_never_blocks_the_set(tmp_path):
+    """Barrido AG-06 (V.6 N13): an empty or cut journal.json made opening the set raise «JSON corrupto en
+    journal.json…», so «Descargar», «Reintentar fallos» and «Abrir un set anterior…» failed although the music
+    and set.json were fine. The damaged journal is set aside and a new one starts; the set runs as usual."""
+    from tracklister.core.layout import journal_path
+    h = Harness(tmp_path)
+    a = _finalized(h, "correcto", "Set A")
+    journal_path(a.set_dir).write_text("", encoding="utf-8")
+    (a.set_dir / "01 - Fjaak - Spirit.flac").unlink()          # so the run has something to place again
+    again = SetSession.load(a.set_dir, Settings(library_root=str(h.lib_root)), h.paths)
+    assert (journal_path(a.set_dir).parent / "journal-danado.json").is_file()
+    _, net = build_scenario("correcto", tmp_path / "net-again")
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(h.paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    h.run(again, runner)
+    assert [_res(again, p).state for p in (1, 2)] == [ResultState.VERIFICADO] * 2
+    assert (a.set_dir / "01 - Fjaak - Spirit.flac").is_file()
+    assert [b["label_es"] for b in Journal(a.set_dir).batches()][-1].startswith("Pasada")
+
+
 def _cbr_320(net):
     net["files"][0].update(vbr=False, real_kbps=320)
 
