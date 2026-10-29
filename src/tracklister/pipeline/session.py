@@ -935,17 +935,24 @@ class SetSession:
         set) and the files in _dudosos whose Soulseek path is known (file-name rules, watermarks). A new
         VERIFICADO or REVISAR_CALIDAD is taken (a _dudosos file moves to its NN name at the root, in one
         journal batch); any other outcome leaves the result as it was. Nothing is downloaded, renumbered
-        or deleted. Returns how many results changed."""
+        or deleted. Returns how many results changed.
+
+        Barrido: with the spectral check off the 1.0.0 marks are not judged (nothing would measure them, CL-05);
+        a _dudosos file that cannot be moved (open in a player) keeps its row as it was, and the marker is then
+        not written, so the next run checks again (CL-06)."""
         if UPGRADE_MARKER in self.doc.migrations:
             return 0
         changed = 0
         bid: str | None = None
+        failed = False          # a file could not be moved: the check runs again next time (barrido CL-06)
         try:
             for row in sorted(self.doc.rows, key=lambda x: x.pos):
                 res = self.doc.results.get(row.uid)
                 if res is None or not res.file or not row.download or not (row.title or "").strip():
                     continue
                 legacy = res.state == ResultState.DUDOSO and res.doubt == DoubtKind.ESPECTRO
+                if legacy and not self.settings.spectral_check_enabled:
+                    continue        # nothing measures the spectrum now: the 1.0.0 mark stays as it was (CL-05)
                 # a file in _dudosos is judged by its Soulseek name: without it only our own NN name is left
                 if not (legacy or (self._quarantined(res) and res.source_path_tail)):
                     continue
@@ -967,8 +974,16 @@ class SetSession:
                 if self._quarantined(res):
                     if bid is None:
                         bid = self.journal.begin(UPGRADE_LABEL)
-                    real = self.journal.move(bid, path, self.set_dir / track_filename(row, path.suffix, self._width()),
-                                             uid=row.uid)
+                    try:
+                        real = self.journal.move(bid, path,
+                                                 self.set_dir / track_filename(row, path.suffix, self._width()),
+                                                 uid=row.uid)
+                    except OSError as e:
+                        # open in a player, a read-only stick...: this row keeps its old result, the others go on
+                        log.warning("row %s: not moved by the 1.0.1 check (%s); tried again next time", row.pos,
+                                    type(e).__name__)
+                        failed = True
+                        continue
                     res.file = rel_to_set(self.set_dir, real)
                     note = UPGRADED_FROM_DUDOSOS_ES
                 else:
@@ -983,7 +998,8 @@ class SetSession:
         finally:
             if bid is not None:
                 self.journal.commit(bid)
-            self.doc.migrations = list(self.doc.migrations) + [UPGRADE_MARKER]
+            if not failed:
+                self.doc.migrations = list(self.doc.migrations) + [UPGRADE_MARKER]
             self.save()
         return changed
 

@@ -235,6 +235,48 @@ def test_v101_b1clase_the_upgrade_leaves_an_unconfirmed_name_in_dudosos(v, dur):
     assert _res(s, 9).file == "09 - 13130 Space Project - Talitha.flac"
 
 
+def test_spectrum_off_keeps_the_legacy_mark(v):
+    """Barrido CL-05: with «Análisis de espectro» off, verify_file(spectral=False) says VERIFICADO for a 1.0.0
+    spectral mark, so the one-time check said the mark «se ha vuelto a medir» without measuring it, and the mark
+    was lost. Those rows now keep their 1.0.0 result; the _dudosos files are still checked again."""
+    from tracklister.verify.spectral import LEGACY_FLAG
+    settings = load_settings(app_paths().settings_file)
+    settings.spectral_check_enabled = False
+    s = SetSession.create(SET_NAME, _reimported_rows(v), [SourceRef("youtube_comment", "comentario.txt")],
+                          settings, v.library_root, app_paths())
+    s._upgrade_results()
+    for pos in (4, 5, 6):
+        r = _res(s, pos)
+        assert (r.state, r.doubt) == (ResultState.DUDOSO, DoubtKind.ESPECTRO), (pos, r.reasons)
+        assert LEGACY_FLAG in r.flags and UPGRADED_SPECTRUM_ES not in r.reasons, (pos, r.flags, r.reasons)
+    assert _res(s, 9).file == "09 - 13130 Space Project - Talitha.flac"
+
+
+def test_a_locked_dudosos_file_does_not_end_the_upgrade(v, monkeypatch):
+    """Barrido CL-06 (X.40 N3): a _dudosos file open in a player made journal.move raise inside the one-time check.
+    The whole Descargar or Reintentar pass failed once, and the marker written in `finally` meant the other rows
+    were never checked again. Now that row keeps its old result, the others are checked, and the check runs again
+    next time."""
+    s = _session(v)
+    real_move, calls = Journal.move, {"n": 0}
+
+    def locked_once(self, *args, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise PermissionError(13, "El proceso no tiene acceso al archivo porque está siendo utilizado por otro "
+                                      "proceso")
+        return real_move(self, *args, **kw)
+    monkeypatch.setattr(Journal, "move", locked_once)
+    s._upgrade_results()
+    r2 = _res(s, 2)
+    assert (r2.state, r2.doubt, r2.file) == (ResultState.DUDOSO, DoubtKind.IDENTIDAD, "_dudosos/02 - Red Rooms - Trip.flac")
+    assert _res(s, 9).file == "09 - 13130 Space Project - Talitha.flac"
+    assert _res(s, 4).state == ResultState.REVISAR_CALIDAD
+    assert UPGRADE_MARKER not in s.doc.migrations
+    s._upgrade_results()                                          # the next run tries again: now it moves
+    assert _res(s, 2).file == "02 - Red Rooms - Trip.flac" and UPGRADE_MARKER in s.doc.migrations
+
+
 def test_v100_retry_finds_better_copies_of_the_marked_files(v):
     """«Reintentar fallos» on the upgraded 1.0.0 set: clean copies of Border One and Rene Wise from other users
     replace the marked ones, which go to _dudosos; the radio edit in _dudosos is looked for again."""
