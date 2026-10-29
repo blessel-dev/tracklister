@@ -7,6 +7,7 @@ Fake engine and fake inputs (tests/gui/fakes.py); nothing leaves the machine.
 from __future__ import annotations
 
 import threading
+from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import Qt
@@ -20,6 +21,8 @@ from tracklister.gui.models import QUALITY_LONG_ES, ResultsTableModel
 from tracklister.gui.pages.new_set import MERGE_KEEP_ES, MERGE_TITLE_ES
 from tracklister.gui.pages.results import summary_text
 from tracklister.gui.services import Services
+from tracklister.gui.workers import SessionWorker
+from tracklister.pipeline.session import UPGRADED_FROM_DUDOSOS_ES, SessionEvent
 from tracklister.verify.spectral import LEGACY_FLAG, STRONG_FLAG
 
 S = ResultState
@@ -252,3 +255,21 @@ def test_r5_a_rename_only_descargar_still_finalizes(window, qtbot, ready_service
     assert len(window.session.doc.passes) == passes                 # nothing searched or downloaded again
     assert (set_dir / "01 - Fjaak - Spirit.flac").is_file()
     assert not (set_dir / "01 - Fjaak & Laster Records - Spirit.flac").exists()
+
+
+# ---- CL-27: a row checked again when a run starts (1.0.0 upgrade) shows its new reason and file at once ---
+def test_worker_snapshots_final_state_without_counter(app):
+    res = RowResult(uid="u1", pos=2, state=S.VERIFICADO, file="02 - Red Rooms - Trip.flac",
+                    reasons=[UPGRADED_FROM_DUDOSOS_ES])
+    w = SessionWorker(SimpleNamespace(doc=SimpleNamespace(results={"u1": res})), runner_factory=lambda: None,
+                      creds=None, library_factory=lambda: None)
+    got = []
+    w.session_event.connect(lambda ev, snap: got.append(snap))
+    # the upgrade event (pipeline/session.py, _upgrade_results) carries a final state and no counter
+    w._on_event(SessionEvent("row_state", "u1", S.VERIFICADO, "x", 0, 0))
+    snap = got[-1]
+    assert snap is not None and snap is not res
+    assert snap.file == "02 - Red Rooms - Trip.flac" and snap.reasons == [UPGRADED_FROM_DUDOSOS_ES]
+    # the in-flight events («En cola», «Buscando...», «Descargando...») still carry none
+    w._on_event(SessionEvent("row_state", "u1", S.EN_CURSO, "Buscando...", 0, 0))
+    assert got[-1] is None

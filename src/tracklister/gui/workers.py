@@ -21,7 +21,7 @@ from typing import Callable, Iterable
 
 from PySide6.QtCore import QObject, QThread, Signal
 
-from tracklister.core.model import DuplicateChoice, LibraryEntry, RowResult, TrackRow
+from tracklister.core.model import DuplicateChoice, LibraryEntry, ResultState, RowResult, TrackRow
 
 log = logging.getLogger("tracklister.gui")
 
@@ -153,7 +153,10 @@ class SessionWorker(QThread):
     # -- worker side
     def _on_event(self, ev) -> None:
         snap = None
-        if ev.uid and ev.kind == "row_state" and ev.done:
+        # a final state also without a counter: the 1.0.0 upgrade at the start of a run moves a file or measures
+        # a mark again, and the row shows its new reason and file at once (CL-27). The in-flight events («En
+        # cola», «Buscando...», «Descargando...») are EN_CURSO and carry none.
+        if ev.uid and ev.kind == "row_state" and (ev.done or ev.state not in (None, ResultState.EN_CURSO)):
             res = self.session.doc.results.get(ev.uid)
             if res is not None:
                 snap = RowResult.from_dict(res.to_dict())
