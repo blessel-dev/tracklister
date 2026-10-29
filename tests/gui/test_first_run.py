@@ -69,6 +69,24 @@ def test_submit_saves_account_in_keyring_only(fresh_window, fake_keyring, tmp_pa
     assert all(b.isVisible() for b in w.nav_buttons.values())
 
 
+def test_settings_show_the_first_run_choices(fresh_window, fake_keyring, tmp_path):
+    """Barrido CL-13: Ajustes is built before the first run, and its refresh() updated neither the preset nor the
+    port: after choosing «CDJ antiguos» and 50123 it still showed «Lossless» and 49998 until a restart (the
+    downloads did use the choice)."""
+    w = fresh_window
+    p = w.first_run
+    p.user.setText(TEST_USER)
+    p.password.setText(TEST_PASS)
+    p.folder.setText(str(tmp_path / "Mi biblioteca"))
+    p.preset.set_value("cdj_antiguos")
+    p.port.setValue(50123)
+    p.accept_box.setChecked(True)
+    assert p.submit() is True
+    w.go("settings")
+    assert w.settings_page.preset.value() == "cdj_antiguos"
+    assert w.settings_page.port.value() == 50123
+
+
 def test_r2_n8_updates_are_checked_once_the_first_run_is_done(fresh_window, qtbot, services, tmp_path):
     p = fresh_window.first_run
     p.user.setText(TEST_USER)

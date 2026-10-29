@@ -234,6 +234,9 @@ class SettingsPage(QWidget):
     def refresh(self) -> None:
         self._loading = True
         s = self.services.settings
+        # the page is built before the first run: show what it chose (barrido CL-13)
+        self.preset.set_value(s.preset_id)
+        self.port.setValue(int(s.listen_port or config.DEFAULT_LISTEN_PORT))
         self.custom.setVisible(self.preset.value() == "personalizado")
         self.root.setText(s.library_root or "")
         try:
