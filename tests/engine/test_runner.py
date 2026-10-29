@@ -227,6 +227,43 @@ def test_r4_desperate_reserves_seven_searches_per_item(tmp_path):
     assert searches_for(EngineJob(tmp_path, fmt, False, 49998, desperate=True), []) == 7
 
 
+@pytest.mark.parametrize("case", ["stdout_unwritable", "bad_line"])
+def test_the_reader_keeps_draining_after_a_write_error_or_a_bad_line(tmp_path, monkeypatch, case):
+    """Barrido AG-04 (V.6 N8): when stdout.txt could not be written (a full disk in the work folder) or one line
+    raised while it was handled, the reader thread died. Nothing drained the pipe, the engine blocked on its next
+    line and the pass only ended with «Cancelar». 60 rows that find nothing (more output than the pipe buffer)
+    and a watchdog that cancels after 25 s."""
+    from tests.fakes.scenarios import row
+    from tracklister.engine import progress as progress_mod
+    rows = [row(i, f"Nadie {i}", f"Tema Inexistente {i}", dur=30) for i in range(1, 61)]
+    net = tmp_path / "net.json"
+    net.write_text('{"schema": "tracklister.fakenet/1", "files": [], "peers": {}}', encoding="utf-8")
+    work = tmp_path / "work"
+    work.mkdir()
+    manifest = write_engine_csv(rows, work / "input.csv")
+    job = EngineJob(work, build_preset("lossless").passes[0], True, 49998, searches_per_time=1000,
+                    searches_renew_s=1)
+    if case == "stdout_unwritable":
+        job.stdout_path.mkdir()                     # open(stdout.txt, "w") fails, as on a full disk
+    else:
+        def bad(self, ev, snum):
+            raise ValueError("a bug in a line handler")
+        monkeypatch.setattr(progress_mod.ProgressTracker, "on_event", bad)
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(tmp_path / "b.json", per_time=1000, window_s=1),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    cancel = threading.Event()
+    watchdog = threading.Timer(25, cancel.set)
+    watchdog.start()
+    try:
+        t0 = time.monotonic()
+        res = runner.run(job, manifest, CREDS, lambda e: None, cancel)
+        took = time.monotonic() - t0
+    finally:
+        watchdog.cancel()
+    assert not res.cancelled and took < 20, (res.cancelled, round(took, 1))
+    assert len(res.outcomes) == 60
+
+
 def test_runner_waits_for_the_search_budget_and_can_be_cancelled(tmp_path):
     rows, net = build_scenario("correcto", tmp_path / "net")
     work = tmp_path / "w"

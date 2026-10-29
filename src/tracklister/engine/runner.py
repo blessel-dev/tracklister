@@ -19,6 +19,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
 import json
+import logging
 import os
 import signal
 import subprocess
@@ -38,6 +39,8 @@ from tracklister.engine.outputs import (
 from tracklister.engine.progress import ProgressTracker
 from tracklister.engine.ratelimit import SearchBudget
 from tracklister.engine.spec import EngineSpec
+
+log = logging.getLogger("tracklister.engine")
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
 KILL_GRACE_S = 3.0                              # POSIX cancel: SIGTERM, then SIGKILL after this long
@@ -176,33 +179,64 @@ class EngineRunner:
         tracker = None if job.print_json_all else ProgressTracker(self.spec.dialect, job.out_dir, manifest)
 
         def reader() -> None:
-            with open(job.stdout_path, "w", encoding="utf-8", newline="\n") as out:
+            # Whatever happens, this loop drains the engine's output to the end: if it stopped, the engine would
+            # block on its next line and the pass would never end (barrido AG-04). stdout.txt is a convenience:
+            # if it cannot be opened or written (a full disk), the run goes on without it.
+            out = None
+            try:
+                out = open(job.stdout_path, "w", encoding="utf-8", newline="\n")
+            except OSError as e:
+                log.warning("stdout.txt not written (%s): the engine output is still read", type(e).__name__)
+            bad_lines = 0
+            try:
                 assert proc.stdout is not None
                 for raw in proc.stdout:
-                    if job.print_json_all and raw.lstrip().startswith("["):
-                        try:
-                            parsed = json.loads(raw)
-                        except ValueError:
-                            parsed = None
-                        if isinstance(parsed, list):
-                            arrays.append(parsed)
-                    line = redactor.redact(raw.rstrip("\r\n"))
-                    out.write(line + "\n")
-                    out.flush()
-                    ev = parse_progress_line(self.spec.dialect, line)
-                    if ev is None:
-                        continue
-                    if ev.kind in ("log", "ban") and not fatal:
-                        why = fatal_reason_es(line)
-                        if why:
-                            fatal.append(why)
-                    snum = match_snum(ev.subject, manifest) if ev.subject else None
-                    if ev.kind == "ban":
-                        banned.set()
-                    emit(replace(ev, snum=snum))
-                    if tracker is not None:
-                        for pev in tracker.on_event(ev, snum):
-                            emit(pev)
+                    try:
+                        if job.print_json_all and raw.lstrip().startswith("["):
+                            try:
+                                parsed = json.loads(raw)
+                            except ValueError:
+                                parsed = None
+                            if isinstance(parsed, list):
+                                arrays.append(parsed)
+                        line = redactor.redact(raw.rstrip("\r\n"))
+                        if out is not None:
+                            try:
+                                out.write(line + "\n")
+                                out.flush()
+                            except OSError as e:
+                                log.warning("stdout.txt no longer written (%s)", type(e).__name__)
+                                try:
+                                    out.close()
+                                except OSError:
+                                    pass
+                                out = None
+                        ev = parse_progress_line(self.spec.dialect, line)
+                        if ev is None:
+                            continue
+                        if ev.kind in ("log", "ban") and not fatal:
+                            why = fatal_reason_es(line)
+                            if why:
+                                fatal.append(why)
+                        snum = match_snum(ev.subject, manifest) if ev.subject else None
+                        if ev.kind == "ban":
+                            banned.set()
+                        emit(replace(ev, snum=snum))
+                        if tracker is not None:
+                            for pev in tracker.on_event(ev, snum):
+                                emit(pev)
+                    except Exception:  # noqa: BLE001 - one bad line never stops the draining
+                        bad_lines += 1
+                        if bad_lines == 1:
+                            log.exception("an engine output line could not be handled")
+            finally:
+                if bad_lines > 1:
+                    log.warning("%d more engine output lines could not be handled", bad_lines - 1)
+                if out is not None:
+                    try:
+                        out.close()
+                    except OSError:
+                        pass
 
         t = threading.Thread(target=reader, name="engine-stdout", daemon=True)
         t.start()
