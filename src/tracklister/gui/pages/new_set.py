@@ -502,31 +502,40 @@ class NewSetPage(QWidget):
     # ---- enrichment ------------------------------------------------------------------------------
     def enrich(self, then: Callable[[], None] | None = None) -> None:
         """Run the enrichment on copies of the rows; `then` runs afterwards, also after an error
-        (used by 'Descargar', which completes missing durations first)."""
+        (used by 'Descargar', which completes missing durations first), but never after «Cancelar»."""
         if self._busy or not self.model.rowCount():
             return
         copies = _copy_rows(self.model.rows())
         self._set_busy(True)
         head = "Completando datos antes de descargar" if then else "Completando datos"
-        self.banner.show_message(f"{head} (iTunes, Deezer, MusicBrainz)…", "info", closable=False)
 
         def work(task):
             return self.services.enrich(copies, on_progress=task.progress.emit, cancel=task.cancel)
 
-        self.window.pool.start(work, on_ok=lambda outs: self._on_enriched(copies, outs, then),
-                               on_error=lambda msg: self._on_enrich_error(msg, then),
-                               on_progress=lambda d, n: self.banner.text.setText(
-                                   f"{head} (iTunes, Deezer, MusicBrainz)… {d} de {n}"))
+        task = self.window.pool.start(
+            work, on_ok=lambda outs: self._on_enriched(copies, outs, then, cancelled=task.cancel.is_set()),
+            on_error=lambda msg: self._on_enrich_error(msg, then),
+            on_progress=lambda d, n: self.banner.text.setText(f"{head} (iTunes, Deezer, MusicBrainz)… {d} de {n}"))
+        # barrido CL-14: with 100 rows and nothing cached this takes minutes (iTunes asks for 3 s between requests)
+        self.banner.show_message(f"{head} (iTunes, Deezer, MusicBrainz)…", "info", closable=False,
+                                 actions=[("Cancelar", task.cancel.set)])
 
-    def _on_enriched(self, copies: list[TrackRow], outcomes, then: Callable[[], None] | None = None) -> None:
+    def _on_enriched(self, copies: list[TrackRow], outcomes, then: Callable[[], None] | None = None,
+                     cancelled: bool = False) -> None:
         self._set_busy(False)
         self.model.replace_rows_by_uid(copies)
         gaps = self._recompute_gaps()        # R1: with the durations just applied (never once there are files)
         outs = list(outcomes or [])
         ok = [o for o in outs if getattr(o, "accepted", False)]
+        with_dur = sum(1 for r in copies if r.expected_duration_s)
+        if cancelled:
+            # «Cancelar» (CL-14): what was completed stays; a completion before «Descargar» does not start it
+            self.banner.show_message(
+                f"Completar datos cancelado: {len(ok)} de {len(copies)} pistas completadas. {with_dur} con duración "
+                "esperada." + gaps + (" La descarga no ha empezado." if then is not None else ""), "info")
+            return
         by = Counter(ENRICH_ES.get(getattr(o, "provider", None) or "", getattr(o, "provider", None) or "?")
                      for o in ok)
-        with_dur = sum(1 for r in copies if r.expected_duration_s)
         detail = ", ".join(f"{k} {v}" for k, v in by.most_common())
         self.banner.show_message(
             f"Datos completados: {len(ok)} de {len(outs)} pistas" + (f" ({detail})" if detail else "") +

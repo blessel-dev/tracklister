@@ -412,6 +412,43 @@ def test_download_still_starts_when_enrichment_fails(window, qtbot, ready_servic
     assert not page._busy
 
 
+def test_completar_datos_can_be_cancelled(window, qtbot, ready_services, monkeypatch):
+    """CL-14 (his decision, 29 Oct): «Completando datos (iTunes, Deezer, MusicBrainz)… N de M» could not be stopped,
+    and with 100 rows and nothing cached it took minutes (iTunes asks for 3 s between requests) with the table and
+    every button disabled. Its notice has a «Cancelar» button now. What was completed stays, and a «Completar datos»
+    run before «Descargar» (N.7) does not start the download."""
+    def slow(rows, on_progress=None, cancel=None):
+        cancel.wait(10)
+        return []
+    monkeypatch.setattr(ready_services, "enrich", slow)
+    page = window.new_set
+
+    def click_cancelar():
+        assert page._busy and page.banner.actions.count() == 1
+        btn = page.banner.actions.itemAt(0).widget()
+        assert btn.text() == "Cancelar"
+        btn.click()
+        qtbot.waitUntil(lambda: not page._busy, timeout=10000)
+
+    # (a) the «Completar datos» button
+    page.set_rows(sample_rows(), name="X")
+    page.enrich()
+    click_cancelar()
+    assert page.banner.message().startswith("Completar datos cancelado:"), page.banner.message()
+    assert page.model.editable
+    # (b) the completion before «Descargar»: the download does not start
+    page.download_requested.disconnect(window.start_download)   # only the signal is checked here
+    got = []
+    page.download_requested.connect(lambda *a: got.append(a))
+    ready_services.settings.enrichment_enabled = True
+    page.set_rows(sample_rows(), name="Mi set")
+    page.request_download()
+    click_cancelar()
+    qtbot.wait(100)
+    assert got == [] and window.current_page() == "new_set"
+    assert page.banner.message().endswith("La descarga no ha empezado."), page.banner.message()
+
+
 @pytest.mark.parametrize("tid", ["hormigon", "noche"])
 def test_new_set_renders_in_both_themes(window, tid):
     window.new_set.set_rows(sample_rows(), name="Set")
