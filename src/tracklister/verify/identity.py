@@ -265,12 +265,18 @@ def number_tokens(key: str) -> list[str]:
                   if any(c.isdigit() for c in t))
 
 
+# A title TAG that starts with a 1-2 digit number and ' - ' (or an en/em dash) or '. ' ('12 - Spirit',
+# '12. Spirit', '1 - Spirit'): a ripper's track number, read like the start of the name (barrido audit AU-3-01).
+_TAG_TRACK_NUMBER = re.compile(r"^\s*\d{1,2}(?:\s+[-\u2013\u2014]\s+|\.\s+)(?=\S)")
+
+
 def _without_track_number(key: str, at_name_start: bool = True) -> str | None:
     """'01 spirit' -> 'spirit': a leading 1-2 digit token at the START of the file name is read as a track
     number glued to the name ('01 Artist - Title.mp3', '01 Title.flac'); '808 State' keeps its 3 digits.
     Anywhere else (the title part after the artist, a title tag: at_name_start=False) only a zero-padded
     two-digit token is one ('Fjaak - 01 Spirit.flac', the tag '01 Spirit'): '9 Lives' and '24 Rain' are
-    titles (barrido CL-01; DECISIONES R.2 only exempts a number glued to the start of the name)."""
+    titles (barrido CL-01; DECISIONES R.2 only exempts a number glued to the start of the name). A title tag
+    that starts with '12 - ' or '12. ' counts like the start of the name (barrido audit AU-3-01)."""
     toks = key.split()
     if len(toks) < 2:
         return None
@@ -706,7 +712,8 @@ class FileIdentity:
     dropped_groups: tuple[str, ...] = ()
     groups_from_tag: bool = False  # dropped_groups come from a title tag (no artist tag), not from the name
     # barrido CL-01: the title starts the file name (no title tag, and the name gives no artist part, or it is
-    # the folder reading), so a leading 1-2 digit number in it is a track number; otherwise only a '01' is
+    # the folder reading), so a leading 1-2 digit number in it is a track number; otherwise only a '01' is.
+    # Barrido audit AU-3-01: so is a title tag that starts with '12 - ' or '12. ' (_TAG_TRACK_NUMBER)
     title_at_name_start: bool = True
 
 
@@ -773,7 +780,8 @@ def file_identities(file_name: str, parent: str | None, tag_artist: str | None,
                 dropped = _words_beyond(r.title, tt)
         fi = FileIdentity(artist, title_full, base or title_full, version, name_version, evidence,
                           "" if r.from_folder else r.artist, i > 0, r.cut and not r.from_folder, dropped, groups,
-                          bool(tt), title_at_name_start=(not tt) and (r.from_folder or not r.artist))
+                          bool(tt), title_at_name_start=((not tt) and (r.from_folder or not r.artist))
+                          or (bool(tt) and _TAG_TRACK_NUMBER.match(tt) is not None))
         if fi not in out:
             out.append(fi)
     return out

@@ -117,6 +117,26 @@ def test_z_a_number_after_the_artist_or_in_a_title_tag_belongs_to_the_title():
         assert (s.artist, s.title) == (100.0, 100.0), (name, tag_title, s)
 
 
+def test_z_a_track_number_with_a_separator_in_a_title_tag():
+    """Barrido audit AU-3-01 (his decision, 29 Oct; changes Z.4): since CL-01 a good file whose title TAG is
+    «12 - Spirit», «12. Spirit» or «1 - Spirit» went to _dudosos («Otro título: … no lleva los mismos números…»)
+    although its name and its duration fit. A 1-2 digit number followed by « - » or «. » at the start of the title
+    tag is a track number again, as at T. Without a separator («2 Rain», «9 Lives») it stays part of the title, and
+    the file NAME after the artist does not change («Fjaak - 12 Spirit.flac»)."""
+    for tag in ("12 - Spirit", "12. Spirit", "1 - Spirit", "7. Spirit", "12 \u2013 Spirit"):
+        s = identity_from_names(_row("Fjaak", "Spirit"), "x.flac", None, "Fjaak", tag)
+        assert (s.title, s.numbers_ok) == (100.0, True), (tag, s)
+    other = [(_row("Fjaak", "Spirit"), "x.flac", "Fjaak", "12 Spirit"),
+             (_row("Kerri Chandler", "Rain"), "x.flac", "Kerri Chandler", "2 Rain"),
+             (_row("Surgeon", "Lives"), "x.flac", "Surgeon", "9 Lives"),
+             (_row("Fjaak", "Spirit"), "Fjaak - 12 Spirit.flac", None, None)]
+    for row, name, tag_artist, tag_title in other:
+        s = identity_from_names(row, name, None, tag_artist, tag_title)
+        assert s.numbers_ok is False and s.title <= NUMBER_MISMATCH_MAX, (name, tag_title, s)
+    s = identity_from_names(_row("Fjaak", "12 Spirit"), "x.flac", None, "Fjaak", "12 - Spirit")
+    assert (s.title, s.numbers_ok) == (100.0, True), s
+
+
 def test_partial_artist_needs_two_words():
     assert artist_similarity(["Planetary Assault Systems"], "Systems") < 60
     assert artist_similarity(["Systems"], "Planetary Assault Systems") < 60
