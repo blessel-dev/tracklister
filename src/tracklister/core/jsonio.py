@@ -20,6 +20,10 @@ def write_json(path: Path, obj: Any) -> None:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
             f.write(data)
             f.write("\n")
+            # AG-07: the data must reach the disk before the rename does, or a power cut right after a save can
+            # leave the file empty.
+            f.flush()
+            os.fsync(f.fileno())
         for attempt in range(5):
             try:
                 os.replace(tmp, path)

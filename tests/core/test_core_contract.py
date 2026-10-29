@@ -47,6 +47,29 @@ def test_setdoc_roundtrip(tmp_path):
     assert back.rows[0].title_with_version == "Higher Things (FJAAK Remix)"
 
 
+def test_write_json_syncs_the_data_before_the_rename(tmp_path, monkeypatch):
+    """AG-07 (his decision, 29 Oct): the data reach the disk (fsync) before the atomic rename, so a power cut
+    right after a save can never leave set.json, journal.json or library.json empty."""
+    import tracklister.core.jsonio as jsonio
+    calls = []
+    real_fsync, real_replace = jsonio.os.fsync, jsonio.os.replace
+
+    def fsync(fd):
+        calls.append("fsync")
+        real_fsync(fd)
+
+    def replace(src, dst):
+        calls.append("replace")
+        real_replace(src, dst)
+
+    monkeypatch.setattr(jsonio.os, "fsync", fsync)
+    monkeypatch.setattr(jsonio.os, "replace", replace)
+    p = tmp_path / "x.json"
+    write_json(p, {"a": 1})
+    assert calls == ["fsync", "replace"]
+    assert read_json(p) == {"a": 1}
+
+
 def test_settings_roundtrip_and_no_credentials(tmp_path):
     s = Settings(preset_id="cdj_antiguos", library_root="D:/Sets")
     p = tmp_path / "settings.json"
