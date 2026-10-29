@@ -200,12 +200,19 @@ class Services:
         return d is not None and set_has_files(d)
 
     def is_trackid_csv(self, path: Path) -> bool:
+        """The Downloads watcher's check, run in the GUI thread. A .csv is judged by its first 64 KB only (barrido
+        AG-10: a 20 MB bank export froze the window); anything else as detect() says."""
         try:
             from tracklister.inputs.detect import InputKind, detect
+            from tracklister.inputs.tabular import read_csv_head
+            from tracklister.inputs.trackid import is_trackid_table
         except ImportError:
             return False
         try:
-            return detect(Path(path)) == InputKind.TRACKID_CSV
+            p = Path(path)
+            if p.suffix.lower() == ".csv":
+                return p.is_file() and is_trackid_table(read_csv_head(p))
+            return detect(p) == InputKind.TRACKID_CSV
         except Exception:  # noqa: BLE001 - a half-written download must not break the window
             return False
 

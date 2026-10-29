@@ -53,6 +53,24 @@ def read_table(path: Path) -> RawTable:
         raise TableError(f"No se pudo abrir {p.name}: {e.strerror or e}.") from e
 
 
+def read_csv_head(path: Path, max_bytes: int = 65536) -> RawTable:
+    """The start of a CSV/TXT table: at most `max_bytes`, cut after its last whole line. Enough to judge a file by
+    its header (the Downloads watcher, in the GUI thread) without reading a big file; importing always reads the
+    whole file (read_table)."""
+    p = Path(path)
+    try:
+        with open(p, "rb") as f:
+            data = f.read(max_bytes + 1)
+    except OSError as e:
+        raise TableError(f"No se pudo abrir {p.name}: {e.strerror or e}.") from e
+    if len(data) > max_bytes:
+        data = data[:max_bytes]
+        cut = data.rfind(b"\n")
+        if cut >= 0:
+            data = data[:cut + 1]
+    return _read_csv(data)
+
+
 # ---------------------------------------------------------------- CSV / TXT
 
 

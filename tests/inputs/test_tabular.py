@@ -15,6 +15,32 @@ SAMPLE = FIX / fixturegen.SAMPLE
 HEADERS = ["Pos", "Start", "End", "Artist", "Title", "Label"]
 
 
+def test_the_watcher_reads_only_the_head_of_a_big_csv(tmp_path, monkeypatch):
+    """Barrido AG-10: «Vigilar Descargas» judged each new .csv by reading the WHOLE file, in the GUI thread, only to
+    look at its header: a 20 MB bank export froze the window 1.2 s and took 215 MB. Now it reads at most the first
+    64 KB (importing still reads the whole file). detect.py holds its own read_table name, so both are watched;
+    is_trackid_csv swallows errors, so the calls are recorded rather than raised."""
+    import tracklister.inputs.detect as detect_mod
+    import tracklister.inputs.tabular as tabular_mod
+    from tracklister.gui.services import Services
+    big = tmp_path / "extracto.csv"
+    line = "2026-10-28;TRANSFERENCIA RECIBIDA REF 000123456789;1234,56;98765,43;EUR\n"
+    with open(big, "w", encoding="utf-8", newline="") as f:
+        f.write("fecha;concepto;importe;saldo;moneda\n")
+        f.write(line * (5 * 2**20 // len(line)))
+    whole = []
+
+    def whole_file(path):
+        whole.append(Path(path).name)
+        raise AssertionError("the whole file was read")
+    monkeypatch.setattr(tabular_mod, "read_table", whole_file)
+    monkeypatch.setattr(detect_mod, "read_table", whole_file)
+    svc = Services()
+    assert svc.is_trackid_csv(big) is False and whole == []
+    assert svc.is_trackid_csv(SAMPLE) is True and whole == []              # a trackid.net export, by its header
+    assert tabular_mod.read_csv_head(SAMPLE).headers == HEADERS
+
+
 def test_sample_trackid_csv():
     t = read_table(SAMPLE)
     assert (t.encoding, t.delimiter, t.sheet) == ("utf-8", ",", None)
