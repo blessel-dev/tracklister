@@ -4,4 +4,4 @@ Copyright (C) 2026 Tracklister contributors.
 SPDX-License-Identifier: GPL-3.0-or-later
 """
 
-__version__ = "1.1.0.dev1"
+__version__ = "1.1.0.dev2"
