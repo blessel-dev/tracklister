@@ -262,10 +262,12 @@ class Prompter:
     def ask_duplicate(self, hit, index: int, total: int):
         dlg = DuplicateDialog(hit, self.theme_provider(), index=index, total=total, parent=self.parent)
         dlg.exec()
-        return dlg.result_tuple()
+        answer = dlg.result_tuple()
+        dlg.deleteLater()           # a child of the window: it would otherwise live until the app closes (AG-08)
+        return answer
 
     def ask_lossy(self, rows: list[TrackRow], preset) -> set[str]:
         dlg = LossyDialog(rows, preset, parent=self.parent)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            return dlg.checked_uids()
-        return set()
+        answer = dlg.checked_uids() if dlg.exec() == QDialog.DialogCode.Accepted else set()
+        dlg.deleteLater()
+        return answer

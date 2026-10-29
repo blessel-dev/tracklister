@@ -125,6 +125,33 @@ def test_lossy_checklist(qtbot, app):
     assert len(dlg.checked_uids()) == 2
 
 
+def test_prompter_dialogs_are_deleted_after_use(qtbot, app, tmp_path):
+    """Barrido AG-08: every «Ya tienes esta pista» and every MP3 question left its dialog alive as a hidden child
+    of the window until the app closed (about 0.6 MB each). They are released once answered."""
+    from PySide6.QtCore import QCoreApplication, QEvent, QTimer
+    from PySide6.QtWidgets import QApplication, QDialog, QWidget
+    from tracklister.gui.dialogs import Prompter
+    parent = QWidget()
+    qtbot.addWidget(parent)
+    parent.show()
+    pr = Prompter(parent, lambda: load_theme("hormigon"))
+
+    def reject_when_open():
+        w = QApplication.activeModalWidget()
+        if isinstance(w, QDialog):
+            w.reject()
+        else:
+            QTimer.singleShot(5, reject_when_open)
+    hit = _hit(tmp_path)
+    for _ in range(3):
+        QTimer.singleShot(5, reject_when_open)
+        assert pr.ask_duplicate(hit, 1, 3) is None
+        QTimer.singleShot(5, reject_when_open)
+        assert pr.ask_lossy(sample_rows()[:1], build_preset("lossless")) == set()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert parent.findChildren(QDialog) == []
+
+
 def test_lossy_words_per_preset():
     assert lossless_words(build_preset("lossless")) == "FLAC, WAV ni AIFF"
     assert lossless_words(build_preset("cdj_antiguos")) == "AIFF, WAV ni FLAC"

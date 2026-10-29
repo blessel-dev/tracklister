@@ -162,6 +162,25 @@ def test_r11_the_fill_reaches_3_to_1_on_its_track_and_every_cell_background(them
         assert _ratio(c["line_strong"], c[bg]) >= 3.0, bg               # the 1 px border
 
 
+def test_state_chips_are_not_rebuilt_without_a_change(window, monkeypatch):
+    """Barrido AG-09: the download's state chips were deleted and built again on every row event, half the time
+    with the same counts (about 0.3 s of the GUI thread per 100 rows). Equal counts now leave them as they are."""
+    from tracklister.gui.widgets import StateChips
+    chips = window.results.chips
+    renders = []
+    real_render = StateChips._render
+
+    def counting(self):
+        renders.append(1)
+        return real_render(self)
+    monkeypatch.setattr(StateChips, "_render", counting)
+    chips.set_counts({ResultState.VERIFICADO: 2, ResultState.PENDIENTE: 1})
+    chips.set_counts({ResultState.VERIFICADO: 2, ResultState.PENDIENTE: 1})
+    assert len(renders) == 1 and chips.chips() == ["Verificado 2", "Pendiente 1"]
+    chips.set_counts({ResultState.VERIFICADO: 3})
+    assert len(renders) == 2 and chips.chips() == ["Verificado 3"]
+
+
 def test_r11_no_timer_and_no_repaint_while_idle(window, qtbot):
     page = window.results
     m = page.model

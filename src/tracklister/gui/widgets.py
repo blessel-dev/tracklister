@@ -261,7 +261,10 @@ class StateChips(QWidget):
         themes.bind(self, lambda w, t: w._render())
 
     def set_counts(self, counts: dict) -> None:
-        self._counts = dict(counts)
+        new = dict(counts)
+        if new == self._counts:     # every row event calls this, often with the same counts (AG-09)
+            return
+        self._counts = new
         self._render()
 
     def chips(self) -> list[str]:
