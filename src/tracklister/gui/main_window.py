@@ -283,7 +283,9 @@ class MainWindow(QMainWindow):
         if creds is None:
             return
         # barrido audit AU-2-04: the tracks the library has and this set has no answer for (a «Usar el que ya
-        # tengo» whose file was deleted forgets its choice, Z.14) are asked about, as «Descargar» does
+        # tengo» whose file was deleted forgets its choice, Z.14) are asked about, as «Descargar» does; first the
+        # files deleted with the set open in Descarga, so that question covers them too (AU-3-02)
+        self.session.refresh_missing_files()
         try:
             hits = [h for h in self.session.find_duplicates(self.services.library())
                     if h.row.uid not in self.session.doc.duplicate_choices]

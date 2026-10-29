@@ -234,6 +234,37 @@ def test_a_reused_file_that_was_deleted_is_downloaded_again(tmp_path):
     assert _res(again, 1).state == ResultState.VERIFICADO
 
 
+@pytest.mark.parametrize("mode", ["retry", "continue"])
+def test_a_reused_file_deleted_during_the_session_is_retried(tmp_path, mode):
+    """Barrido audit AU-3-02: the same as above, but the file (and the library copy) is deleted with the set still
+    open in Descarga. «Reintentar fallos» and «Continuar descarga» (SetSession.run) kept the row «Ya en
+    biblioteca» with a file that was gone, and never searched it: only reopening the set noticed it. Every run
+    now looks for the missing files first."""
+    h = Harness(tmp_path)
+    a, ra = h.session("correcto", name="Set A")
+    h.run(a, ra)
+    a.finalize(h.library)
+    b, rb = h.session("duplicado_entre_sets", name="Set B")
+    hits = b.find_duplicates(h.library)
+    uid = hits[0].row.uid
+    b.apply_duplicate_choice(uid, DuplicateChoice.REUSE, hits[0].entries[0])
+    h.run(b, rb)
+    b.finalize(h.library)
+    assert _res(b, 1).state == ResultState.YA_EN_BIBLIOTECA
+    (b.set_dir / _res(b, 1).file).unlink()                      # deleted with the set open: the same session
+    (a.set_dir / "01 - Fjaak - Spirit.flac").unlink()           # no copy left in the library either
+    _, net = build_scenario("duplicado_entre_sets", tmp_path / "net-again")
+    runner = EngineRunner(fake_engine_spec(), SearchBudget(h.paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)})
+    passes = len(b.doc.passes)
+    if mode == "retry":
+        b.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    else:
+        h.run(b, runner)
+    assert [p for p in b.doc.passes[passes:] if uid in p.uids], [p.name for p in b.doc.passes[passes:]]
+    assert _res(b, 1).state == ResultState.VERIFICADO and (b.set_dir / _res(b, 1).file).is_file()
+
+
 def test_rerun_is_idempotent(tmp_path):
     h = Harness(tmp_path)
     s, runner = h.session("rerun", name="Mismo set")

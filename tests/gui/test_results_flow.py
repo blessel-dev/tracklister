@@ -339,3 +339,28 @@ def test_continuar_and_reintentar_ask_about_a_repeated_track(window, qtbot, read
     window.run_again(mode)
     assert window.worker is None
     assert "Descarga no iniciada" in window.results.banner.message(), window.results.banner.message()
+
+
+def test_a_reused_file_deleted_without_reopening_is_asked_about(window, qtbot, ready_services, prompter, tmp_path):
+    """Barrido audit AU-3-02: the test above without «Abrir un set anterior…». The file of a «Usar el que ya tengo»
+    row is deleted with the set still open in Descarga (the library copy stays): «Reintentar fallos» kept the row
+    «Ya en biblioteca» with a file that was gone, and asked nothing. Now the missing files are looked for first,
+    so the repeated-track question comes back (AA.11)."""
+    _previous_set(ready_services, tmp_path)               # «Anterior»: both tracks are in the library
+    rows, net = build_scenario("correcto", tmp_path / "net-repetido")
+    ready_services.network = net
+    prompter.duplicates = [(DuplicateChoice.REUSE, "first", True)]
+    assert window.start_download("Repetido", rows, [])
+    _wait_done(qtbot, window)
+    set_dir = window.session.set_dir
+    first = min(window.session.doc.rows, key=lambda r: r.pos)
+    assert window.session.doc.results[first.uid].state == S.YA_EN_BIBLIOTECA
+    (set_dir / window.session.doc.results[first.uid].file).unlink()      # in the Explorer or in Finder
+    calls, passes = len(prompter.calls), len(window.session.doc.passes)
+    prompter.duplicates = [(DuplicateChoice.REUSE, "first", False)]
+    window.run_again("retry")
+    _wait_done(qtbot, window)
+    assert ("ask_duplicate", first.pos, 1, 1) in prompter.calls[calls:], prompter.calls[calls:]
+    res = window.session.doc.results[first.uid]
+    assert res.state == S.YA_EN_BIBLIOTECA and (set_dir / res.file).is_file()
+    assert not [p.name for p in window.session.doc.passes[passes:] if first.uid in p.uids]

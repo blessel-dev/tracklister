@@ -273,7 +273,7 @@ class SetSession:
             doc.results.setdefault(r.uid, RowResult(uid=r.uid, pos=r.pos))
             doc.results[r.uid].pos = r.pos
         s = cls(set_dir, doc, preset, settings, paths)
-        s._refresh_missing_files()
+        s.refresh_missing_files()
         if persist:
             s.save()
         return s
@@ -283,7 +283,7 @@ class SetSession:
         doc = SetDoc.from_dict(read_json(set_doc_path(Path(set_dir))))
         preset = build_preset(doc.preset_id, settings.custom_preset)
         s = cls(Path(set_dir), doc, preset, settings, paths)
-        s._refresh_missing_files()
+        s.refresh_missing_files()
         return s
 
     def save(self) -> None:
@@ -304,10 +304,12 @@ class SetSession:
     def _width(self) -> int:
         return pad_width(len(self.doc.rows))
 
-    def _refresh_missing_files(self) -> None:
+    def refresh_missing_files(self) -> None:
         """A good result whose file was deleted outside the app goes back to PENDIENTE. A «Usar el que ya tengo»
         choice for it is forgotten, so «Descargar» does search it again, as its reason says; if the library still
-        has a copy, the repeated-track question comes back (G.3). Barrido CL-07, T.4 N1."""
+        has a copy, the repeated-track question comes back (G.3). Barrido CL-07, T.4 N1. Called when a set is
+        created or loaded, and when a run starts: also a file deleted with the set open in Descarga (audit
+        AU-3-02; the window calls it before its repeated-track question)."""
         for r in self.doc.rows:
             res = self._res(r.uid)
             if res.state in GOOD and (not res.file or not os.path.exists(win_long(self.set_dir / res.file))):
@@ -500,6 +502,7 @@ class SetSession:
     # ---- running --------------------------------------------------------------------------
     def run(self, runner: EngineRunner, creds: Credentials, on_event: Callable[[SessionEvent], None],
             cancel: threading.Event, ask_lossy: Callable[[list[TrackRow]], set[str]]) -> None:
+        self.refresh_missing_files()        # a file deleted with the set open (AU-3-02)
         self._upgrade_results(on_event)
         for r in self.doc.rows:
             res = self._res(r.uid)
@@ -529,6 +532,7 @@ class SetSession:
         1.0.1 (R6): a file kept in the set with the mark «probable MP3 convertido» is a rejected one too:
         another copy is looked for without the peer that sent it, and only a copy without the mark (or
         with a clearly higher cut) replaces it; the marked file then goes to _dudosos, never deleted."""
+        self.refresh_missing_files()        # a file deleted with the set open (AU-3-02)
         self._upgrade_results(on_event)
         normal: set[str] = set()
         with_bans: set[str] = set()
