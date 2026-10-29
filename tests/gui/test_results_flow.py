@@ -280,6 +280,42 @@ def test_each_ignored_close_shows_the_notice_again(window, qtbot, ready_services
     assert not window.worker_running()
 
 
+def test_a_run_that_ends_during_the_salir_question_closes_cleanly(window, qtbot, ready_services, prompter, tmp_path,
+                                                                 monkeypatch):
+    """Barrido audit AU-2-02: the download ended while the «Salir» question was open. _on_worker_completed had set
+    window.worker to None, and answering «Salir» then ran worker.stop() on None: «Algo ha fallado…» instead of
+    closing. Now it looks again after the question: the run has ended, so the window just closes."""
+    from tracklister.pipeline.session import SetSession
+    rows, net = build_scenario("correcto", tmp_path / "net-cerrar")
+    ready_services.network = net
+    entered, gate = threading.Event(), threading.Event()
+    real_settle = SetSession._settle_row
+
+    def slow_settle(self, *args, **kwargs):          # the run is still going when the window is closed
+        entered.set()
+        gate.wait(60)
+        return real_settle(self, *args, **kwargs)
+
+    asked = []
+
+    def confirm_while_the_run_ends(title, text, ok="Sí", cancel="Cancelar"):
+        asked.append(title)
+        gate.set()                                     # the download ends with the question still open
+        qtbot.waitUntil(lambda: window.worker is None, timeout=60000)
+        return True                                    # «Salir»
+
+    monkeypatch.setattr(SetSession, "_settle_row", slow_settle)
+    monkeypatch.setattr(prompter, "confirm", confirm_while_the_run_ends)
+    try:
+        assert window.start_download("Cerrar", rows, [])
+        qtbot.waitUntil(entered.is_set, timeout=60000)
+        window.close()
+    finally:
+        gate.set()
+    qtbot.waitUntil(lambda: not window.isVisible(), timeout=10000)
+    assert asked == ["Salir"]
+
+
 def test_download_without_account_goes_to_settings(window, prompter):
     CredentialStore().clear()
     assert window.start_download("X", sample_rows(), []) is False

@@ -368,15 +368,18 @@ class MainWindow(QMainWindow):
                                          "lo que ya esté descargado.", ok="Salir", cancel="Seguir"):
                 event.ignore()
                 return
-            self.worker.stop()
-            self.results.mark_cancelling()     # as «Cancelar» does (AU-1-06, CL-28)
-            if not self.worker.wait(self.CLOSE_WAIT_MS):
-                # the files that already arrived are still being checked and placed: closing now would kill
-                # the process in the middle of a file (QThread destroyed while running)
-                self._close_when_done = True
-                self.status(CLOSING_AFTER_CHECKS_ES, 0)
-                event.ignore()
-                return
+            # the download may have ended while the question was open (self.worker is then None): look again,
+            # and if it has, just close (barrido audit AU-2-02)
+            if self.worker_running():
+                self.worker.stop()
+                self.results.mark_cancelling()     # as «Cancelar» does (AU-1-06, CL-28)
+                if not self.worker.wait(self.CLOSE_WAIT_MS):
+                    # the files that already arrived are still being checked and placed: closing now would kill
+                    # the process in the middle of a file (QThread destroyed while running)
+                    self._close_when_done = True
+                    self.status(CLOSING_AFTER_CHECKS_ES, 0)
+                    event.ignore()
+                    return
         self.pool.cancel_all()
         self.pool.wait_all(5000)
         self.new_set.stop_watching()
