@@ -147,6 +147,42 @@ def test_r2_merge_sources_is_the_detailed_rows():
     assert len(detailed.matched) == 17 and len(detailed.replaced_ids) == 3 and len(detailed.inserted) == 2
 
 
+def test_far_apart_another_number_or_version_is_another_track():
+    """CL-33 (his decision, 29 Oct; changes E.14): a strong name match at any distance merged «Minus 1» at 20:00
+    with «Minus 2» at 52:00, another track that was also played. «Minus 2» never entered the set, and a «revisar»
+    base row was rewritten to it. More than 60 s apart (or without a time), two rows are now one track only with
+    the same numbers and the same version; within 60 s nothing changes."""
+    # (a) another number far apart: the other source's track goes in its place by its time
+    base = [_r("Robert Hood", "Minus 1", ts=1200, source="trackid_csv"),
+            _r("Fjaak", "Spirit", ts=4000, source="trackid_csv")]
+    res = merge_sources_detailed(base, [_r("Robert Hood", "Minus 2", ts=3120, source="texto")])
+    assert [r.title for r in res.rows] == ["Minus 1", "Minus 2", "Spirit"]
+    assert res.inserted == [res.rows[1].uid] and res.matched == []
+    assert not any(n.startswith("según") for n in res.rows[0].notes)
+    # (b) a «revisar» base row is never rewritten to the other number
+    review = _r("Robert Hood", "Minus 1", ts=1200, source="trackid_csv", status=RowStatus.REVISAR, download=False,
+                confidence=0.4)
+    out = merge_sources([review], [_r("Robert Hood", "Minus 2", ts=3120, source="texto")])
+    assert [(r.title, r.status) for r in out] == [("Minus 1", RowStatus.REVISAR), ("Minus 2", RowStatus.OK)]
+    # (c) and (d) another version far apart
+    for base_version, extra_version in ((None, "Kai Remix"), ("Kai Remix", "Lady Remix")):
+        out = merge_sources([_r("Fjaak", "Spirit", ts=600, version=base_version, source="trackid_csv")],
+                            [_r("Fjaak", "Spirit", ts=3600, version=extra_version, source="texto")])
+        assert [(r.title, r.version) for r in out] == [("Spirit", base_version), ("Spirit", extra_version)]
+    # (e) a row without a time counts as far apart
+    out = merge_sources([_r("Robert Hood", "Minus 1", ts=1200, source="trackid_csv")],
+                        [_r("Robert Hood", "Minus 2", source="texto")])
+    assert sorted(r.title for r in out) == ["Minus 1", "Minus 2"]
+    # still one track: the same numbers and version far apart («Original Mix» is the original), and anything
+    # within 60 s (today's rule)
+    for b, x in ((_r("Robert Hood", "Minus 2", ts=1200), _r("Robert Hood", "Minus 2", ts=3120, source="texto")),
+                 (_r("Fjaak", "Spirit", ts=600), _r("Fjaak", "Spirit", ts=3600, version="Original Mix",
+                                                     source="texto")),
+                 (_r("Robert Hood", "Minus 1", ts=1200), _r("Robert Hood", "Minus 2", ts=1230, source="texto"))):
+        res = merge_sources_detailed([b], [x])
+        assert len(res.rows) == 1 and res.matched == [b.uid], (b.title, x.title, x.version)
+
+
 def test_review_row_in_the_base_is_corrected_by_a_strong_row():
     base = [_r("", "rob hood grey move", ts=13011, status=RowStatus.REVISAR, download=False, confidence=0.4)]
     extra = [_r("Robert Hood", "Grey Move", ts=13011, source="texto")]

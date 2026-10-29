@@ -6,7 +6,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 02 sections 4 and 5.8 (DECISIONES B.8, E.8, E.14): the base (trackid.net, from audio fingerprints)
 wins on names; the extra source fills the "ID (hueco)" rows and adds the tracks the base missed.
 Differences are written to the base row's notes, never silently applied. Matching is by fuzzy
-name at any distance, or by a weaker name within +-60 s ("PAS" = "Planetary Assault Systems").
+name, or by a weaker name within +-60 s ("PAS" = "Planetary Assault Systems"). More than 60 s apart
+(or when a row has no time), a fuzzy name match also needs the same numbers in the title and the same
+version (CL-33, DECISIONES AA.4): «Minus 1» and «Minus 2», or «Spirit» and «Spirit (Kai Remix)», are
+two tracks there.
 
 1.0.1 (06 R2, plan §11.1): a track of the other source that matches no base row goes where its start
 time puts it, between the two base rows around it:
@@ -25,9 +28,10 @@ from dataclasses import dataclass, field
 from rapidfuzz import fuzz
 
 from tracklister.core.model import RowStatus, TrackRow
-from tracklister.core.textnorm import norm_key
+from tracklister.core.textnorm import norm_key, version_key
 from tracklister.inputs.clean import mark_duplicates, renumber
 from tracklister.inputs.gaps import GAP_TITLE
+from tracklister.verify.identity import number_tokens
 
 STRONG_SET, STRONG_SORT, WEAK_SET = 85, 60, 60
 
@@ -58,6 +62,13 @@ def _dt(a: TrackRow, b: TrackRow) -> float:
     return abs(a.ts_start - b.ts_start)
 
 
+def _same_track(b: TrackRow, x: TrackRow) -> bool:
+    """The same numbers in the title and the same version: what two rows far apart in time need, besides a
+    strong name match, to be one track (CL-33). 'Original Mix', 'Extended Mix' and no version are one version."""
+    return (number_tokens(norm_key(b.title)) == number_tokens(norm_key(x.title))
+            and version_key(b.version) == version_key(x.version))
+
+
 def _best_match(out: list[TrackRow], x: TrackRow, matched: set[str], tol_s: int) -> TrackRow | None:
     kx = _key(x)
     if not kx:
@@ -70,8 +81,10 @@ def _best_match(out: list[TrackRow], x: TrackRow, matched: set[str], tol_s: int)
         if not kb:
             continue
         s_set = fuzz.token_set_ratio(kx, kb)
-        strong = s_set >= STRONG_SET and fuzz.token_sort_ratio(kx, kb) >= STRONG_SORT
-        weak = s_set >= WEAK_SET and _dt(b, x) <= tol_s
+        near = _dt(b, x) <= tol_s                      # a missing time is inf: far
+        strong = (s_set >= STRONG_SET and fuzz.token_sort_ratio(kx, kb) >= STRONG_SORT
+                  and (near or _same_track(b, x)))
+        weak = s_set >= WEAK_SET and near
         if not (strong or weak):
             continue
         rank = (strong, s_set, -_dt(b, x))
