@@ -335,6 +335,9 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802
         if self.worker_running():
             if self._close_when_done:          # already answered «Salir»: it closes by itself when done
+                # say it again (another notice may have covered it), never ask again (barrido audit AU-1-06)
+                self.status(CLOSING_AFTER_CHECKS_ES, 0)
+                self.results.mark_cancelling()
                 event.ignore()
                 return
             if not self.prompter.confirm("Salir", "Hay una descarga en curso. Si sales, se cancela y se guarda "
@@ -342,6 +345,7 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
             self.worker.stop()
+            self.results.mark_cancelling()     # as «Cancelar» does (AU-1-06, CL-28)
             if not self.worker.wait(self.CLOSE_WAIT_MS):
                 # the files that already arrived are still being checked and placed: closing now would kill
                 # the process in the middle of a file (QThread destroyed while running)

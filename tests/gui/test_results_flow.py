@@ -243,6 +243,43 @@ def test_closing_during_the_checks_waits_for_them(window, qtbot, ready_services,
     assert set(states) == {"verificado"}
 
 
+def test_each_ignored_close_shows_the_notice_again(window, qtbot, ready_services, prompter, tmp_path, monkeypatch):
+    """Barrido audit AU-1-06 (his decision, 29 Oct): after «Salir» and the close wait (Z.2), another close did
+    nothing and said nothing, and another notice («Ajustes guardados.») could cover «Guardando lo ya descargado…
+    Tracklister se cerrará al terminar.». Each ignored close shows it again now, and the Descarga phase says
+    «Cancelando…», as after «Cancelar». It never asks again."""
+    from tracklister.gui.main_window import MainWindow
+    from tracklister.pipeline.session import SetSession
+    rows, net = build_scenario("correcto", tmp_path / "net-cerrar")
+    ready_services.network = net
+    monkeypatch.setattr(MainWindow, "CLOSE_WAIT_MS", 200)
+    entered, gate = threading.Event(), threading.Event()
+    real_settle = SetSession._settle_row
+
+    def slow_settle(self, *args, **kwargs):          # placing the downloaded files takes a while
+        entered.set()
+        gate.wait(60)
+        return real_settle(self, *args, **kwargs)
+
+    monkeypatch.setattr(SetSession, "_settle_row", slow_settle)
+    try:
+        assert window.start_download("Cerrar", rows, [])
+        qtbot.waitUntil(entered.is_set, timeout=60000)
+        prompter.confirm_answer = True                 # «Salir»
+        window.close()
+        assert "se cerrará al terminar" in window.statusBar().currentMessage()
+        window.status("Ajustes guardados.")            # another notice covers it
+        window.close()                                 # ignored: the notice again, and no new question
+        assert window.isVisible() and window.worker_running()
+        assert "se cerrará al terminar" in window.statusBar().currentMessage(), window.statusBar().currentMessage()
+        assert window.results.phase.text().startswith("Cancelando"), window.results.phase.text()
+        assert [c[1] for c in prompter.calls if c[0] == "confirm"] == ["Salir"]
+    finally:
+        gate.set()
+    qtbot.waitUntil(lambda: not window.isVisible(), timeout=60000)
+    assert not window.worker_running()
+
+
 def test_download_without_account_goes_to_settings(window, prompter):
     CredentialStore().clear()
     assert window.start_download("X", sample_rows(), []) is False
