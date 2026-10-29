@@ -17,8 +17,9 @@ Fixed rules, in order:
    (1.0.1, Addendum 10: 'underworld_-_born_slippy-nuxx' is «Born Slippy» only without 'nuxx')
 4. versions_compatible() is False                      -> DUDOSO/VERSION
 5. |duration - expected| > duration_review_s            -> DUDOSO/DURACION
-6. score = round(0.35*artist + 0.45*title + 20*d): >= 80 VERIFICADO, 50-79 DUDOSO/REVISAR,
-   < 50 DUDOSO/IDENTIDAD (d = 1 / 0.5 / 0.75 without an expected duration)
+6. score = round(0.35*artist + 0.45*title + 20*d): >= 80 VERIFICADO, below that DUDOSO/REVISAR
+   (d = 1 / 0.5 / 0.75 without an expected duration). Rules 3-5 already took an artist < 60, a title < 70
+   and d = 0, so here the score is never below 62 (CL-40)
 7. spectrum, on VERIFICADO/REVISAR lossless files only (1.0.1, R6; verify.spectral):
    - STRONG ("probable MP3 convertido"): VERIFICADO becomes REVISAR_CALIDAD («Verificado · revisar
      calidad»), with doubt None and the same score (it measures identity); a REVISAR file stays REVISAR.
@@ -148,12 +149,11 @@ def verify_file(row: TrackRow, path: Path, accept: AcceptRule, *, lossy_allowed:
         return Verdict(ResultState.DUDOSO, doubt, score, reasons, flags, info, q.needs_conversion, ident)
     if score >= ACCEPT_SCORE:
         state, doubt = ResultState.VERIFICADO, None
-    elif score >= REVIEW_SCORE:
+    else:
+        # never below REVIEW_SCORE here: without a doubt the artist is >= ARTIST_MIN, the title >= TITLE_MIN and
+        # d >= 0.5, so the score is at least 62 (CL-40; tests/verify/test_verifier.py pins the sum)
         state, doubt = ResultState.DUDOSO, DoubtKind.REVISAR
         reasons.append(f"Confianza {score}/100: revísalo (se queda en el set).")
-    else:
-        state, doubt = ResultState.DUDOSO, DoubtKind.IDENTIDAD
-        reasons.append(f"Confianza {score}/100: probablemente no es la canción pedida.")
     sp: SpectralResult | None = None
     if spectral and info.is_lossless and doubt in (None, DoubtKind.REVISAR):
         sp = fake_lossless_check(info.path)

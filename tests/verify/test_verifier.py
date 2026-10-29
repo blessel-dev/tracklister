@@ -281,3 +281,13 @@ def test_r4_v_a_remix_with_another_group_never_takes_the_original_or_the_plain_r
 def test_r4_b6_pcm_wav_and_aiff_are_still_verified(tmp_path, accept, fmt, bits):
     v = _v(tmp_path, f"Fjaak - Spirit.{fmt}", accept=accept, fmt=fmt, bitdepth=bits, tags=TAGS)
     assert v.state == ResultState.VERIFICADO and v.score == 100 and not v.needs_conversion, v.reasons_es
+
+
+def test_a_score_without_doubt_never_falls_below_review():
+    """CL-40 (invariant): without a doubt the artist is >= ARTIST_MIN, the title >= TITLE_MIN and d is 0.5,
+    0.75 or 1 (d = 0 is a duration doubt), so the score is at least 62: a verdict below REVIEW_SCORE can only
+    come from a doubt, and verify_file has no branch for it."""
+    from tracklister.verify.verifier import ARTIST_MIN, TITLE_MIN
+    scores = [int(round(0.35 * a + 0.45 * t + 20 * d)) for a in range(int(ARTIST_MIN), 101)
+              for t in range(int(TITLE_MIN), 101) for d in (0.5, 0.75, 1.0)]
+    assert min(scores) >= REVIEW_SCORE and min(scores) == 62
