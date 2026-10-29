@@ -301,14 +301,15 @@ class MainWindow(QMainWindow):
         self.worker = None
         self.results.on_finished(error)
         self.nav_buttons["results"].setEnabled(True)
-        self.status("Descarga terminada." if not error else "La descarga terminó con errores.")
+        self.status("La descarga terminó con errores." if error else
+                    "Descarga cancelada." if self.results.cancelling else "Descarga terminada.")
         if self._close_when_done:
             QTimer.singleShot(0, self.close)
 
     def cancel_run(self) -> None:
         if self.worker_running():
             self.worker.stop()
-            self.results.phase.setText("Cancelando… (se para el motor y se guarda lo que ya está)")
+            self.results.mark_cancelling()
 
     def open_previous_set(self) -> None:
         if self.worker_running():

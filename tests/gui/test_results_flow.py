@@ -173,9 +173,34 @@ def test_cancel_keeps_what_is_done_and_offers_continue(window, qtbot, ready_serv
     m = window.results.model
     qtbot.waitUntil(lambda: m.counts().get(S.EN_CURSO, 0) == 2, timeout=30000)
     window.results.cancel_btn.click()
-    _wait_done(qtbot, window, timeout=60000)
+    # CL-28: a cancelled run now ends with the phase «Cancelado.» instead of «Terminado.»
+    qtbot.waitUntil(lambda: not window.worker_running() and window.results.phase.text() == "Cancelado.",
+                    timeout=60000)
     assert {m.state_of(r.uid) for r in m.rows()} <= {S.PENDIENTE, S.VERIFICADO}
     assert window.results.continue_btn.isVisible()
+
+
+def test_after_cancelar_the_final_texts_say_cancelado(window, qtbot, ready_services, tmp_path):
+    """CL-28 (his decision, 29 Oct): after «Cancelar», «Cancelando…» was replaced by «Pasada N: …: terminada.», the
+    phase ended with «Terminado.», the notice read «Listo: …» and the status bar «Descarga terminada.». Now
+    «Cancelando…» stays until the end, the phase says «Cancelado.», the notice starts with «Cancelado: » and the
+    status bar says «Descarga cancelada.»."""
+    from tracklister.pipeline.session import SessionEvent
+    rows, net = build_scenario("correcto", tmp_path / "net-slow")
+    data = json.loads(net.read_text(encoding="utf-8"))
+    data["peers"] = {"peerB": {"slow": True, "slow_s": 60}}
+    net.write_text(json.dumps(data), encoding="utf-8")
+    ready_services.network = net
+    assert window.start_download("Lento", rows, [])
+    m = window.results.model
+    qtbot.waitUntil(lambda: m.counts().get(S.EN_CURSO, 0) == 2, timeout=30000)
+    window.results.cancel_btn.click()
+    window.results.on_session_event(SessionEvent("pass_finished", message_es="Pasada 1: lossless: terminada."), None)
+    assert window.results.phase.text().startswith("Cancelando"), window.results.phase.text()
+    qtbot.waitUntil(lambda: window.worker is None, timeout=60000)
+    assert window.results.phase.text() == "Cancelado."
+    assert window.results.banner.message().startswith("Cancelado: "), window.results.banner.message()
+    assert window.statusBar().currentMessage() == "Descarga cancelada."
 
 
 def test_closing_during_the_checks_waits_for_them(window, qtbot, ready_services, prompter, tmp_path, monkeypatch):

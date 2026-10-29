@@ -23,6 +23,9 @@ from tracklister.organize.naming import safe_component
 
 DONE_STATES = {s for s in ResultState} - {ResultState.PENDIENTE, ResultState.EN_CURSO}
 ANIMATION_MS = 100            # indeterminate bars: about 10 repaints a second, only while a run is going
+# after «Cancelar» (or «Salir» during a download): the phase until the run ends, then the final one (barrido CL-28)
+CANCELLING_ES = "Cancelando… (se para el motor y se guarda lo que ya está)"
+CANCELLED_ES = "Cancelado."
 # the summary line keeps «Verificado · revisar calidad» apart from «Dudoso» (identity doubts), right after
 # «Verificado», as the report does (pipeline.report.SUMMARY_ORDER)
 PLURAL = {ResultState.VERIFICADO: ("verificada", "verificadas"),
@@ -59,6 +62,7 @@ class ResultsPage(QWidget):
         self.themes = window.themes
         self.session = None
         self.running = False
+        self.cancelling = False       # «Cancelar» was pressed during this run (mark_cancelling)
         lay = page_layout(self, "Descarga")
         self.title = self.page_title
 
@@ -174,6 +178,7 @@ class ResultsPage(QWidget):
     # ---- session -----------------------------------------------------------------------------------
     def show_session(self, session, running: bool) -> None:
         self.session = session
+        self.cancelling = False
         doc = session.doc
         self.title.setText(doc.name)
         preset = PRESET_LABEL_ES.get(doc.preset_id, doc.preset_id)
@@ -192,6 +197,12 @@ class ResultsPage(QWidget):
         self._refresh_progress()
         self._refresh_buttons()
         self._update_animation()
+
+    def mark_cancelling(self) -> None:
+        """«Cancelar» (or «Salir» during a download): the phase says «Cancelando…» until the run ends, and the
+        final texts say «Cancelado» (barrido CL-28)."""
+        self.cancelling = True
+        self.phase.setText(CANCELLING_ES)
 
     def _targets(self) -> list:
         return [r for r in self.model.rows() if r.download and (r.title or "").strip()]
@@ -258,11 +269,12 @@ class ResultsPage(QWidget):
             self._refresh_bar()
             self._update_animation()
         elif kind in ("pass_started", "pass_finished"):
-            self.phase.setText(ev.message_es)
+            if not self.cancelling:          # «Cancelando…» stays until the end (CL-28); the log still gets it
+                self.phase.setText(ev.message_es)
             self._append_log(ev.message_es)
         elif kind == "log":
             self._append_log(ev.message_es)
-            if ev.message_es.startswith("Esperando"):
+            if ev.message_es.startswith("Esperando") and not self.cancelling:
                 self.phase.setText(ev.message_es)
         elif kind == "error":
             self.banner.show_message(ev.message_es, "error")
@@ -277,13 +289,13 @@ class ResultsPage(QWidget):
             self.model.load(self.session.doc.rows, self.session.doc.results)
         self.set_running(False)
         counts = self.model.counts()
-        self.phase.setText("Terminado.")
+        self.phase.setText(CANCELLED_ES if self.cancelling else "Terminado.")
         if error:
             self.banner.show_message(error, "error")
             return
         if self.banner.isVisible() and self.banner.kind == "error":
             return
-        text = "Listo: " + (summary_text(counts) or "nada que descargar") + "."
+        text = ("Cancelado: " if self.cancelling else "Listo: ") + (summary_text(counts) or "nada que descargar") + "."
         quarantined = sum(1 for r in self.model.rows()
                           if (res := self.model.result_of(r.uid)) is not None and res.state == ResultState.DUDOSO
                           and res.doubt in (DoubtKind.IDENTIDAD, DoubtKind.VERSION, DoubtKind.DURACION))
