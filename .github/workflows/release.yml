@@ -192,7 +192,7 @@ jobs:
   publish:
     name: Publish the Release (only a v* tag; a dry run on branch mac)
     needs: [windows, macos]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write                     # create the Release and upload its files (tags only)

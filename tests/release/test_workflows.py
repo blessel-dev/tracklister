@@ -56,7 +56,7 @@ def test_three_jobs_with_their_runners_needs_and_permissions():
     assert list(jobs) == ["windows", "macos", "publish"]
     assert wf["permissions"] == {"contents": "read"}
     assert (jobs["windows"]["runs-on"], jobs["macos"]["runs-on"], jobs["publish"]["runs-on"]) == (
-        "windows-2025", "macos-15", "ubuntu-latest")
+        "windows-2025", "macos-15", "ubuntu-24.04")          # a fixed image: ubuntu-latest moves to Ubuntu 26
     assert "needs" not in jobs["windows"] and "needs" not in jobs["macos"]
     assert jobs["publish"]["needs"] == ["windows", "macos"]                   # 1.1.0 only when both builds pass
     assert jobs["windows"]["permissions"] == jobs["macos"]["permissions"] == {"contents": "read"}
