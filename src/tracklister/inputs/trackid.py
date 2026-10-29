@@ -51,6 +51,24 @@ def parse_hms(s: str | None) -> int | None:
     return int(s) if s.isdigit() else None
 
 
+# an Excel time cell: '6:24' typed in a Duración/Length cell is stored as the time 06:24:00 (tabular.cell_text)
+_EXCEL_TIME_MSS = re.compile(r"(\d{1,2}):([0-5]\d):00")
+
+
+def length_of(text: str) -> tuple[int | None, str | None]:
+    """A Length/Duración cell -> (seconds, note). Excel turns «6:24» typed in a cell into the time 06:24:00, a
+    6 h 24 min track that the engine never finds (--length-tol 3) and the enrichment never corrects (E.23): in
+    this column an H:MM:00 or HH:MM:00 with an hour from 1 to 23 is minutes:seconds, with a note (barrido CL-04).
+    Any other value is read as before. Used by the tables (inputs/mapping.py) and by the Duración column of a
+    trackid.net table (barrido audit AU-1-02)."""
+    secs = parse_hms(text)
+    m = _EXCEL_TIME_MSS.fullmatch((text or "").strip())
+    if secs is not None and m and 1 <= int(m.group(1)) <= 23:
+        mins, s = int(m.group(1)), int(m.group(2))
+        return mins * 60 + s, f"duración leída como {mins}:{s:02d} (minutos:segundos)"
+    return secs, None
+
+
 def parse_int(s: str | None) -> int | None:
     s = (s or "").strip()
     try:
@@ -96,11 +114,14 @@ def parse_trackid(t: RawTable, *, gap_threshold_s: int = 90) -> list[TrackRow]:
         if not artist and not title:
             continue
         start, end = parse_hms(cell(cells, "start")), parse_hms(cell(cells, "end"))
-        dur = parse_hms(cell(cells, dur_key)) if dur_key else None
+        # an Excel time in the Duración column (the CSV saved as .xlsx) is m:ss, as in any table (AU-1-02)
+        dur, dur_note = length_of(cell(cells, dur_key)) if dur_key else (None, None)
         base, version = split_title_version(title)
         row = TrackRow(pos=0, title=base or title, artists=split_artists(artist), artist_display=artist,
                        version=version, label=label or None, ts_start=start, ts_end=end, source=SOURCE,
                        expected_duration_s=dur or None, confidence=0.7, raw=raw_line(cells, t.delimiter))
+        if dur_note:
+            row.notes.append(dur_note)
         drop_label_artists(row)
         rows.append(row)
     return renumber(insert_gaps(rows, threshold_s=gap_threshold_s))

@@ -1,10 +1,11 @@
 """The trackid.net CSV: 17 rows of the sample + 4 "ID (hueco)" rows, label-as-co-artist cleaned."""
 from __future__ import annotations
 
+import datetime
 from pathlib import Path
 
 from tracklister.core.model import RowStatus
-from tracklister.inputs.tabular import RawTable, read_table
+from tracklister.inputs.tabular import RawTable, cell_text, read_table
 from tracklister.inputs.trackid import (
     ESTIMATED_NOTE, GAP_TITLE, is_trackid_table, parse_hms, parse_int, parse_trackid,
 )
@@ -102,3 +103,21 @@ def test_parse_helpers():
     assert parse_hms("00:01:17.500") == 77
     assert parse_int("1") == 1 and parse_int("1.0") == 1 and parse_int("") is None and parse_int("x") is None
     assert parse_int("2.5") is None
+
+
+def test_an_excel_time_in_a_trackid_duration_column_is_m_ss():
+    """Barrido audit AU-1-02 (his decision, 29 Oct): his trackid.net CSV opened in Excel, with a «Duración» column
+    added (X.1) and saved as .xlsx. Excel stores «6:24» as the time 06:24:00, which was read as 23,040 s: the track
+    was never found and the gap was mismeasured. That column now follows the Z.11 rule (an hour from 1 to 23 with
+    0 seconds is minutes:seconds, with a note); Start and End do not change."""
+    headers = ["Pos", "Start", "End", "Artist", "Title", "Label", "Duración"]
+    rows = parse_trackid(_table(headers, [
+        ["1", "00:00:00", "00:06:24", "A", "One", "", cell_text(datetime.time(6, 24))],
+        ["2", "00:06:24", "00:11:34", "B", "Two", "", cell_text(datetime.time(5, 10))],
+        ["3", "01:02:00", "01:07:05", "C", "Three", "", "0:05:05"]]))
+    tracks = [r for r in rows if not r.is_id]
+    assert [r.expected_duration_s for r in tracks] == [384, 310, 305]
+    assert "duración leída como 6:24 (minutos:segundos)" in tracks[0].notes
+    assert "duración leída como 5:10 (minutos:segundos)" in tracks[1].notes
+    assert not any(n.startswith("duración leída") for n in tracks[2].notes)
+    assert tracks[2].ts_start == 3720
