@@ -1008,6 +1008,11 @@ class SetSession:
         _write_text(self.set_dir / REPORT_TEMPLATE.format(name=name), self.report_text())
         _write_text(self.set_dir / TRACKLIST_TEMPLATE.format(name=name), self.tracklist_text())
         library.load()
+        if library.damaged:
+            # an empty or cut library.json (a power cut right after a save): saving now would keep only this
+            # set, so it is set aside and the index rebuilt from the library folder first (barrido AG-03)
+            library.keep_damaged_copy()
+            library.rebuild(Path(self.settings.library_root) if self.settings.library_root else self.set_dir.parent)
         library.add_from_set(self.set_dir, self.doc)
         library.save()
 

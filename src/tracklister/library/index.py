@@ -76,19 +76,28 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+DAMAGED_COPY_NAME = "library-danado.json"     # like settings-danado.json (gui.services)
+
+
 class LibraryIndex:
     def __init__(self, path: Path):
         self.path = Path(path)
         self.entries: list[LibraryEntry] = []
         self.updated_at: str | None = None
+        # the last load() found a library.json it could not use (empty, cut, not an index, an unknown schema):
+        # that is not the same as no library, and saving over it would keep only one set (barrido AG-03)
+        self.damaged = False
 
     def load(self) -> None:
+        self.damaged = False
         try:
             data = read_json(self.path, default=None)
         except ValueError:
             data = None
+            self.damaged = True
         schema = data.get("schema") if isinstance(data, dict) else None
         if schema not in (LIBRARY_SCHEMA, LIBRARY_SCHEMA_V1):
+            self.damaged = self.damaged or self.path.exists()
             self.entries = []
             return
         self.entries = [LibraryEntry.from_dict(e) for e in data.get("entries", [])]
@@ -124,6 +133,17 @@ class LibraryIndex:
         self.updated_at = _now()
         write_json(self.path, {"schema": LIBRARY_SCHEMA, "updated_at": self.updated_at,
                                "entries": [e.to_dict() for e in self.entries]})
+
+    def keep_damaged_copy(self) -> None:
+        """Set a damaged library.json aside as library-danado.json before the index is rebuilt (nothing is
+        lost: the sets themselves are still in the library folder)."""
+        target = self.path.with_name(DAMAGED_COPY_NAME)
+        try:
+            os.replace(self.path, target)
+        except OSError as e:
+            log.warning("library: the damaged index could not be set aside (%s)", type(e).__name__)
+            return
+        log.warning("library: the index was damaged; kept as %s and rebuilt from the set folders", target.name)
 
     def add_from_set(self, set_dir: Path, doc: SetDoc) -> int:
         """Replace this set's entries with its current root files. Returns how many were added."""
@@ -186,7 +206,7 @@ class LibraryIndex:
                 continue
             try:
                 doc = SetDoc.from_dict(read_json(doc_path))
-            except (ValueError, KeyError, TypeError):
-                continue
+            except (OSError, ValueError, KeyError, TypeError):
+                continue                          # damaged or unreadable (locked, no permission): skipped
             self.add_from_set(d, doc)
         return len(self.entries)

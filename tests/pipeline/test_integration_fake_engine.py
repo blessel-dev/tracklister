@@ -505,6 +505,24 @@ def _finalized(h: Harness, scenario: str, name: str, preset: str | None = None, 
     return s
 
 
+def test_a_damaged_library_is_rebuilt_not_replaced(tmp_path):
+    """Barrido AG-03: an empty or half-written library.json (a power cut right after a save) loaded as an empty
+    library, and the next finalize saved it with ONLY that set: the earlier sets stopped being offered as «Ya
+    en biblioteca», with no warning. Now the damaged file is kept as library-danado.json and the index is rebuilt
+    from the library folder before the set is added."""
+    h = Harness(tmp_path)
+    _finalized(h, "correcto", "Set A")
+    h.paths.library_file.write_text("", encoding="utf-8")
+    _finalized(h, "nombres_raros", "Set B")
+    fresh = LibraryIndex(h.paths.library_file)
+    fresh.load()
+    assert {e.set_name for e in fresh.entries} == {"Set A", "Set B"}
+    assert (h.paths.library_file.parent / "library-danado.json").is_file()
+    c, _ = h.session("duplicado_entre_sets", name="Set C")
+    hits = c.find_duplicates(fresh)
+    assert [x.row.pos for x in hits] == [1] and hits[0].entries[0].set_name == "Set A"
+
+
 def _cbr_320(net):
     net["files"][0].update(vbr=False, real_kbps=320)
 

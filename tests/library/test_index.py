@@ -231,3 +231,38 @@ def test_corrupt_library_file_starts_empty(tmp_path):
     lib = LibraryIndex(p)
     lib.load()
     assert lib.entries == []
+
+
+def test_load_marks_a_damaged_index(tmp_path):
+    """Barrido AG-03: an empty, cut or unknown library.json is not the same as no library: load() says so
+    (damaged), so the next finalize rebuilds the index instead of saving it with only that set."""
+    p = tmp_path / "library.json"
+    lib = LibraryIndex(p)
+    lib.load()
+    assert lib.damaged is False and lib.entries == []           # no file yet: a new library
+    for text in ("", "{broken", "[]", '{"schema": "otro"}'):
+        p.write_text(text, encoding="utf-8")
+        lib.load()
+        assert lib.damaged is True and lib.entries == [], text
+    write_json(p, {"schema": "tracklister.library/2", "updated_at": None, "entries": []})
+    lib.load()
+    assert lib.damaged is False
+
+
+def test_rebuild_skips_an_unreadable_set_json(tmp_path, monkeypatch):
+    """Barrido AG-03 (CL-41): rebuild() caught only ValueError, KeyError and TypeError, so one set.json that could
+    not be read (a PermissionError) stopped «Reconstruir índice», and with it the rebuild of a damaged library.
+    That set is now skipped, like a damaged one."""
+    import tracklister.library.index as index_mod
+    _set(tmp_path, "Set A", "aaaa1111")
+    b, _ = _set(tmp_path, "Set B", "bbbb2222")
+    real_read = index_mod.read_json
+
+    def locked(path, *args, **kw):
+        if Path(path) == set_doc_path(b):
+            raise PermissionError(13, "Acceso denegado", str(path))
+        return real_read(path, *args, **kw)
+    monkeypatch.setattr(index_mod, "read_json", locked)
+    lib = LibraryIndex(tmp_path / "library.json")
+    assert lib.rebuild(tmp_path / "lib") == 1
+    assert {e.set_name for e in lib.entries} == {"Set A"}
