@@ -33,7 +33,7 @@ from tracklister.engine.spec import fake_engine_spec
 from tracklister.library.index import LibraryIndex
 from tracklister.organize.journal import Journal
 from tracklister.pipeline.session import (
-    UPGRADE_LABEL, UPGRADE_MARKER, UPGRADED_FROM_DUDOSOS_ES, UPGRADED_SPECTRUM_ES, SetSession,
+    UPGRADE_LABEL, UPGRADE_MARKER, UPGRADE_PENDING_PREFIX, UPGRADED_FROM_DUDOSOS_ES, UPGRADED_SPECTRUM_ES, SetSession,
 )
 
 CREDS = Credentials("usuario-prueba", "clave-prueba")
@@ -275,6 +275,37 @@ def test_a_locked_dudosos_file_does_not_end_the_upgrade(v, monkeypatch):
     assert UPGRADE_MARKER not in s.doc.migrations
     s._upgrade_results()                                          # the next run tries again: now it moves
     assert _res(s, 2).file == "02 - Red Rooms - Trip.flac" and UPGRADE_MARKER in s.doc.migrations
+
+
+def test_a_locked_file_only_checks_its_own_row_again(v, monkeypatch):
+    """AU-1-04: after the locked file of the test above, the next run checked again, with the spectral check
+    (about 0.5 s per file), every old row the first run had left as it was. Now set.json notes the rows that
+    could not be moved, and only those are checked again."""
+    import tracklister.pipeline.session as session_mod
+    s = _session(v)
+    real_move, calls = Journal.move, {"n": 0}
+
+    def locked_once(self, *args, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise PermissionError(13, "El proceso no tiene acceso al archivo porque está siendo utilizado por otro "
+                                      "proceso")
+        return real_move(self, *args, **kw)
+    monkeypatch.setattr(Journal, "move", locked_once)
+    s._upgrade_results()
+    saved = read_json(set_doc_path(v.set_dir))["migrations"]
+    real_verify, checked = session_mod.verify_file, []
+
+    def recording(row, *args, **kw):
+        checked.append(row.pos)
+        return real_verify(row, *args, **kw)
+    monkeypatch.setattr(session_mod, "verify_file", recording)
+    s._upgrade_results()                                          # the next run: only row 2, whose file was locked
+    assert checked == [2]
+    assert saved == [UPGRADE_PENDING_PREFIX + _res(s, 2).uid]
+    assert _res(s, 2).file == "02 - Red Rooms - Trip.flac" and (v.set_dir / "02 - Red Rooms - Trip.flac").is_file()
+    assert s.doc.migrations == [UPGRADE_MARKER]
+    assert read_json(set_doc_path(v.set_dir))["migrations"] == [UPGRADE_MARKER]
 
 
 def test_v100_retry_finds_better_copies_of_the_marked_files(v):

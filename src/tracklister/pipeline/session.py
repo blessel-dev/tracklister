@@ -82,6 +82,8 @@ REUSED_MARK_ES = ("Marca que trae del set '{set}': probable MP3 convertido; pued
                   "calidad.")
 # 1.0.1, R8 (plan D6): a set written by 1.0.0 is checked again once with the new rules, when a run starts
 UPGRADE_MARKER = "1.0.1-reverificar"
+# + a row uid: that row's file could not be moved by the one-time check, which runs again only for it (AU-1-04)
+UPGRADE_PENDING_PREFIX = "1.0.1-reverificar-pendiente:"
 UPGRADE_LABEL = "Actualizar a Tracklister 1.0.1"
 UPGRADED_FROM_DUDOSOS_ES = (f"Revisado con Tracklister 1.0.1: antes estaba en {DUDOSOS}; con las reglas nuevas de "
                             "nombres de archivo es la pista pedida.")
@@ -939,14 +941,19 @@ class SetSession:
 
         Barrido: with the spectral check off the 1.0.0 marks are not judged (nothing would measure them, CL-05);
         a _dudosos file that cannot be moved (open in a player) keeps its row as it was, and the marker is then
-        not written, so the next run checks again (CL-06)."""
+        not written, so the next run checks again (CL-06), but only those rows: set.json notes each of them as
+        UPGRADE_PENDING_PREFIX + its uid until it moves (AU-1-04)."""
         if UPGRADE_MARKER in self.doc.migrations:
             return 0
+        pending = {m[len(UPGRADE_PENDING_PREFIX):] for m in self.doc.migrations
+                   if m.startswith(UPGRADE_PENDING_PREFIX)}
         changed = 0
         bid: str | None = None
-        failed = False          # a file could not be moved: the check runs again next time (barrido CL-06)
+        failed_uids: set[str] = set()   # files that could not be moved: checked again next time (CL-06, AU-1-04)
         try:
             for row in sorted(self.doc.rows, key=lambda x: x.pos):
+                if pending and row.uid not in pending:
+                    continue        # the earlier check already judged this row (AU-1-04)
                 res = self.doc.results.get(row.uid)
                 if res is None or not res.file or not row.download or not (row.title or "").strip():
                     continue
@@ -982,7 +989,7 @@ class SetSession:
                         # open in a player, a read-only stick...: this row keeps its old result, the others go on
                         log.warning("row %s: not moved by the 1.0.1 check (%s); tried again next time", row.pos,
                                     type(e).__name__)
-                        failed = True
+                        failed_uids.add(row.uid)
                         continue
                     res.file = rel_to_set(self.set_dir, real)
                     note = UPGRADED_FROM_DUDOSOS_ES
@@ -998,8 +1005,11 @@ class SetSession:
         finally:
             if bid is not None:
                 self.journal.commit(bid)
-            if not failed:
-                self.doc.migrations = list(self.doc.migrations) + [UPGRADE_MARKER]
+            kept = [m for m in self.doc.migrations if not m.startswith(UPGRADE_PENDING_PREFIX)]
+            if failed_uids:
+                self.doc.migrations = kept + [UPGRADE_PENDING_PREFIX + u for u in sorted(failed_uids)]
+            else:
+                self.doc.migrations = kept + [UPGRADE_MARKER]
             self.save()
         return changed
 
