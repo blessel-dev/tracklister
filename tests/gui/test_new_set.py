@@ -174,6 +174,28 @@ def test_a_typed_duration_is_the_users(window):
     assert "Duración de iTunes" not in (m.data(idx, Qt.ItemDataRole.ToolTipRole) or "")
 
 
+def test_an_unchanged_duration_edit_keeps_the_store_source(window):
+    """Barrido audit AU-1-01: the table's default delegate saves the cell's text back on Intro or when the cell is
+    left, also when nothing was typed. That made the store's duration the user's: its tooltip lost «Duración de
+    iTunes», and a title corrected afterwards kept the old track's duration and ids (U.7). A cell left as it was
+    is no typed duration; a different one still is (test_a_typed_duration_is_the_users)."""
+    from PySide6.QtCore import Qt
+    from tracklister.core.model import TrackIds
+    page = window.new_set
+    page.set_rows(sample_rows(), name="X")
+    m = page.model
+    r0 = m.row_at(0)
+    r0.expected_duration_s, r0.ids, r0.enrich_source = 327, TrackIds(isrc="X1"), "itunes"
+    idx = m.index(0, m.column_of("duration"))
+    shown = m.data(idx, Qt.ItemDataRole.EditRole)
+    assert shown == "05:27"
+    assert m.setData(idx, shown)                                # the delegate saves the unchanged text back
+    assert (r0.expected_duration_s, r0.enrich_source) == (327, "itunes")
+    assert "Duración de iTunes" in (m.data(idx, Qt.ItemDataRole.ToolTipRole) or "")
+    assert m.setData(m.index(0, m.column_of("title")), "Some Chords")
+    assert (r0.expected_duration_s, r0.ids, r0.enrich_source) == (None, TrackIds(), None)   # U.7
+
+
 def test_move_and_remove_keep_row_index_numbering(window):
     page = window.new_set
     page.set_rows(sample_rows(), name="X")

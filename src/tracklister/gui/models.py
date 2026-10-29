@@ -354,8 +354,12 @@ class TrackTableModel(QAbstractTableModel):
             if key == "start":
                 r.ts_start = secs
             else:
-                r.expected_duration_s = secs
-                r.enrich_source = None      # a typed duration is the user's (E.23): no enrichment replaces it
+                # the delegate saves the cell back on Intro or on leaving it, also unchanged: only a duration other
+                # than the one the cell shows (whole seconds, as fmt_clock) is typed (barrido audit AU-1-01)
+                shown = None if r.expected_duration_s is None else int(round(float(r.expected_duration_s)))
+                if secs != shown:
+                    r.expected_duration_s = secs
+                    r.enrich_source = None      # a typed duration is the user's (E.23): no enrichment replaces it
         elif key == "artist":
             r.artist_display = text
             r.artists = split_artists(text)
