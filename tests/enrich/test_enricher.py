@@ -203,6 +203,19 @@ def test_missing_fixture_fails_loudly(replay, tmp_path):
                                                              artist_display="Nadie")])
 
 
+def test_a_users_duration_survives_every_enrichment(replay, tmp_path):
+    """Barrido AG-01 (E.23, X.1): a duration of the user's own (the Duración column of a trackid CSV or of an Excel)
+    was kept by the first enrichment, but the row was then marked as completed by the store (enrich_source), so
+    the next one («Añadir otra fuente del mismo set», «Completar datos») replaced it with the store's: 330 -> 327 s
+    for Klint - Gunslingers. Now the row keeps it every time, and still gets the store's ids."""
+    http, _ = replay
+    mine = TrackRow(pos=1, title="Gunslingers", artists=["Klint"], artist_display="Klint", expected_duration_s=330)
+    for _ in range(2):
+        (o,) = Enricher(http, tmp_path / "e.json").enrich([mine])
+        assert o.accepted and mine.expected_duration_s == 330
+    assert mine.ids.itunes and mine.enrich_source is None
+
+
 def test_skips_cancel_user_duration_and_corrupt_cache(replay, tmp_path):
     http, rt = replay
     cache = tmp_path / "e.json"

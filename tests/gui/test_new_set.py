@@ -157,6 +157,23 @@ def test_r4_editing_the_track_of_an_enriched_row_forgets_its_store_data(window):
     assert typed.expected_duration_s == 360                     # typed by the user: never cleared (E.23)
 
 
+def test_a_typed_duration_is_the_users(window):
+    """Barrido AG-01: a duration typed over a completed row kept the row's enrich_source, so the next «Completar
+    datos» replaced it with the store's, and its tooltip said «Duración de iTunes». A typed duration is the
+    user's (E.23)."""
+    from PySide6.QtCore import Qt
+    page = window.new_set
+    page.set_rows(sample_rows(), name="X")
+    m = page.model
+    r0 = m.row_at(0)
+    r0.expected_duration_s, r0.enrich_source = 327, "itunes"
+    idx = m.index(0, m.column_of("duration"))
+    assert "Duración de iTunes" in (m.data(idx, Qt.ItemDataRole.ToolTipRole) or "")
+    assert m.setData(idx, "6:00")
+    assert (r0.expected_duration_s, r0.enrich_source) == (360, None)
+    assert "Duración de iTunes" not in (m.data(idx, Qt.ItemDataRole.ToolTipRole) or "")
+
+
 def test_move_and_remove_keep_row_index_numbering(window):
     page = window.new_set
     page.set_rows(sample_rows(), name="X")

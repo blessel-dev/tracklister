@@ -355,6 +355,7 @@ class TrackTableModel(QAbstractTableModel):
                 r.ts_start = secs
             else:
                 r.expected_duration_s = secs
+                r.enrich_source = None      # a typed duration is the user's (E.23): no enrichment replaces it
         elif key == "artist":
             r.artist_display = text
             r.artists = split_artists(text)

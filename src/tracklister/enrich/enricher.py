@@ -168,7 +168,9 @@ class Enricher:
                 ids_changed = True
         if ids_changed:
             changed.append("ids")
-        if row.enrich_source != provider:
+        # a row with the user's own duration (E.23) never becomes «completed by the store»: otherwise the next
+        # enrichment would take its duration for the store's and replace it (barrido AG-01)
+        if not user_duration and row.enrich_source != provider:
             row.enrich_source = provider
             changed.append("enrich_source")
         if row.confidence < CONFIDENCE_ENRICHED:
