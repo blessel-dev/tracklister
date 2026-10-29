@@ -415,6 +415,36 @@ def test_windows_a_4kb_appledouble_twin_is_never_proposed_nor_touched(as_windows
     assert sorted(p.name for p in folder.iterdir() if p.is_file()) == ["._01 - A - B.flac", "01 - A - B.flac"]
 
 
+def test_apply_reverts_everything_when_a_rename_fails(tmp_path, monkeypatch):
+    """Barrido CL-08 (U.8 N9): with a file of the folder open in Ableton, phase 1 had renamed some files to
+    __tracklister_tmp_<uid> when a PermissionError stopped it. Those names stayed, and the next «Ver propuesta» did
+    not even list them. Now everything is put back, as Descargar already does (U.4), and the message says what to
+    do (with msg_es, so the window no longer shows «Error inesperado (ReorderError)»)."""
+    import shutil
+    folder = tmp_path / "set"
+    _make(folder, ["Phara - Grey Ribbon.flac", "Klint - Gunslingers.wav", "Exos - Ritual.mp3"])
+    rows = [_row(1, "Phara", "Grey Ribbon"), _row(2, "Klint", "Gunslingers"), _row(3, "Exos", "Ritual")]
+    props = propose_reorder(folder, rows)
+    assert [p.status for p in props] == ["match"] * 3
+    before = sorted(p.name for p in folder.iterdir() if p.is_file())
+    real_move, calls = shutil.move, {"n": 0}
+
+    def locked_second(src, dst, *args, **kw):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise PermissionError(13, "El proceso no tiene acceso al archivo porque está siendo utilizado por otro "
+                                      "proceso", src)
+        return real_move(src, dst, *args, **kw)
+    monkeypatch.setattr(shutil, "move", locked_second)
+    with pytest.raises(ReorderError) as e:
+        apply_reorder(folder, props, Journal(folder))
+    assert "está abierto en otro programa" in e.value.msg_es and str(e.value) == e.value.msg_es
+    assert e.value.msg_es.endswith("No se ha renombrado nada.")
+    assert sorted(p.name for p in folder.iterdir() if p.is_file()) == before
+    assert not list(folder.glob("__tracklister_tmp_*"))
+    assert Journal(folder).batches() == []
+
+
 def test_reserved_subdirs_are_ignored(tmp_path):
     folder = tmp_path / "s"
     _make(folder / "_dudosos", ["Phara - Grey Ribbon.flac"])

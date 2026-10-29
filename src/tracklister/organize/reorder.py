@@ -22,6 +22,7 @@ from pathlib import Path
 from tracklister.core.layout import is_reserved_subdir
 from tracklister.core.model import TrackRow
 from tracklister.core.textnorm import nfc, norm_key, versions_compatible
+from tracklister.organize.finalize import RENAME_NOT_REVERTED_ES
 from tracklister.organize.journal import Journal
 from tracklister.organize.naming import is_mac_metadata_file, listing_key, pad_width, track_filename, win_long
 from tracklister.verify.audioinfo import read_tags_and_length
@@ -168,8 +169,19 @@ def propose_reorder(folder: Path, rows: list[TrackRow]) -> list[ReorderProposal]
     return out
 
 
+REORDER_LOCKED_ES = ("No se pudo cambiar el nombre de '{name}': está abierto en otro programa (Ableton, un "
+                     "reproductor…). Ciérralo y vuelve a pulsar «Aplicar cambios».")
+REORDER_FAILED_ES = "No se pudo cambiar el nombre de '{name}' ({err})."
+NOTHING_RENAMED_ES = "No se ha renombrado nada."
+
+
 class ReorderError(ValueError):
-    """str(error) is the Spanish message: nothing was renamed."""
+    """str(error) is the Spanish message: nothing was renamed. msg_es is the same text, so the window shows it
+    as it is (gui.workers.error_text), never as «Error inesperado (ReorderError): …» (barrido CL-08)."""
+
+    def __init__(self, msg_es: str):
+        super().__init__(msg_es)
+        self.msg_es = msg_es
 
 
 def _inside(path: Path, folder: Path) -> bool:
@@ -193,11 +205,32 @@ def apply_reorder(folder: Path, proposals: list[ReorderProposal], journal: Journ
         raise ReorderError(f"La propuesta no es de la carpeta {folder}: vuelve a pulsar «Ver propuesta». "
                            "No se ha renombrado nada.")
     bid = journal.begin("Reordenar carpeta existente")
-    staged = []
-    for p in todo:
-        tmp = journal.move(bid, p.src, Path(p.src).with_name(f"__tracklister_tmp_{p.uid}{Path(p.src).suffix}"), uid=p.uid)
-        staged.append((p, tmp))
-    for p, tmp in staged:
-        p.dst = journal.move(bid, tmp, p.dst, uid=p.uid)
+    current: Path | None = None
+    renamed: list[tuple[ReorderProposal, Path]] = []
+    try:
+        staged = []
+        for p in todo:
+            current = Path(p.src)
+            tmp = journal.move(bid, p.src, Path(p.src).with_name(f"__tracklister_tmp_{p.uid}{Path(p.src).suffix}"),
+                               uid=p.uid)
+            staged.append((p, tmp))
+        for p, tmp in staged:
+            current = Path(p.src)
+            renamed.append((p, journal.move(bid, tmp, p.dst, uid=p.uid)))
+    except Exception as e:
+        # all or nothing, as sync_names (U.4): a file open in Ableton must not leave the others with their
+        # temporary names (barrido CL-08, U.8 N9)
+        not_reverted = journal.discard(bid)          # in reverse order: every temporary name goes back
+        if not isinstance(e, OSError):
+            raise
+        name = current.name if current is not None else "?"
+        if isinstance(e, PermissionError):
+            msg = REORDER_LOCKED_ES.format(name=name)
+        else:
+            msg = REORDER_FAILED_ES.format(name=name, err=e.strerror or type(e).__name__)
+        msg += " " + (" ".join([RENAME_NOT_REVERTED_ES] + not_reverted) if not_reverted else NOTHING_RENAMED_ES)
+        raise ReorderError(msg) from e
     journal.commit(bid)
+    for p, real in renamed:
+        p.dst = real
     return bid
