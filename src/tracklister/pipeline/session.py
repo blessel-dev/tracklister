@@ -309,7 +309,11 @@ class SetSession:
         choice for it is forgotten, so «Descargar» does search it again, as its reason says; if the library still
         has a copy, the repeated-track question comes back (G.3). Barrido CL-07, T.4 N1. Called when a set is
         created or loaded, and when a run starts: also a file deleted with the set open in Descarga (audit
-        AU-3-02; the window calls it before its repeated-track question)."""
+        AU-3-02; the window calls it before its repeated-track question). A set folder that cannot be reached (a
+        USB stick or disk pulled out, a network drive that does not answer) says nothing about its files: then
+        nothing changes, or the next run would download the whole set again (tanda audit AT-1-01)."""
+        if not os.path.isdir(win_long(self.set_dir)):
+            return
         for r in self.doc.rows:
             res = self._res(r.uid)
             if res.state in GOOD and (not res.file or not os.path.exists(win_long(self.set_dir / res.file))):

@@ -265,6 +265,35 @@ def test_a_reused_file_deleted_during_the_session_is_retried(tmp_path, mode):
     assert _res(b, 1).state == ResultState.VERIFICADO and (b.set_dir / _res(b, 1).file).is_file()
 
 
+def test_an_unreachable_set_folder_keeps_its_good_rows(tmp_path):
+    """Tanda audit AT-1-01: since AU-3-02 a run first looks for the files deleted with the set open. When the set
+    folder could not be reached as a run started (the USB stick or disk of the library pulled out, a network drive
+    that does not answer), every good row became «Pendiente», and with the stick back the next «Continuar
+    descarga» searched and downloaded the whole set again (a copy that is not the same byte for byte lands as
+    «… (2)»). A folder that is not there says nothing about its files: the rows stay as they were."""
+    h = Harness(tmp_path)
+    s, runner = h.session("correcto")
+    h.run(s, runner)
+    s.finalize(h.library)
+    good = {uid: (res.state, res.file) for uid, res in s.doc.results.items()}
+    assert {state for state, _ in good.values()} == {ResultState.VERIFICADO}
+    before, passes = _files(s.set_dir), len(s.doc.passes)
+    away = h.lib_root.with_name("biblioteca-fuera")
+    h.lib_root.rename(away)                         # the stick is pulled out: nothing can be read or created there
+    h.lib_root.write_text("", encoding="utf-8")
+    with pytest.raises(OSError):                    # «Reintentar fallos»: set.json cannot be saved there
+        s.retry_failed(runner, CREDS, lambda e: None, threading.Event())
+    assert {uid: (res.state, res.file) for uid, res in s.doc.results.items()} == good
+    h.lib_root.unlink()
+    away.rename(h.lib_root)                         # the stick is back, with the set still open in Descarga
+    _, net = build_scenario("correcto", tmp_path / "net-again")
+    h.run(s, EngineRunner(fake_engine_spec(), SearchBudget(h.paths.search_budget_file),
+                          env={"TRACKLISTER_FAKE_NETWORK": str(net)}))      # «Continuar descarga»
+    assert not [p.name for p in s.doc.passes[passes:] if set(p.uids) & set(good)]
+    assert {uid: (res.state, res.file) for uid, res in s.doc.results.items()} == good
+    assert _files(s.set_dir) == before              # nothing new in the set folder
+
+
 def test_rerun_is_idempotent(tmp_path):
     h = Harness(tmp_path)
     s, runner = h.session("rerun", name="Mismo set")
