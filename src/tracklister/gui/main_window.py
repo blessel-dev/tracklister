@@ -61,7 +61,6 @@ class MainWindow(QMainWindow):
         self.session = None
         self.worker: SessionWorker | None = None
         self._close_when_done = False     # «Salir» was answered: close as soon as the worker has finished
-        self.update_info = None
         self.setWindowTitle(config.APP_NAME)
         self.setWindowIcon(QIcon(str(asset_path(load_tokens()["app_icon"]))))
         self.setMinimumSize(980, 640)
@@ -183,7 +182,6 @@ class MainWindow(QMainWindow):
     def show_update(self, info) -> None:
         if not info:
             return
-        self.update_info = info
         name = getattr(info, "name_es", None) or f"Tracklister {getattr(info, 'latest', '')} ya está disponible"
         url = getattr(info, "url", None) or config.project_url()
         self.update_banner.show_message(f"{name}. Se descarga desde su página de GitHub; no se instala nada solo.",

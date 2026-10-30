@@ -59,10 +59,6 @@ def theme_ids() -> list[str]:
     return list(load_tokens()["themes"])
 
 
-def default_theme_id() -> str:
-    return str(load_tokens()["default_theme"])
-
-
 def load_theme(theme_id: str | None, families: dict[str, str] | None = None) -> Theme:
     tok = load_tokens()
     tid = theme_id if theme_id in tok["themes"] else tok["default_theme"]
@@ -389,7 +385,3 @@ class ThemeManager(QObject):
 
     def bind_icon(self, button, name: str, color_key: str = "ink") -> None:
         self.bind(button, lambda b, t: b.setIcon(ui_icon(t, name, color_key)))
-
-    def bind_state_icon(self, label, state: ResultState, px: int = 16) -> None:
-        self.bind(label, lambda w, t: w.setPixmap(svg_pixmap(state_icon_rel(state), t.state_color(state), px,
-                                                              w.devicePixelRatioF())))

@@ -267,6 +267,26 @@ def test_second_import_replace_or_merge(window, qtbot, prompter, ready_services)
     assert page.model.rowCount() == 1 and "No se ha cambiado nada" in page.banner.message()
 
 
+def test_a_merge_error_is_said_in_spanish(window, qtbot, prompter, ready_services, monkeypatch):
+    """Barrido CL-30: an error while combining two sources showed the raw exception («No se pudieron combinar las
+    dos fuentes: 'x'», in English or empty). It uses the app's Spanish text now, like the other notices."""
+    page = window.new_set
+    page.import_source("a")
+    _wait_rows(qtbot, page, 4)
+
+    def broken_merge(base, extra):
+        raise KeyError("x")
+    monkeypatch.setattr(page, "_merge", broken_merge)
+    prompter.choose_answers = [1]                                      # "Combinar con la actual"
+    ready_services.imports = [fake_import([TrackRow(pos=1, title="Aggression", artists=["Kobosil"],
+                                                    artist_display="Kobosil")])]
+    page.import_source("b")
+    qtbot.waitUntil(lambda: not page._busy, timeout=10000)
+    msg = page.banner.message()
+    assert msg.startswith("No se pudieron combinar las dos fuentes: Error inesperado (KeyError)"), msg
+    assert page.model.rowCount() == 4                                  # nothing changed
+
+
 def test_add_other_source_merges(window, qtbot, prompter, ready_services, tmp_path):
     page = window.new_set
     page.set_rows(sample_rows(), name="X")

@@ -406,8 +406,3 @@ class SettingsPage(QWidget):
             self.update_btn.setEnabled(True)
             self.update_label.setText("No se pudo comprobar ahora.")
         self.window.pool.start(lambda t: self.services.check_for_update(force=True), on_ok=done, on_error=fail)
-
-    def select_theme_button(self, tid: str) -> None:
-        rb = self.theme_buttons.get(tid)
-        if rb is not None and not rb.isChecked():
-            rb.setChecked(True)

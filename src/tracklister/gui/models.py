@@ -632,13 +632,6 @@ class ResultsTableModel(QAbstractTableModel):
             label += f" · {QUALITY_SHORT_ES}"
         return label
 
-    def live_state_text(self, i: int) -> str:
-        """What the Estado cell says now: the progress of a row in flight, else its state."""
-        view = self.progress_view_at(i)
-        if view is not None:
-            return view.text
-        return self.state_text(self._res.get(self._rows[i].uid)) if 0 <= i < len(self._rows) else ""
-
     def data(self, index, role=R.DisplayRole):
         if not index.isValid() or index.row() >= len(self._rows):
             return None

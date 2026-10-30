@@ -52,10 +52,6 @@ class EngineJob:
     desperate: bool = False        # "Reintentar fallos", last pass: --desperate (R4)
 
     @property
-    def input_csv(self) -> Path:
-        return Path(self.work_dir) / INPUT_CSV
-
-    @property
     def out_dir(self) -> Path:
         return Path(self.work_dir) / IN_DIR
 

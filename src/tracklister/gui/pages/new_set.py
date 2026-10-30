@@ -28,6 +28,7 @@ from tracklister.gui.models import ENRICH_ES, TrackTableModel
 from tracklister.gui.pages.common import PRESET_LABEL_ES, downloads_folder
 from tracklister.gui.theme import Theme, svg_pixmap
 from tracklister.gui.widgets import (Banner, DownloadsWatcher, DropZone, button, card, label, page_layout)
+from tracklister.gui.workers import error_text
 from tracklister.assets import load_tokens
 
 PASTE_PLACEHOLDER = ("Enlace de YouTube/SoundCloud, o la tracklist copiada (1001tracklists, MixesDB…)\n"
@@ -408,7 +409,8 @@ class NewSetPage(QWidget):
             try:
                 merged = self._merge(self.model.rows(), rows)
             except Exception as e:  # noqa: BLE001
-                self.banner.show_message(f"No se pudieron combinar las dos fuentes: {e}", "error")
+                # the app's Spanish text, never the raw exception (CL-30)
+                self.banner.show_message(f"No se pudieron combinar las dos fuentes: {error_text(e)}", "error")
                 return
             if merged is None:
                 self.banner.show_message("No se ha cambiado nada.", "info")
