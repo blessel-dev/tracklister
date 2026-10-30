@@ -4,6 +4,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+import sys
+
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel
@@ -175,7 +177,10 @@ def test_mac_boxes_show_the_title(as_macos, qtbot, app):
 
 def test_windows_boxes_keep_their_title_and_text(as_windows, qtbot, app):
     parent, box = _question_box(qtbot)
-    assert box.windowTitle() == "Ya hay una tracklist en la tabla"
+    if sys.platform != "darwin":
+        # On a real Mac, Qt ignores a message box's window title (QMessageBox.setWindowTitle does nothing on macOS,
+        # whatever as_windows simulates): that is why CL-24 makes the title the main text there
+        assert box.windowTitle() == "Ya hay una tracklist en la tabla"
     assert box.text() == "¿Qué hago con la nueva?" and box.informativeText() == ""
 
 
