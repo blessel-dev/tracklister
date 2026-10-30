@@ -213,7 +213,8 @@ def test_closing_during_the_checks_waits_for_them(window, qtbot, ready_services,
     from tracklister.pipeline.session import SetSession
     rows, net = build_scenario("correcto", tmp_path / "net-cerrar")
     ready_services.network = net
-    monkeypatch.setattr(MainWindow, "CLOSE_WAIT_MS", 200)
+    # raising=False: on code without the constant the test fails on what the window does (AU-1-07)
+    monkeypatch.setattr(MainWindow, "CLOSE_WAIT_MS", 200, raising=False)
     entered, gate = threading.Event(), threading.Event()
     real_settle = SetSession._settle_row
 
@@ -252,7 +253,7 @@ def test_each_ignored_close_shows_the_notice_again(window, qtbot, ready_services
     from tracklister.pipeline.session import SetSession
     rows, net = build_scenario("correcto", tmp_path / "net-cerrar")
     ready_services.network = net
-    monkeypatch.setattr(MainWindow, "CLOSE_WAIT_MS", 200)
+    monkeypatch.setattr(MainWindow, "CLOSE_WAIT_MS", 200, raising=False)       # AU-1-07, as above
     entered, gate = threading.Event(), threading.Event()
     real_settle = SetSession._settle_row
 
