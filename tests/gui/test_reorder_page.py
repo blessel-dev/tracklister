@@ -4,6 +4,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 """
 from __future__ import annotations
 
+from pathlib import Path
+from types import SimpleNamespace
+
 import pytest
 from PySide6.QtCore import Qt
 
@@ -110,3 +113,49 @@ def test_tracklist_from_new_set_table(window):
     window.new_set.set_rows(sample_rows(), name="X")
     page.use_table()
     assert len(page.rows) == 4 and "tabla de Nuevo set" in page.source.summary.text()
+
+
+def test_reordenar_refuses_the_folder_of_the_running_download(window, qtbot, ready_services, prompter, tmp_path,
+                                                             monkeypatch):
+    """Barrido CL-09: during a download of a set, «Reordenar» on that set's own folder renamed files under the
+    download (its results then named old files), and the two undo journals overwrote each other's batches.
+    «Ver propuesta», «Aplicar cambios» and «Deshacer el último reordenado» refuse that folder now; another folder
+    works as before."""
+    from tracklister.gui.main_window import MainWindow
+    from tracklister.gui.pages.reorder import RUNNING_SET_ES
+    from tracklister.organize.reorder import ReorderProposal
+    calls = []
+    monkeypatch.setattr(ready_services, "apply_reorder", lambda f, props: calls.append(("apply", Path(f))) or "b")
+    monkeypatch.setattr(ready_services, "undo_reorder", lambda f: calls.append(("undo", Path(f))) or [])
+    monkeypatch.setattr(ready_services, "propose_reorder", lambda f, rows: calls.append(("propose", Path(f))) or [])
+    running = _folder(tmp_path, ["a.flac"])
+    window.go("reorder")
+    page = window.reorder
+
+    def preview(folder):
+        page.folder.setText(str(folder))
+        page.preview_folder = folder
+        page.model.set_proposals([ReorderProposal("u1", 1, folder / "a.flac", folder / "01 - X - A.flac", 90.0,
+                                                  "match", "Coincide 90%.")])
+    page.set_tracklist(sample_rows(), "X")
+    preview(running)
+    window.session = SimpleNamespace(set_dir=running)
+    monkeypatch.setattr(MainWindow, "worker_running", lambda self: True)
+    prompter.confirm_answer = True
+    try:
+        page.apply()
+        page.undo()
+        page.propose()
+        qtbot.wait(300)
+        assert calls == []
+        assert not [c for c in prompter.calls if c[0] == "confirm"]
+        assert page.banner.message() == RUNNING_SET_ES
+        other = tmp_path / "otra carpeta"
+        other.mkdir()
+        (other / "a.flac").write_bytes(b"a")
+        preview(other)                                       # another folder during the download: as before
+        page.apply()
+        qtbot.waitUntil(lambda: calls == [("apply", other)], timeout=10000)
+    finally:
+        monkeypatch.undo()          # no download runs when the window closes after the test
+        window.session = None

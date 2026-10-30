@@ -8,6 +8,7 @@ the folder's journal (never overwrites), and 'Deshacer' reverts the last reorder
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -18,6 +19,9 @@ from tracklister.gui.models import ReorderPreviewModel
 from tracklister.gui.pages.common import downloads_folder
 from tracklister.gui.theme import Theme
 from tracklister.gui.widgets import Banner, SourcePicker, button, label, page_layout
+
+# «Reordenar» on the folder of the set being downloaded (CL-09)
+RUNNING_SET_ES = "Es la carpeta del set que se está descargando: espera a que termine la descarga (o cancélala)."
 
 
 class ReorderPage(QWidget):
@@ -167,8 +171,27 @@ class ReorderPage(QWidget):
         self.banner.hide()
         self.set_tracklist(rows, name)
 
+    def _is_running_set(self, folder: Path) -> bool:
+        """The folder of the set being downloaded: renaming files under the download would leave its results
+        naming old files, and the two undo journals would overwrite each other's batches (CL-09)."""
+        session = self.window.session
+        if not self.window.worker_running() or session is None:
+            return False
+        try:
+            return os.path.samefile(folder, session.set_dir)
+        except OSError:
+            return False
+
+    def _refuse_running_set(self, folder: Path | None) -> bool:
+        if folder is not None and self._is_running_set(folder):
+            self.banner.show_message(RUNNING_SET_ES, "warn")
+            return True
+        return False
+
     def propose(self) -> None:
         f = self._folder()
+        if self._refuse_running_set(f):
+            return
         if f is None or not f.is_dir() or not self.rows:
             return
         self.banner.show_message("Comparando los archivos con la tracklist…", "info", closable=False)
@@ -201,6 +224,8 @@ class ReorderPage(QWidget):
     def apply(self) -> None:
         # always the PREVIEWED folder (its journal gets the undo record), never whatever the field says now
         f = self.preview_folder
+        if self._refuse_running_set(f):
+            return
         chosen = self.model.chosen()
         n = sum(1 for p in chosen if p.status == "match")
         if f is None or self._folder() != f or not n:
@@ -221,7 +246,7 @@ class ReorderPage(QWidget):
 
     def undo(self) -> None:
         f = self._folder()
-        if f is None:
+        if f is None or self._refuse_running_set(f):
             return
         errors = self.services.undo_reorder(f)
         if errors:
