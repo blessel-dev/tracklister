@@ -24,7 +24,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from tracklister import config
 from tracklister.core import osplatform, quarantine
@@ -40,7 +40,9 @@ from tracklister.engine.spec import (DEFAULT_ENGINE_ID, PLATFORM_ENGINE_PINS, en
 from tracklister.library.index import LibraryIndex
 from tracklister.organize.journal import Journal
 from tracklister.organize.naming import safe_component
-from tracklister.pipeline.session import SetSession
+
+if TYPE_CHECKING:   # the session brings numpy and soundfile: imported when a set is created or opened (CL-19)
+    from tracklister.pipeline.session import SetSession
 
 log = logging.getLogger("tracklister.gui")
 
@@ -135,9 +137,11 @@ class Services:
         if root is None:
             raise ValueError("Elige la carpeta de tu biblioteca en Ajustes.")
         root.mkdir(parents=True, exist_ok=True)
+        from tracklister.pipeline.session import SetSession
         return SetSession.create(name, rows, sources, self.settings, root, self.paths, persist=persist)
 
     def load_session(self, set_dir: Path) -> SetSession:
+        from tracklister.pipeline.session import SetSession
         return SetSession.load(Path(set_dir), self.settings, self.paths)
 
     # ---- engine -------------------------------------------------------------------------------

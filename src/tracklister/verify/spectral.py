@@ -16,40 +16,30 @@ tests/verify/test_spectral_calibration.py (the table is in DECISIONES):
   genuine masters low-passed at 20-20.5 kHz (19.75 / 20.25). No mark and no cap: one neutral line.
 - NONE: no sharp cut, or one above AMBIGUOUS_MAX_HZ (a master low-passed at 21 kHz, MP3 V0 of the
   suite's encoder). The check never rejects a file.
+
+The flags, the classes, classify() and the 1.0.0 reason reader live in verify/spectral_marks.py, without numpy
+or soundfile, so the window opens without them (CL-19); they are imported back here.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
-from enum import StrEnum
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 import soundfile as sf
 
-CUT_LOW_HZ, CUT_HIGH_HZ = 15500.0, 21000.0      # detection window (was 15.5-20.5 kHz in 1.0.0)
-MIN_DROP_DB = 25.0
-BAND_HZ = 250.0
-STRONG_MAX_HZ = 19500.0          # calibration: 256 kbps cuts at 19.25 kHz, a 20.0 kHz master at 19.75
-STRONG_MIN_DROP_DB = 25.0        # = MIN_DROP_DB: every sharp cut below STRONG_MAX_HZ is strong
-AMBIGUOUS_MAX_HZ = 20800.0       # calibration: MP3 320 at 20.0 kHz, a 20.5 kHz master at 20.25, 21.0 -> 21.0
+from tracklister.verify.spectral_marks import (  # noqa: F401  (re-exported for the old imports)
+    AMBIGUOUS_MAX_HZ, LEGACY_FLAG, MARK_ES, MIN_DROP_DB, STRONG_FLAG, STRONG_MAX_HZ, STRONG_MIN_DROP_DB,
+    SpectralClass, classify, legacy_class, legacy_cut,
+)
 
-STRONG_FLAG = "probable_mp3_convertido"      # RowResult/LibraryEntry flag of the strong mark (1.0.1)
-LEGACY_FLAG = "posible_falso_lossless"       # the 1.0.0 flag: any sharp cut, strong or not
+CUT_LOW_HZ, CUT_HIGH_HZ = 15500.0, 21000.0      # detection window (was 15.5-20.5 kHz in 1.0.0)
+BAND_HZ = 250.0
 
 REASON_STRONG_ES = ("Probable MP3 convertido: corte brusco a {khz} kHz (cae {db} dB). Se queda en el set con su "
                     "número; «Reintentar fallos» busca otra copia.")
 REASON_AMBIGUOUS_ES = ("Corte a {khz} kHz: habitual tanto en MP3 320 como en másters legítimos; no se puede saber "
                        "solo con el espectro.")
-MARK_ES = ("Marca: probable MP3 convertido. Puede sonar igual y tener menos calidad; «Reintentar fallos» "
-           "busca otra copia.")
-
-
-class SpectralClass(StrEnum):
-    NONE = "ninguno"
-    AMBIGUOUS = "ambiguo"
-    STRONG = "probable_mp3"
 
 
 @dataclass(frozen=True)
@@ -66,42 +56,12 @@ def khz_es(hz: float) -> str:
     return f"{hz / 1000:.1f}".replace(".", ",")
 
 
-def classify(cutoff_hz: float | None, drop_db: float | None) -> SpectralClass:
-    """The class of a sharp cut (pure: the calibration test pins it, also on the user's measurements)."""
-    if cutoff_hz is None or drop_db is None or drop_db < MIN_DROP_DB:
-        return SpectralClass.NONE
-    if cutoff_hz < STRONG_MAX_HZ and drop_db >= STRONG_MIN_DROP_DB:
-        return SpectralClass.STRONG
-    if cutoff_hz <= AMBIGUOUS_MAX_HZ:
-        return SpectralClass.AMBIGUOUS
-    return SpectralClass.NONE
-
-
 def reason_for(klass: SpectralClass, cutoff_hz: float | None, drop_db: float | None) -> str | None:
     if klass == SpectralClass.STRONG:
         return REASON_STRONG_ES.format(khz=khz_es(cutoff_hz), db=f"{drop_db:.0f}")
     if klass == SpectralClass.AMBIGUOUS:
         return REASON_AMBIGUOUS_ES.format(khz=khz_es(cutoff_hz))
     return None
-
-
-_LEGACY_REASON = re.compile(r"corte brusco a (\d+(?:[.,]\d+)?) kHz \(cae (\d+(?:[.,]\d+)?) dB")
-
-
-def legacy_cut(reasons: Iterable[str]) -> tuple[float, float] | None:
-    """(cutoff Hz, drop dB) written by 1.0.0 in its reason 'Posible lossless falso: corte brusco a 18.8 kHz
-    (cae 42 dB ...)', or None. The kHz there were rounded to one decimal."""
-    for r in reasons or ():
-        m = _LEGACY_REASON.search(r or "")
-        if m:
-            return float(m.group(1).replace(",", ".")) * 1000.0, float(m.group(2).replace(",", "."))
-    return None
-
-
-def legacy_class(reasons: Iterable[str]) -> SpectralClass | None:
-    """The 1.0.1 class of a 1.0.0 spectral mark, from its reason text; None if the text says nothing."""
-    cut = legacy_cut(reasons)
-    return classify(*cut) if cut else None
 
 
 def _average_spectrum(path: Path, windows: int, fft_size: int) -> tuple[np.ndarray, int] | None:

@@ -74,6 +74,16 @@ def test_the_app_starts_numpy_with_one_openblas_thread(monkeypatch):
     assert entry.main() == "1"
 
 
+def test_the_window_modules_load_without_numpy(tmp_path):
+    """CL-19: opening the window needs neither numpy nor soundfile; they load the first time a file is checked (a
+    download, «Reordenar» or the Diagnóstico). A fresh interpreter, because this process has imported them already."""
+    code = ("import sys, tracklister.gui.app, tracklister.gui.main_window, tracklister.gui.services; "
+            "print(sorted(m for m in ('numpy', 'soundfile') if m in sys.modules))")
+    r = subprocess.run([sys.executable, "-c", code], env=_env(tmp_path), capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stderr[-2000:]
+    assert r.stdout.strip() == "[]"
+
+
 def test_flags_and_quit_after(tmp_path):
     import tracklister.__main__ as entry
     assert callable(entry.main)

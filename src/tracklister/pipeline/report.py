@@ -10,7 +10,7 @@ from collections import Counter
 from tracklister.core.layout import DUDOSOS, ORIGINALES
 from tracklister.core.model import DoubtKind, ResultState, RowResult, SetDoc, TrackRow
 from tracklister.organize.naming import pad_width
-from tracklister.verify.spectral import LEGACY_FLAG, MARK_ES, STRONG_FLAG, SpectralClass, legacy_class
+from tracklister.verify.spectral_marks import LEGACY_FLAG, MARK_ES, STRONG_FLAG, SpectralClass, legacy_class
 
 STATE_ES = {
     ResultState.PENDIENTE: "Pendiente", ResultState.EN_CURSO: "En curso", ResultState.VERIFICADO: "Verificado",

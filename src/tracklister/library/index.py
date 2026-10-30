@@ -27,7 +27,7 @@ from tracklister.core.model import (
 )
 from tracklister.core.textnorm import classify_version, norm_key, split_artists, version_key
 from tracklister.organize.naming import listing_key, win_long
-from tracklister.verify.spectral import LEGACY_FLAG, STRONG_FLAG, SpectralClass, legacy_class
+from tracklister.verify.spectral_marks import LEGACY_FLAG, STRONG_FLAG, SpectralClass, legacy_class
 
 log = logging.getLogger("tracklister.library")
 
