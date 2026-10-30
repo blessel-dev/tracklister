@@ -81,6 +81,7 @@ class NewSetPage(QWidget):
         self.sources: list[SourceRef] = []
         self.last_result = None
         self._busy = False
+        self._cand_switchable = False         # the comment list can switch rows (when the page is not busy)
         self.watcher: DownloadsWatcher | None = None
         self._dismissed_gaps: set = set()     # gap rows the user deleted (inputs.gaps.gap_key): never re-added
 
@@ -283,6 +284,8 @@ class NewSetPage(QWidget):
                   self.down_btn, self.add_btn, self.del_btn):
             b.setEnabled(not busy)
         self.drop.setAcceptDrops(not busy)
+        # another comment would replace the rows while they are being completed (CL-29)
+        self.cand_box.setEnabled(not busy and self._cand_switchable)
         self._update_counts()
 
     def _update_counts(self) -> None:
@@ -471,6 +474,7 @@ class NewSetPage(QWidget):
         cands = list(getattr(result, "candidates", None) or []) if result is not None else []
         chosen = getattr(result, "chosen", None) if result is not None else None
         self.cand_box.clear()
+        self._cand_switchable = False
         if len(cands) < 2 and not (cands and chosen is None):
             self.cand_row.hide()
             return
@@ -479,7 +483,8 @@ class NewSetPage(QWidget):
         self.cand_box.setPlaceholderText("Elige una tracklist")
         self.cand_box.setCurrentIndex(chosen if isinstance(chosen, int) and 0 <= chosen < len(cands) else -1)
         switchable = all(getattr(c, "rows", None) for c in cands)
-        self.cand_box.setEnabled(switchable)
+        self._cand_switchable = switchable
+        self.cand_box.setEnabled(switchable and not self._busy)
         self.cand_hint.setText("" if switchable else
                                "Si prefieres otra, cópiala del vídeo y pégala en «Pega un enlace o un texto».")
         self.cand_row.show()
@@ -631,5 +636,12 @@ class NewSetPage(QWidget):
     def _on_new_download(self, path: str) -> None:
         p = Path(path)
         self.watch_banner.show_message(f"Hay un CSV nuevo de trackid.net en Descargas: {p.name}", "info",
-                                       actions=[("Importar", lambda: (self.watch_banner.hide(),
-                                                                      self.import_source(p)))])
+                                       actions=[("Importar", lambda: self._import_from_downloads(p))])
+
+    def _import_from_downloads(self, p: Path) -> None:
+        """«Importar» in the notice: while the page is busy nothing can be imported, so the notice stays and can be
+        pressed again later (CL-29)."""
+        if self._busy:
+            return
+        self.watch_banner.hide()
+        self.import_source(p)

@@ -356,6 +356,34 @@ def test_downloads_watcher_offers_new_trackid_csv(window, qtbot, ready_services,
     assert page.watcher is None
 
 
+def test_candidates_locked_while_busy(window, qtbot, ready_services, tmp_path):
+    """Barrido CL-29: during «Completar datos» another YouTube comment could be chosen (the rows were replaced and
+    what had been completed was dropped), and «Importar» in the notice of a new CSV in Descargas hid the notice and
+    imported nothing (import_source does nothing while the page is busy). The list of comments waits like the other
+    buttons now, and the notice stays until the import can start."""
+    page = window.new_set
+    page._show_candidates(fake_import(candidates=[FakeCandidate("Comentario A", 4, rows=sample_rows()),
+                                                  FakeCandidate("Comentario B", 4, rows=sample_rows())], chosen=0))
+    assert page.cand_box.isEnabled()
+    page._set_busy(True)
+    assert not page.cand_box.isEnabled()
+    page._on_new_download(str(tmp_path / "trackid-nuevo.csv"))
+    page.watch_banner.actions.itemAt(0).widget().click()             # «Importar» while busy: it waits
+    assert page.watch_banner.isVisible() and ready_services.import_calls == []
+    page._set_busy(False)
+    assert page.cand_box.isEnabled()
+    page.watch_banner.actions.itemAt(0).widget().click()             # pressed again once the page is free
+    assert not page.watch_banner.isVisible()
+    qtbot.waitUntil(lambda: not page._busy, timeout=10000)
+    assert ready_services.import_calls == [tmp_path / "trackid-nuevo.csv"]
+    # a list of comments that cannot be switched stays disabled when the page is free again
+    page._show_candidates(fake_import(candidates=[FakeCandidate("Comentario A", 4), FakeCandidate("Comentario B", 4)],
+                                      chosen=0))
+    page._set_busy(True)
+    page._set_busy(False)
+    assert not page.cand_box.isEnabled()
+
+
 def test_download_needs_rows_and_a_name(window):
     page = window.new_set
     page.request_download()
